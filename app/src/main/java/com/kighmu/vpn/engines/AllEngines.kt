@@ -90,7 +90,7 @@ class SshWebSocketEngine(
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 KighmuLogger.error(TAG, "WebSocket error: ${t.message}")
-                if (running) engineScope.launch { connectWebSocket() } // reconnect
+                if (running) engineScope.launch { connectWebSocket() as Unit } // reconnect
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 KighmuLogger.info(TAG, "WebSocket closed: $reason")
@@ -450,7 +450,7 @@ class XrayEngine(
             }
         }
 
-        KighmuLogger.info(TAG, "Xray process started (PID: ${xrayProcess?.pid() ?: -1})")
+        KighmuLogger.info(TAG, "Xray process started (PID: ${"N/A"})")
     }
 
     private fun startFallbackProxy() {
