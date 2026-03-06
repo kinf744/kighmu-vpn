@@ -14,10 +14,8 @@ jobs:
           distribution: 'temurin'
       - name: Get Gradle Wrapper
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/g.zip
-          cd /tmp && unzip g.zip
-          find /tmp -name "gradle-wrapper.jar" -exec cp {} $GITHUB_WORKSPACE/gradle/wrapper/gradle-wrapper.jar \;
-          cd $GITHUB_WORKSPACE && chmod +x gradlew
+          curl -sL https://raw.githubusercontent.com/nicholasgasior/gsfmt/master/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+          chmod +x gradlew
       - uses: nttld/setup-ndk@v1
         id: ndk
         with:
