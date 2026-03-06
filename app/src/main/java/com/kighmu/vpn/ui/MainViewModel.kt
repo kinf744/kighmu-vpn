@@ -56,7 +56,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Register receiver
         val filter = IntentFilter(KighmuVpnService.BROADCAST_STATUS)
-        application.registerReceiver(statusReceiver, filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            application.registerReceiver(statusReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            application.registerReceiver(statusReceiver, filter)
+        }
 
         // Sync current service status
         _connectionStatus.value = KighmuVpnService.currentStatus
