@@ -26,6 +26,8 @@
     </style>
 
     <!-- Card style -->
+    <style name="Widget.KighmuVPN" parent="Widget.MaterialComponents.CardView"></style>
+
     <style name="Widget.KighmuVPN.Card" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/surface_dark</item>
         <item name="cardElevation">4dp</item>
