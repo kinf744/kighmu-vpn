@@ -111,8 +111,8 @@ dependencies {
     implementation 'org.bouncycastle:bcprov-jdk15to18:1.77'
 
     // Code editor / JSON highlight
-    implementation 'com.github.Rosemoe.sora-editor:editor:0.23.4'
-    implementation 'com.github.Rosemoe.sora-editor:language-textmate:0.23.4'
+    
+    
 
     // Charts
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
