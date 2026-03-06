@@ -53,7 +53,7 @@ class SshWebSocketEngine(
         return LOCAL_SOCKS_PORT
     }
 
-    private suspend fun connectWebSocket() = withContext(Dispatchers.IO) {
+    private suspend fun connectWebSocket(): Unit = withContext(Dispatchers.IO) {
         val scheme = if (wsConfig.useWss) "wss" else "ws"
         val url = "$scheme://${wsConfig.wsHost}:${wsConfig.wsPort}${wsConfig.wsPath}"
         KighmuLogger.info(TAG, "Connecting WebSocket: $url")
