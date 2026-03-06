@@ -3,7 +3,7 @@
     package="com.kighmu.vpn">
     <application
         android:label="KIGHMU VPN"
-        android:theme="@style/Theme.AppCompat">
+        android:theme="@style/Theme.AppCompat.NoActionBar">
         <activity
             android:name=".ui.activities.MainActivity"
             android:exported="true">
