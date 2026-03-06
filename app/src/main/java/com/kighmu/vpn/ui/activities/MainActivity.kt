@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.navigation.findNavController
-import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.kighmu.vpn.R
@@ -21,10 +20,8 @@ class MainActivity : AppCompatActivity() {
         try {
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
-            setSupportActionBar(binding.toolbar)
             val navView: BottomNavigationView = binding.bottomNav
             val navController = findNavController(R.id.nav_host_fragment)
-            setupActionBarWithNavController(navController)
             navView.setupWithNavController(navController)
             Toast.makeText(this, "Navigation OK", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
