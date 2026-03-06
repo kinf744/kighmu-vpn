@@ -15,8 +15,9 @@ jobs:
       - name: Get Gradle Wrapper
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/g.zip
-          unzip -p /tmp/g.zip "*/gradle-wrapper.jar" > gradle/wrapper/gradle-wrapper.jar
-          chmod +x gradlew
+          cd /tmp && unzip g.zip
+          find /tmp -name "gradle-wrapper.jar" -exec cp {} $GITHUB_WORKSPACE/gradle/wrapper/gradle-wrapper.jar \;
+          cd $GITHUB_WORKSPACE && chmod +x gradlew
       - uses: nttld/setup-ndk@v1
         id: ndk
         with:
