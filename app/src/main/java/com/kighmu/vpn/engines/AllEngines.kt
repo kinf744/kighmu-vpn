@@ -450,7 +450,7 @@ class XrayEngine(
             }
         }
 
-        KighmuLogger.info(TAG, "Xray process started (PID: ${xrayProcess?.pid()?.toInt()})")
+        KighmuLogger.info(TAG, "Xray process started (PID: ${xrayProcess?.pid() ?: -1})")
     }
 
     private fun startFallbackProxy() {
