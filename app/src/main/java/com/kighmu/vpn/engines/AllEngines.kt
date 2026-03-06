@@ -1,4 +1,5 @@
 package com.kighmu.vpn.engines
+import com.kighmu.vpn.models.XrayConfig
 
 import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
@@ -449,7 +450,7 @@ class XrayEngine(
             }
         }
 
-        KighmuLogger.info(TAG, "Xray process started (PID: ${xrayProcess?.pid()})")
+        KighmuLogger.info(TAG, "Xray process started (PID: ${xrayProcess?.pid()?.toInt()})")
     }
 
     private fun startFallbackProxy() {
