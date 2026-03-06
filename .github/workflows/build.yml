@@ -12,16 +12,16 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Get Gradle Wrapper
-        run: |
-          curl -sL https://raw.githubusercontent.com/nicholasgasior/gsfmt/master/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
-          chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
       - uses: nttld/setup-ndk@v1
         id: ndk
         with:
           ndk-version: r26d
       - name: Build APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
       - uses: actions/upload-artifact@v4
