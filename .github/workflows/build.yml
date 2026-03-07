@@ -25,28 +25,21 @@ jobs:
         with:
           go-version: '1.22'
       - name: Build dnstt-client for Android ARM
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p app/src/main/assets/dnstt
-          cd /tmp
-          # Utiliser go install directement
-          GOPATH=/tmp/gopath
-          mkdir -p $GOPATH
-          export GOPATH=$GOPATH
-          go install -v github.com/jech/dnstt/dnstt-client@latest 2>&1 || true
-          # Compiler pour android/arm
-          go env GOPATH
-          find $GOPATH -name "*.go" 2>/dev/null | head -5
-          # Alternative: wget avec user-agent
-          wget -q --user-agent="Mozilla/5.0"             "https://codeload.github.com/jech/dnstt/tar.gz/refs/heads/master"             -O /tmp/dnstt.tar.gz
-          ls -la /tmp/dnstt.tar.gz
-          file /tmp/dnstt.tar.gz
-          tar -xzf /tmp/dnstt.tar.gz -C /tmp/
-          ls /tmp/ | grep dnstt
-          cd /tmp/dnstt-master/dnstt-client
+          # Configurer git pour utiliser le token GitHub
+          git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
+          # Cloner avec token
+          git clone --depth=1 https://github.com/jech/dnstt.git /tmp/dnstt-src
+          cd /tmp/dnstt-src/dnstt-client
+          echo "Go version: $(go version)"
           GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -v -o /tmp/dnstt-client . 2>&1
           if [ -f /tmp/dnstt-client ]; then
             cp /tmp/dnstt-client $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
-            echo "SUCCESS: $(ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/)"
+            echo "SUCCESS"
+            ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/
           else
             echo "FAILED - placeholder"
             echo "placeholder" > $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
