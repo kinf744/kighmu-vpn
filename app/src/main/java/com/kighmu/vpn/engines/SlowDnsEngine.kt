@@ -125,9 +125,9 @@ class SlowDnsEngine(
             KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
 
             // Repondre 200 au client
-            out.write("HTTP/1.0 200 Connection established
+            out.write(byteArrayOf(72,84,84,80,47,49,46,48,32,50,48,48,32,79,75,13,10,13,10))
 
-".toByteArray())
+
             out.flush()
             KighmuLogger.info(TAG, "Tunnel HTTP etabli - relay SSH demarre")
 
