@@ -111,9 +111,22 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
                 startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
 
+                // Log config summary
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Config: ${currentConfig.configName}")
+
                 // Start tunnel engine
-                tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService)
-                val localPort = tunnelEngine!!.start()
+                val localPort = try {
+                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService)
+                    tunnelEngine!!.start()
+                } catch (e: Exception) {
+                    com.kighmu.vpn.utils.KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
+                    updateStatus(ConnectionStatus.ERROR, "Tunnel error: ${e.message}")
+                    stopSelf()
+                    return@launch
+                }
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Engine démarré sur port $localPort")
 
                 updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
 

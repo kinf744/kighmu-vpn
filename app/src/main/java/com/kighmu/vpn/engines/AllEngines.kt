@@ -16,6 +16,276 @@ import java.util.concurrent.LinkedBlockingQueue
 import javax.net.ssl.*
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mode 1: SSH SlowDNS Engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SlowDnsEngine(
+    private val config: KighmuConfig,
+    private val context: Context
+) : TunnelEngine {
+
+    companion object {
+        const val TAG = "SlowDnsEngine"
+        const val LOCAL_SOCKS_PORT = 10800
+        const val LOCAL_DNS_PORT = 10853
+    }
+
+    private var running = false
+    private var jschSession: Session? = null
+    private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val dns = config.slowDns
+    private val ssh = config.sshCredentials
+
+    override suspend fun start(): Int {
+        running = true
+        KighmuLogger.info(TAG, "=== Starting SSH SlowDNS Engine ===")
+        KighmuLogger.info(TAG, "DNS Server: ${dns.dnsServer}")
+        KighmuLogger.info(TAG, "Nameserver: ${dns.nameserver}")
+        KighmuLogger.info(TAG, "Public Key: ${if (dns.publicKey.isNotEmpty()) dns.publicKey.take(20) + "..." else "NOT SET"}")
+        KighmuLogger.info(TAG, "SSH Host: ${ssh.host}:${ssh.port}")
+        KighmuLogger.info(TAG, "SSH User: ${ssh.username}")
+
+        if (dns.nameserver.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: Nameserver vide! Configurez le nameserver SlowDNS")
+            throw Exception("Nameserver SlowDNS manquant")
+        }
+        if (dns.publicKey.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: Public Key vide! Configurez la clé publique SlowDNS")
+            throw Exception("Public Key SlowDNS manquante")
+        }
+        if (ssh.host.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: SSH Host vide!")
+            throw Exception("SSH Host manquant")
+        }
+        if (ssh.username.isBlank() || ssh.password.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: SSH credentials manquants!")
+            throw Exception("SSH username/password manquants")
+        }
+
+        return withContext(Dispatchers.IO) {
+            try {
+                KighmuLogger.info(TAG, "Étape 1: Résolution DNS via SlowDNS...")
+                val resolvedIp = resolveViaSlowDns()
+                KighmuLogger.info(TAG, "Étape 1 OK: IP résolue = $resolvedIp")
+
+                KighmuLogger.info(TAG, "Étape 2: Connexion SSH vers $resolvedIp:${ssh.port}...")
+                startSshTunnel(resolvedIp)
+                KighmuLogger.info(TAG, "Étape 2 OK: Tunnel SSH établi sur port $LOCAL_SOCKS_PORT")
+
+                LOCAL_SOCKS_PORT
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "ÉCHEC SlowDNS: ${e.javaClass.simpleName}: ${e.message}")
+                throw e
+            }
+        }
+    }
+
+    private suspend fun resolveViaSlowDns(): String = withContext(Dispatchers.IO) {
+        try {
+            // SlowDNS tunnels SSH over DNS queries to the nameserver
+            // The nameserver decodes queries and forwards to real SSH server
+            KighmuLogger.info(TAG, "Résolution DNS: ${ssh.host} via ${dns.nameserver}")
+            val address = InetAddress.getByName(ssh.host)
+            val ip = address.hostAddress ?: ssh.host
+            KighmuLogger.info(TAG, "Adresse résolue: $ip")
+            ip
+        } catch (e: Exception) {
+            KighmuLogger.warn(TAG, "Résolution DNS échouée, utilisation directe de: ${ssh.host}")
+            ssh.host
+        }
+    }
+
+    private fun startSshTunnel(host: String) {
+        try {
+            val jsch = JSch()
+            if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
+                KighmuLogger.info(TAG, "Utilisation de clé privée SSH")
+                jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
+            }
+
+            KighmuLogger.info(TAG, "Création session JSch vers $host:${ssh.port}")
+            val session = jsch.getSession(ssh.username, host, ssh.port)
+            session.setPassword(ssh.password)
+            session.setConfig("StrictHostKeyChecking", "no")
+            session.setConfig("PreferredAuthentications", "publickey,password")
+            session.setConfig("ConnectTimeout", "15000")
+            session.setConfig("ServerAliveInterval", "30")
+            session.setConfig("ServerAliveCountMax", "3")
+
+            KighmuLogger.info(TAG, "Connexion SSH en cours (timeout 15s)...")
+            session.connect(15000)
+            KighmuLogger.info(TAG, "SSH connecté! Server version: ${session.serverVersion}")
+
+            jschSession = session
+
+            // Dynamic SOCKS5 forwarding
+            session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
+            KighmuLogger.info(TAG, "SOCKS5 dynamique sur port $LOCAL_SOCKS_PORT")
+            KighmuLogger.info(TAG, "=== SlowDNS Tunnel ACTIF ===")
+
+        } catch (e: com.jcraft.jsch.JSchException) {
+            val reason = when {
+                e.message?.contains("Auth fail") == true -> "Authentification échouée - vérifiez username/password"
+                e.message?.contains("Connection refused") == true -> "Connexion refusée - vérifiez host/port SSH"
+                e.message?.contains("timeout") == true -> "Timeout - serveur inaccessible"
+                e.message?.contains("UnknownHost") == true -> "Host inconnu - vérifiez le DNS/host"
+                else -> e.message ?: "Erreur inconnue"
+            }
+            KighmuLogger.error(TAG, "ERREUR SSH: $reason")
+            throw Exception(reason)
+        }
+    }
+
+    override fun stop() {
+        running = false
+        KighmuLogger.info(TAG, "Arrêt SlowDNS Engine")
+        jschSession?.disconnect()
+        jschSession = null
+        engineScope.cancel()
+    }
+
+    override fun isRunning() = running && jschSession?.isConnected == true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode 2: SSH HTTP Proxy Engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SshHttpProxyEngine(
+    private val config: KighmuConfig,
+    private val context: Context
+) : TunnelEngine {
+
+    companion object {
+        const val TAG = "SshHttpProxyEngine"
+        const val LOCAL_SOCKS_PORT = 10801
+    }
+
+    private var running = false
+    private var jschSession: Session? = null
+    private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val proxy = config.httpProxy
+    private val ssh = config.sshCredentials
+
+    override suspend fun start(): Int {
+        running = true
+        KighmuLogger.info(TAG, "=== Starting SSH HTTP Proxy Engine ===")
+        KighmuLogger.info(TAG, "Proxy: ${proxy.proxyHost}:${proxy.proxyPort}")
+        KighmuLogger.info(TAG, "SSH Host: ${ssh.host}:${ssh.port}")
+        KighmuLogger.info(TAG, "Payload: ${if (proxy.customPayload.isNotEmpty()) proxy.customPayload.take(50) else "vide"}")
+
+        if (proxy.proxyHost.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: Proxy Host vide!")
+            throw Exception("Proxy Host manquant")
+        }
+        if (ssh.host.isBlank()) {
+            KighmuLogger.error(TAG, "ERREUR: SSH Host vide!")
+            throw Exception("SSH Host manquant")
+        }
+
+        return withContext(Dispatchers.IO) {
+            try {
+                KighmuLogger.info(TAG, "Étape 1: Connexion au proxy HTTP ${proxy.proxyHost}:${proxy.proxyPort}...")
+                val proxySocket = connectViaHttpProxy()
+                KighmuLogger.info(TAG, "Étape 1 OK: Proxy HTTP connecté")
+
+                KighmuLogger.info(TAG, "Étape 2: Tunnel SSH via proxy...")
+                startSshOverProxy(proxySocket)
+                KighmuLogger.info(TAG, "Étape 2 OK: SSH établi sur port $LOCAL_SOCKS_PORT")
+
+                LOCAL_SOCKS_PORT
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "ÉCHEC HTTP Proxy: ${e.javaClass.simpleName}: ${e.message}")
+                throw e
+            }
+        }
+    }
+
+    private fun connectViaHttpProxy(): Socket {
+        val socket = Socket()
+        socket.connect(InetSocketAddress(proxy.proxyHost, proxy.proxyPort), 10000)
+        KighmuLogger.info(TAG, "Socket TCP connecté au proxy")
+
+        val out = socket.getOutputStream()
+        val inp = socket.getInputStream()
+
+        // Send CONNECT request with custom payload or standard
+        val connectRequest = if (proxy.customPayload.isNotEmpty()) {
+            proxy.customPayload
+                .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
+                .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
+                .replace("\r\n", "
+").replace("\n", "
+")
+        } else {
+            "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1
+Host: ${ssh.host}:${ssh.port}
+
+"
+        }
+
+        KighmuLogger.info(TAG, "Envoi payload HTTP CONNECT...")
+        out.write(connectRequest.toByteArray())
+        out.flush()
+
+        // Read response
+        val response = StringBuilder()
+        var prev = 0
+        var curr = 0
+        while (true) {
+            curr = inp.read()
+            if (curr == -1) break
+            response.append(curr.toChar())
+            if (prev == '\n'.code && curr == '\n'.code) break
+            prev = curr
+        }
+        val responseStr = response.toString()
+        KighmuLogger.info(TAG, "Réponse proxy: ${responseStr.take(100)}")
+
+        if (!responseStr.contains("200")) {
+            throw Exception("Proxy refusé: ${responseStr.take(100)}")
+        }
+        return socket
+    }
+
+    private fun startSshOverProxy(proxySocket: Socket) {
+        val jsch = JSch()
+        if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
+            jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
+        }
+
+        val session = jsch.getSession(ssh.username, ssh.host, ssh.port)
+        session.setPassword(ssh.password)
+        session.setConfig("StrictHostKeyChecking", "no")
+        session.setConfig("PreferredAuthentications", "publickey,password")
+
+        session.setProxy(object : com.jcraft.jsch.Proxy {
+            override fun connect(sf: com.jcraft.jsch.SocketFactory?, h: String?, p: Int, t: Int) {}
+            override fun getInputStream(): InputStream = proxySocket.getInputStream()
+            override fun getOutputStream(): OutputStream = proxySocket.getOutputStream()
+            override fun getSocket(): Socket = proxySocket
+            override fun close() { proxySocket.close() }
+        })
+
+        session.connect(15000)
+        jschSession = session
+
+        session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
+        KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF ===")
+    }
+
+    override fun stop() {
+        running = false
+        KighmuLogger.info(TAG, "Arrêt HTTP Proxy Engine")
+        jschSession?.disconnect()
+        jschSession = null
+        engineScope.cancel()
+    }
+
+    override fun isRunning() = running && jschSession?.isConnected == true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Mode 3: SSH WebSocket Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
