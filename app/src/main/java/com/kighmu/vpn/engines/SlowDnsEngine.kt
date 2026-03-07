@@ -179,12 +179,11 @@ class SlowDnsEngine(
         val session = jsch.getSession(ssh.username, ssh.host, ssh.port)
         session.setPassword(ssh.password)
         session.setConfig("StrictHostKeyChecking", "no")
-        session.setConfig("PreferredAuthentications", "publickey,password")
-        session.setConfig("compression.s2c", "zlib@openssh.com,zlib,none")
-        session.setConfig("compression.c2s", "zlib@openssh.com,zlib,none")
-        session.setConfig("compression_level", "9")
-        // Test: connexion directe sans proxy
-        KighmuLogger.info(TAG, "SSH connexion DIRECTE (timeout 30s)...")
+        session.setConfig("PreferredAuthentications", "password")
+        session.setConfig("compression.s2c", "none")
+        session.setConfig("compression.c2s", "none")
+        session.setTimeout(30000)
+        KighmuLogger.info(TAG, "SSH connexion DIRECTE vers ${ssh.host}:${ssh.port}...")
         session.connect(30000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
