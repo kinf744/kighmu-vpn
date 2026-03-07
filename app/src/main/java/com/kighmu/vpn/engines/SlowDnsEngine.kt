@@ -115,9 +115,8 @@ class SlowDnsEngine(
             val clientOut = client.getOutputStream()
 
             // Envoyer CONNECT via DNS (comme SSH Custom: CONNECT 127.0.0.1:port HTTP/1.0)
-            val connectMsg = "CONNECT ${ssh.host}:${ssh.port} HTTP/1.0
+            val connectMsg = "CONNECT ${ssh.host}:${ssh.port} HTTP/1.0\r\n\r\n"
 
-"
             KighmuLogger.info(TAG, "CONNECT ${ssh.host}:${ssh.port} HTTP/1.0")
             KighmuLogger.info(TAG, "Sending payload")
 
