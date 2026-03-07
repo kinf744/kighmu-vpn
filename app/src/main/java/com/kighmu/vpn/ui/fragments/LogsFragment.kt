@@ -4,14 +4,34 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
+import com.kighmu.vpn.R
+import com.kighmu.vpn.ui.MainViewModel
+import kotlinx.coroutines.launch
 
 class LogsFragment : Fragment() {
+    private val viewModel: MainViewModel by activityViewModels()
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val tv = TextView(requireContext())
-        tv.text = "Logs OK"
-        tv.textSize = 20f
-        return tv
+        return inflater.inflate(R.layout.fragment_logs, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val tvLogs = view.findViewById<TextView>(R.id.tv_logs)
+        val btnClear = view.findViewById<Button>(R.id.btn_clear_logs)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.logs.collect { logs ->
+                tvLogs.text = logs.joinToString("
+") { "[${it.level}] ${it.message}" }
+            }
+        }
+
+        btnClear.setOnClickListener { viewModel.clearLogs() }
     }
 }
