@@ -1,108 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/background_dark">
-
-    <!-- Header: Config Name + Save -->
+    android:background="#0D1117">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center_vertical"
-        android:background="@color/surface_dark">
-
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            app:boxStrokeColor="@color/accent_blue"
-            app:hintTextColor="@color/text_hint">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_config_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Config Name"
-                android:textColor="@color/text_primary"
-                android:inputType="text" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_save_config"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SAVE"
-            android:textSize="12sp"
-            app:backgroundTint="@color/accent_blue"
-            app:cornerRadius="8dp" />
+        android:orientation="vertical"
+        android:padding="16dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Configuration" android:textColor="#FFFFFF" android:textSize="20sp"/>
+        <EditText android:id="@+id/et_config_name" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="Config Name"
+            android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <TextView android:id="@+id/tv_section_ssh" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="SSH Settings"
+            android:textColor="#4FC3F7" android:layout_marginTop="16dp"/>
+        <EditText android:id="@+id/et_ssh_host" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="SSH Host"
+            android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <EditText android:id="@+id/et_ssh_port" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="SSH Port (22)"
+            android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <EditText android:id="@+id/et_ssh_user" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="Username"
+            android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <EditText android:id="@+id/et_ssh_pass" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="Password"
+            android:inputType="textPassword" android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <Button android:id="@+id/btn_save_config" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="SAVE CONFIG"
+            android:backgroundTint="#2196F3" android:textColor="#FFFFFF"
+            android:layout_marginTop="16dp"/>
     </LinearLayout>
-
-    <!-- Tabs -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tab_layout"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@color/surface_dark"
-        app:tabTextColor="@color/text_secondary"
-        app:tabSelectedTextColor="@color/accent_blue"
-        app:tabIndicatorColor="@color/accent_blue"
-        app:tabMode="scrollable"
-        app:tabGravity="start" />
-
-    <!-- Content: each section shown/hidden -->
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- ── SSH SECTION ── -->
-            <include
-                android:id="@+id/section_ssh"
-                layout="@layout/section_ssh" />
-
-            <!-- ── SLOWDNS SECTION ── -->
-            <include
-                android:id="@+id/section_slowdns"
-                layout="@layout/section_slowdns" />
-
-            <!-- ── HTTP PROXY SECTION ── -->
-            <include
-                android:id="@+id/section_http_proxy"
-                layout="@layout/section_http_proxy" />
-
-            <!-- ── SSH WEBSOCKET SECTION ── -->
-            <include
-                android:id="@+id/section_ssh_ws"
-                layout="@layout/section_ssh_ws" />
-
-            <!-- ── SSH SSL/TLS SECTION ── -->
-            <include
-                android:id="@+id/section_ssh_ssl"
-                layout="@layout/section_ssh_ssl" />
-
-            <!-- ── XRAY SECTION ── -->
-            <include
-                android:id="@+id/section_xray"
-                layout="@layout/section_xray" />
-
-            <!-- ── HYSTERIA SECTION ── -->
-            <include
-                android:id="@+id/section_hysteria"
-                layout="@layout/section_hysteria" />
-
-        </LinearLayout>
-    </ScrollView>
-
-</LinearLayout>
+</ScrollView>
