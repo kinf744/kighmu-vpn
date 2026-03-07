@@ -25,19 +25,3 @@ interface TunnelEngine {
     /** Is the tunnel currently running? */
     fun isRunning(): Boolean
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Factory
-// ─────────────────────────────────────────────────────────────────────────────
-
-object TunnelEngineFactory {
-    fun create(config: KighmuConfig, context: Context): TunnelEngine = when (config.tunnelMode) {
-        TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context)
-        TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
-        TunnelMode.SSH_WEBSOCKET -> SshWebSocketEngine(config, context)
-        TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
-        TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context)
-        TunnelMode.V2RAY_SLOWDNS -> XraySlowDnsEngine(config, context)
-        TunnelMode.HYSTERIA_UDP  -> HysteriaEngine(config, context)
-    }
-}

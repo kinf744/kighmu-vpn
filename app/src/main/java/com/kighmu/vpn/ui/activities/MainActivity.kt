@@ -73,11 +73,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Application réinitialisée", Toast.LENGTH_SHORT).show()
                 true
             }
-            R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+else -> super.onOptionsItemSelected(item)
         }
     }
 
