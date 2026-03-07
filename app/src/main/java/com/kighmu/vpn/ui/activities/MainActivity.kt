@@ -14,7 +14,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.snackbar.Snackbar
 import com.kighmu.vpn.R
 import com.kighmu.vpn.ui.MainViewModel
 import kotlinx.coroutines.launch
@@ -25,34 +24,21 @@ class MainActivity : AppCompatActivity() {
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            viewModel.startVpn(this)
-        }
+        if (result.resultCode == Activity.RESULT_OK) viewModel.startVpn(this)
     }
 
     private val importLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.importConfig(this, it) }
-    }
-
-    private val exportLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri: Uri? ->
-        uri?.let { viewModel.exportConfig(this, it) }
-    }
+    ) { uri: Uri? -> uri?.let { viewModel.importConfig(this, it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        android.util.Log.e("KIGHMU", "setContentView OK")
-        android.util.Log.e("KIGHMU", "before navHost")
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         val navView = findViewById<BottomNavigationView>(R.id.bottom_nav)
         navView.setupWithNavController(navController)
-        android.util.Log.e("KIGHMU", "navigation setup OK")
         lifecycleScope.launch {
             viewModel.importResult.collect { message ->
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
@@ -75,11 +61,17 @@ class MainActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_import -> { importLauncher.launch("*/*"); true }
             R.id.action_export -> {
-                val name = viewModel.config.value.configName.replace(" ", "_")
-                exportLauncher.launch("$name.kighmu"); true
+                startActivity(Intent(this, ExportActivity::class.java))
+                true
+            }
+            R.id.action_reset -> {
+                viewModel.resetConfig()
+                Toast.makeText(this, "Application réinitialisée", Toast.LENGTH_SHORT).show()
+                true
             }
             R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java)); true
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
             }
             else -> super.onOptionsItemSelected(item)
         }
@@ -91,34 +83,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun requestVpnDisconnect() { viewModel.stopVpn(this) }
-
-    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_import -> {
-                importLauncher.launch("*/*")
-                true
-            }
-            R.id.action_export -> {
-                startActivity(android.content.Intent(this, ExportActivity::class.java))
-                true
-            }
-            R.id.action_reset -> {
-                viewModel.resetConfig()
-                android.widget.Toast.makeText(this, "Application réinitialisée", android.widget.Toast.LENGTH_SHORT).show()
-                true
-            }
-            R.id.action_settings -> {
-                startActivity(android.content.Intent(this, SettingsActivity::class.java))
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
 
     fun showMessage(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
