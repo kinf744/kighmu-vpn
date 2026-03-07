@@ -40,6 +40,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.activities.ExportActivity" android:exported="false"/>
+
         <activity
             android:name=".ui.activities.SettingsActivity"
             android:exported="false"

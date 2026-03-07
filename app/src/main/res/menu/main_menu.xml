@@ -1,19 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item
-        android:id="@+id/action_import"
-        android:title="@string/import_config"
-        android:icon="@drawable/ic_upload"
-        app:showAsAction="ifRoom" />
-    <item
-        android:id="@+id/action_export"
-        android:title="@string/export_config"
-        android:icon="@drawable/ic_download"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/action_settings"
-        android:title="@string/settings"
-        android:icon="@drawable/ic_settings"
-        app:showAsAction="never" />
+    <item android:id="@+id/action_import" android:title="Importer config" app:showAsAction="never"/>
+    <item android:id="@+id/action_export" android:title="Exporter config" app:showAsAction="never"/>
+    <item android:id="@+id/action_reset" android:title="Réinitialiser" app:showAsAction="never"/>
+    <item android:id="@+id/action_settings" android:title="Paramètres" app:showAsAction="never"/>
 </menu>

@@ -92,6 +92,34 @@ class MainActivity : AppCompatActivity() {
 
     fun requestVpnDisconnect() { viewModel.stopVpn(this) }
 
+    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_import -> {
+                importLauncher.launch("*/*")
+                true
+            }
+            R.id.action_export -> {
+                startActivity(android.content.Intent(this, ExportActivity::class.java))
+                true
+            }
+            R.id.action_reset -> {
+                viewModel.resetConfig()
+                android.widget.Toast.makeText(this, "Application réinitialisée", android.widget.Toast.LENGTH_SHORT).show()
+                true
+            }
+            R.id.action_settings -> {
+                startActivity(android.content.Intent(this, SettingsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     fun showMessage(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }

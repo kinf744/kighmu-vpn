@@ -174,6 +174,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetConfig() {
+        saveConfig(com.kighmu.vpn.models.KighmuConfig())
+    }
+
     fun clearLogs() {
         com.kighmu.vpn.utils.KighmuLogger.clearLogs()
         _logs.value = emptyList()
