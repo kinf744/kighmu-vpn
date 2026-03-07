@@ -20,28 +20,26 @@ jobs:
         id: ndk
         with:
           ndk-version: r26d
-      - name: Download dnstt-client for Android
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build dnstt-client for Android ARM
         run: |
           mkdir -p app/src/main/assets/dnstt
-          # Telecharger dnstt-client precompile pour armeabi-v7a
-          curl -L "https://github.com/jech/dnstt/releases/download/v0.20220208/dnstt-client-android-arm.tar.gz"             -o /tmp/dnstt.tar.gz 2>/dev/null || true
-          if [ -f /tmp/dnstt.tar.gz ] && [ -s /tmp/dnstt.tar.gz ]; then
-            tar -xzf /tmp/dnstt.tar.gz -C /tmp/ 2>/dev/null || true
-            find /tmp -name "dnstt-client*" -type f | head -1 | xargs -I{} cp {} app/src/main/assets/dnstt/dnstt-client 2>/dev/null || true
+          git clone --depth=1 https://github.com/jech/dnstt /tmp/dnstt-src
+          cd /tmp/dnstt-src/dnstt-client
+          echo "Building dnstt-client for android/arm..."
+          GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -v -o /tmp/dnstt-client .
+          if [ -f /tmp/dnstt-client ]; then
+            cp /tmp/dnstt-client $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
+            echo "SUCCESS: dnstt-client built"
+            ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/
+            file /tmp/dnstt-client
+          else
+            echo "FAILED: dnstt-client not built"
+            exit 1
           fi
-          # Fallback: compiler depuis les sources
-          if [ ! -f app/src/main/assets/dnstt/dnstt-client ]; then
-            echo "Building dnstt-client from source..."
-            sudo apt-get install -y golang-go 2>/dev/null || true
-            git clone --depth=1 https://github.com/jech/dnstt /tmp/dnstt-src 2>/dev/null || true
-            if [ -d /tmp/dnstt-src ]; then
-              cd /tmp/dnstt-src/dnstt-client
-              GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -o /tmp/dnstt-client . 2>/dev/null || true
-              cp /tmp/dnstt-client $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client 2>/dev/null || true
-              cd $GITHUB_WORKSPACE
-            fi
-          fi
-          ls -la app/src/main/assets/dnstt/ || echo "dnstt assets empty"
       - name: Build APK
         run: gradle assembleDebug --no-daemon
         env:
