@@ -45,11 +45,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        android.util.Log.e("KIGHMU", "setContentView OK")
+        android.util.Log.e("KIGHMU", "before navHost")
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         val navView = findViewById<BottomNavigationView>(R.id.bottom_nav)
         navView.setupWithNavController(navController)
+        android.util.Log.e("KIGHMU", "navigation setup OK")
         lifecycleScope.launch {
             viewModel.importResult.collect { message ->
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
