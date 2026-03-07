@@ -32,10 +32,10 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         try {
-            btnConnect = view.findViewById(R.id.btnConnect)
-            tvStatus = view.findViewById(R.id.tvConnectionStatus)
-            tvMode = view.findViewById(R.id.tvCurrentMode)
-            spinnerMode = view.findViewById(R.id.spinnerTunnelMode)
+            btnConnect = view.findViewById(R.id.btn_connect)
+            tvStatus = view.findViewById(R.id.tv_connection_status)
+            tvMode = view.findViewById(R.id.tv_current_mode)
+            spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 
             val modes = TunnelMode.values().map { it.label }
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, modes)
