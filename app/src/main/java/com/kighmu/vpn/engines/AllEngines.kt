@@ -204,34 +204,31 @@ class SshHttpProxyEngine(
     private fun connectViaHttpProxy(): Socket {
         val socket = Socket()
         socket.connect(InetSocketAddress(proxy.proxyHost, proxy.proxyPort), 10000)
-        KighmuLogger.info(TAG, "Socket TCP connecté au proxy")
+        KighmuLogger.info(TAG, "Socket TCP connecte au proxy")
 
         val out = socket.getOutputStream()
         val inp = socket.getInputStream()
 
-        // Send CONNECT request with custom payload or standard
+        val crlf = "\r\n"
         val connectRequest = if (proxy.customPayload.isNotEmpty()) {
             proxy.customPayload
-                .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
-                .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
-                .replace("\r\n", "
-").replace("\n", "
-")
+                .replace("[host]", ssh.host)
+                .replace("[HOST]", ssh.host)
+                .replace("[port]", ssh.port.toString())
+                .replace("[PORT]", ssh.port.toString())
+                .replace("\\r\\n", crlf)
+                .replace("\\n", crlf)
         } else {
-            "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1
-Host: ${ssh.host}:${ssh.port}
-
-"
+            "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1${crlf}Host: ${ssh.host}:${ssh.port}${crlf}${crlf}"
         }
 
         KighmuLogger.info(TAG, "Envoi payload HTTP CONNECT...")
         out.write(connectRequest.toByteArray())
         out.flush()
 
-        // Read response
         val response = StringBuilder()
         var prev = 0
-        var curr = 0
+        var curr: Int
         while (true) {
             curr = inp.read()
             if (curr == -1) break
@@ -240,10 +237,10 @@ Host: ${ssh.host}:${ssh.port}
             prev = curr
         }
         val responseStr = response.toString()
-        KighmuLogger.info(TAG, "Réponse proxy: ${responseStr.take(100)}")
+        KighmuLogger.info(TAG, "Reponse proxy: ${responseStr.take(100)}")
 
         if (!responseStr.contains("200")) {
-            throw Exception("Proxy refusé: ${responseStr.take(100)}")
+            throw Exception("Proxy refuse: ${responseStr.take(100)}")
         }
         return socket
     }
