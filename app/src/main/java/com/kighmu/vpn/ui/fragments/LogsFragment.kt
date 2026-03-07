@@ -27,8 +27,7 @@ class LogsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.logs.collect { logs ->
-                tvLogs.text = logs.joinToString("
-") { "[${it.level}] ${it.message}" }
+                tvLogs.text = logs.joinToString("\n") { "[${it.level}] ${it.message}" }
             }
         }
 
