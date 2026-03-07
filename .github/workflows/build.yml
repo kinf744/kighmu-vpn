@@ -27,22 +27,28 @@ jobs:
       - name: Build dnstt-client for Android ARM
         run: |
           mkdir -p app/src/main/assets/dnstt
-          # Creer module Go temporaire et telecharger dnstt
+          # Telecharger via proxy Go (pas git)
+          export GOPATH=/tmp/gopath
+          export GOPROXY=https://proxy.golang.org
+          export GONOSUMDB=*
+          export GOFLAGS=
+          export GIT_TERMINAL_PROMPT=0
           mkdir -p /tmp/dnstt-build
           cd /tmp/dnstt-build
-          go mod init dnstt-build
-          GONOSUMCHECK=* GOFLAGS=-mod=mod GOPROXY=https://proxy.golang.org,direct             GONOSUMDB=* GOPATH=/tmp/gopath             go get github.com/jech/dnstt/dnstt-client@master 2>&1 || true
-          # Trouver les sources
-          find /tmp/gopath -name "main.go" -path "*/dnstt-client/*" 2>/dev/null | head -3
-          SRC=$(find /tmp/gopath -name "main.go" -path "*/dnstt-client/*" 2>/dev/null | head -1 | xargs dirname)
-          echo "Source dir: $SRC"
-          if [ -n "$SRC" ]; then
-            cd $SRC
+          go mod init build
+          # Telecharger uniquement via proxy (pas git direct)
+          GONOSUMDB=* GOPROXY=https://proxy.golang.org go get github.com/jech/dnstt/dnstt-client@v0.20220208 2>&1
+          SRC=$(find $GOPATH/pkg/mod -name "*.go" -path "*/dnstt-client*" 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
+          echo "SRC=$SRC"
+          if [ -n "$SRC" ] && [ -d "$SRC" ]; then
+            chmod -R u+w $GOPATH/pkg/mod/
+            cd "$SRC"
             GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -v -o /tmp/dnstt-client . 2>&1
           fi
           if [ -f /tmp/dnstt-client ]; then
             cp /tmp/dnstt-client $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
-            echo "SUCCESS: $(ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/)"
+            echo "SUCCESS"
+            ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/
           else
             echo "FAILED - placeholder"
             printf 'placeholder' > $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
