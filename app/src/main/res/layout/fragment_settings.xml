@@ -5,16 +5,85 @@
     android:background="#0D1117">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:padding="16dp">
+
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Settings" android:textColor="#FFFFFF" android:textSize="20sp"/>
-        <TextView android:id="@+id/tv_app_version" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Version 1.0.0"
-            android:textColor="#AAAAAA" android:layout_marginTop="16dp"/>
-        <Switch android:id="@+id/switch_autoconnect" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Auto-connect on boot"
-            android:textColor="#FFFFFF" android:layout_marginTop="16dp"/>
-        <Switch android:id="@+id/switch_notifications" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Show notifications"
-            android:textColor="#FFFFFF"/>
+            android:text="PARAMÈTRES" android:textColor="#4FC3F7"
+            android:textSize="16sp" android:textAllCaps="true" android:layout_marginBottom="16dp"/>
+
+        <!-- Hardware ID -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="HARDWARE ID" android:textColor="#4FC3F7"
+            android:textSize="13sp" android:textAllCaps="true"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <TextView android:id="@+id/tv_hardware_id"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="..."
+                android:textColor="#00E5FF" android:textSize="12sp"
+                android:fontFamily="monospace" android:padding="12dp"
+                android:background="#1A1F2E"/>
+            <Button android:id="@+id/btn_copy_hwid"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="COPIER" android:backgroundTint="#1565C0"
+                android:textColor="#FFFFFF" android:textSize="11sp"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- Mode sombre/clair -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="APPARENCE" android:textColor="#4FC3F7"
+            android:textSize="13sp" android:textAllCaps="true" android:layout_marginTop="16dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_dark_mode"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Mode sombre"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- Notifications -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="COMPORTEMENT" android:textColor="#4FC3F7"
+            android:textSize="13sp" android:textAllCaps="true" android:layout_marginTop="16dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_notifications"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Notifications VPN actif"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_auto_reconnect"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Auto reconnect"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_kill_switch"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Kill Switch (bloque Internet si VPN tombe)"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_dns_protection"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Protection fuite DNS"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- Version -->
+        <TextView android:id="@+id/tv_app_version"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Version 1.0.0" android:textColor="#666666"
+            android:textSize="12sp" android:layout_marginTop="24dp" android:gravity="center"/>
+
     </LinearLayout>
 </ScrollView>

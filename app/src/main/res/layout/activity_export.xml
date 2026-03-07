@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="EXPORTER CONFIG" android:textColor="#4FC3F7"
+            android:textSize="16sp" android:textAllCaps="true" android:layout_marginBottom="16dp"/>
+
+        <!-- Nom du fichier -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Nom du fichier" android:textColor="#AAAAAA" android:textSize="12sp"/>
+        <EditText android:id="@+id/et_export_filename"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="kighmu_config" android:textColor="#FFFFFF"
+            android:textColorHint="#666666" android:backgroundTint="#1A1F2E"
+            android:padding="12dp" android:layout_marginTop="4dp"/>
+
+        <!-- Date expiration -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Date d'expiration (optionnel)" android:textColor="#AAAAAA"
+            android:textSize="12sp" android:layout_marginTop="16dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/et_exp_year" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:hint="Année" android:inputType="number" android:textColor="#FFFFFF"
+                android:textColorHint="#666666" android:backgroundTint="#1A1F2E"
+                android:padding="12dp" android:layout_marginEnd="4dp"/>
+            <EditText android:id="@+id/et_exp_month" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:hint="Mois" android:inputType="number" android:textColor="#FFFFFF"
+                android:textColorHint="#666666" android:backgroundTint="#1A1F2E"
+                android:padding="12dp" android:layout_marginEnd="4dp"/>
+            <EditText android:id="@+id/et_exp_hour" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:hint="Heure" android:inputType="number" android:textColor="#FFFFFF"
+                android:textColorHint="#666666" android:backgroundTint="#1A1F2E"
+                android:padding="12dp" android:layout_marginEnd="4dp"/>
+            <EditText android:id="@+id/et_exp_minute" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:hint="Min" android:inputType="number" android:textColor="#FFFFFF"
+                android:textColorHint="#666666" android:backgroundTint="#1A1F2E"
+                android:padding="12dp"/>
+        </LinearLayout>
+
+        <!-- Hardware ID Lock -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="HARDWARE ID LOCK" android:textColor="#4FC3F7"
+            android:textSize="13sp" android:textAllCaps="true" android:layout_marginTop="16dp"/>
+        <EditText android:id="@+id/et_hardware_id"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Android ID ou Device Fingerprint (optionnel)"
+            android:textColor="#FFFFFF" android:textColorHint="#666666"
+            android:backgroundTint="#1A1F2E" android:padding="12dp"
+            android:layout_marginTop="4dp"/>
+        <Button android:id="@+id/btn_use_my_id"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Utiliser mon Hardware ID" android:backgroundTint="#1565C0"
+            android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginTop="4dp"/>
+
+        <!-- Sécurité -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="SIGNATURE DE SÉCURITÉ" android:textColor="#4FC3F7"
+            android:textSize="13sp" android:textAllCaps="true" android:layout_marginTop="16dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_lock_operator"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Bloquer sur l'opérateur actif"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+            <Switch android:id="@+id/switch_block_root"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="Bloquer sur appareils rootés"
+                android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <Button android:id="@+id/btn_export"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="EXPORTER" android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF" android:layout_marginTop="24dp"/>
+
+    </LinearLayout>
+</ScrollView>

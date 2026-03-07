@@ -239,3 +239,18 @@ data class LogEntry(
 ) {
     enum class LogLevel { DEBUG, INFO, WARNING, ERROR }
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export Config Security Model
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class ExportConfig(
+    @SerializedName("fileName") var fileName: String = "kighmu_config",
+    @SerializedName("expiresAt") var expiresAt: Long = 0L, // timestamp ms, 0 = no expiry
+    @SerializedName("hardwareId") var hardwareId: String = "", // locked to device
+    @SerializedName("lockOperator") var lockOperator: Boolean = false,
+    @SerializedName("operatorName") var operatorName: String = "",
+    @SerializedName("blockRoot") var blockRoot: Boolean = false,
+    @SerializedName("securitySignature") var securitySignature: String = ""
+)
