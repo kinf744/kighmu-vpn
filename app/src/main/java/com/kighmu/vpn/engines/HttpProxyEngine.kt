@@ -19,6 +19,7 @@ class HttpProxyEngine(
     companion object {
         const val TAG = "HttpProxyEngine"
         const val LOCAL_SOCKS_PORT = 10801
+        val CRLF = "\r\n"
     }
 
     private var running = false
@@ -33,7 +34,6 @@ class HttpProxyEngine(
         KighmuLogger.info(TAG, "=== Demarrage SSH HTTP Proxy ===")
         KighmuLogger.info(TAG, "Proxy: ${proxy.proxyHost}:${proxy.proxyPort}")
         KighmuLogger.info(TAG, "SSH: ${ssh.host}:${ssh.port} user=${ssh.username}")
-        KighmuLogger.info(TAG, "Payload: ${if (proxy.customPayload.isNotBlank()) proxy.customPayload.take(60) else "defaut CONNECT"}")
 
         if (proxy.proxyHost.isBlank()) throw Exception("Proxy Host manquant")
         if (ssh.host.isBlank()) throw Exception("SSH Host manquant")
@@ -48,16 +48,14 @@ class HttpProxyEngine(
 
             val out = sock.getOutputStream()
             val inp = sock.getInputStream()
-            val crlf = "
-"
 
             val req = if (proxy.customPayload.isNotBlank()) {
                 proxy.customPayload
                     .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
                     .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
-                    .replace("\r\n", crlf).replace("\n", crlf)
+                    .replace("\\r\\n", CRLF).replace("\\n", CRLF)
             } else {
-                "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1${crlf}Host: ${ssh.host}:${ssh.port}${crlf}${crlf}"
+                "CONNECT \${ssh.host}:\${ssh.port} HTTP/1.1\${CRLF}Host: \${ssh.host}:\${ssh.port}\${CRLF}\${CRLF}"
             }
 
             KighmuLogger.info(TAG, "Envoi CONNECT request...")
@@ -69,14 +67,12 @@ class HttpProxyEngine(
             while (true) {
                 curr = inp.read(); if (curr == -1) break
                 resp.append(curr.toChar())
-                if (prev == '
-'.code && curr == '
-'.code) break
+                if (prev == '\n'.code && curr == '\n'.code) break
                 prev = curr
             }
             val respStr = resp.toString()
-            KighmuLogger.info(TAG, "Reponse proxy: ${respStr.take(80)}")
-            if (!respStr.contains("200")) throw Exception("Proxy refuse: ${respStr.take(80)}")
+            KighmuLogger.info(TAG, "Reponse proxy: \${respStr.take(80)}")
+            if (!respStr.contains("200")) throw Exception("Proxy refuse: \${respStr.take(80)}")
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH...")
             val jsch = JSch()
@@ -96,12 +92,12 @@ class HttpProxyEngine(
             })
             session.connect(15000)
             jschSession = session
-            KighmuLogger.info(TAG, "SSH connecte! Version: ${session.serverVersion}")
+            KighmuLogger.info(TAG, "SSH connecte! Version: \${session.serverVersion}")
             session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
-            KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF sur port $LOCAL_SOCKS_PORT ===")
+            KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF sur port \$LOCAL_SOCKS_PORT ===")
             LOCAL_SOCKS_PORT
         } catch (e: Exception) {
-            KighmuLogger.error(TAG, "ECHEC: ${e.javaClass.simpleName}: ${e.message}")
+            KighmuLogger.error(TAG, "ECHEC: \${e.javaClass.simpleName}: \${e.message}")
             throw e
         }
     }
