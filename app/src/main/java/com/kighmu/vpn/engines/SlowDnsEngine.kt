@@ -9,15 +9,6 @@ import kotlinx.coroutines.*
 import java.io.*
 import java.net.*
 
-/**
- * SlowDNS Engine
- *
- * Architecture reelle (SSH Custom):
- *   JSch -> HTTP CONNECT proxy local -> SlowDNS forward -> SSH server
- *
- * Le proxy local recoit CONNECT host:port HTTP/1.0
- * puis forward via DNS vers le nameserver
- */
 class SlowDnsEngine(
     private val config: KighmuConfig,
     private val context: Context
@@ -40,7 +31,6 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS : ${dns.dnsServer}:${dns.dnsPort}")
         KighmuLogger.info(TAG, "Nameserver : ${dns.nameserver}")
-        KighmuLogger.info(TAG, "PublicKey : ${dns.publicKey.take(20)}...")
         KighmuLogger.info(TAG, "SSH : ${ssh.host}:${ssh.port} / ${ssh.username}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
@@ -49,27 +39,25 @@ class SlowDnsEngine(
         if (ssh.username.isBlank() || ssh.password.isBlank()) throw Exception("SSH credentials manquants")
 
         try {
-            // Demarrer proxy HTTP CONNECT local
             val server = ServerSocket(0)
             proxyServer = server
             val proxyPort = server.localPort
-            KighmuLogger.info(TAG, "SlowDns running - HTTP proxy local:$proxyPort")
+            KighmuLogger.info(TAG, "SlowDns running - SOCKS5 proxy local:$proxyPort")
 
             engineScope.launch(Dispatchers.IO) {
                 while (running) {
                     try {
                         val client = server.accept()
-                        launch { handleHttpConnect(client) }
+                        launch { handleSocks5(client) }
                     } catch (e: Exception) {
-                        if (running) KighmuLogger.error(TAG, "Proxy accept: ${e.message}")
+                        if (running) KighmuLogger.error(TAG, "Proxy: ${e.message}")
                         break
                     }
                 }
             }
 
-            // JSch via proxy HTTP CONNECT
-            KighmuLogger.info(TAG, "Connecting to ${ssh.host} via SlowDNS")
-            startSshViaHttpProxy(proxyPort)
+            KighmuLogger.info(TAG, "Connecting to ${ssh.host} via SOCKS5 proxy")
+            startSsh(proxyPort)
 
             KighmuLogger.info(TAG, "=== SlowDNS CONNECTE port $LOCAL_SOCKS_PORT ===")
             LOCAL_SOCKS_PORT
@@ -77,8 +65,8 @@ class SlowDnsEngine(
         } catch (e: com.jcraft.jsch.JSchException) {
             val msg = when {
                 e.message?.contains("Auth fail") == true -> "Auth SSH echouee (${ssh.username})"
-                e.message?.contains("timeout") == true -> "Timeout - nameserver inaccessible"
-                e.message?.contains("Premature") == true -> "Connexion SSH prematuree - reessayez"
+                e.message?.contains("timeout") == true -> "Timeout SSH"
+                e.message?.contains("Premature") == true -> "Connexion SSH prematuree"
                 e.message?.contains("Connection refused") == true -> "Proxy non pret"
                 else -> e.message ?: "Erreur SSH"
             }
@@ -90,60 +78,77 @@ class SlowDnsEngine(
         }
     }
 
-    /**
-     * Gere une connexion HTTP CONNECT du client JSch
-     * Puis relaie via DNS vers le vrai SSH server
-     */
-    private suspend fun handleHttpConnect(client: Socket) = withContext(Dispatchers.IO) {
+    private suspend fun handleSocks5(client: Socket) = withContext(Dispatchers.IO) {
         try {
-            val inp = BufferedReader(InputStreamReader(client.getInputStream()))
+            val inp = client.getInputStream()
             val out = client.getOutputStream()
 
-            // Lire la requete CONNECT
-            val firstLine = inp.readLine() ?: return@withContext
-            KighmuLogger.info(TAG, "Proxy recu: $firstLine")
+            // SOCKS5 handshake
+            // 1. Client: VER=5, NMETHODS, METHODS
+            val ver = inp.read()
+            if (ver != 5) { client.close(); return@withContext }
+            val nMethods = inp.read()
+            val methods = ByteArray(nMethods)
+            inp.read(methods)
 
-            // Vider les headers
-            var line = inp.readLine()
-            while (!line.isNullOrBlank()) {
-                line = inp.readLine()
+            // 2. Server: VER=5, METHOD=0 (no auth)
+            out.write(byteArrayOf(5, 0))
+            out.flush()
+
+            // 3. Client: VER=5, CMD=1(CONNECT), RSV=0, ATYP, DST.ADDR, DST.PORT
+            val req = ByteArray(4)
+            inp.read(req)
+            if (req[1].toInt() != 1) { client.close(); return@withContext } // Only CONNECT
+
+            val targetHost: String
+            val atyp = req[3].toInt()
+            targetHost = when (atyp) {
+                1 -> { // IPv4
+                    val addr = ByteArray(4); inp.read(addr)
+                    "${addr[0].toInt() and 0xFF}.${addr[1].toInt() and 0xFF}.${addr[2].toInt() and 0xFF}.${addr[3].toInt() and 0xFF}"
+                }
+                3 -> { // Domain
+                    val len = inp.read()
+                    val domain = ByteArray(len); inp.read(domain)
+                    String(domain)
+                }
+                4 -> { // IPv6
+                    val addr = ByteArray(16); inp.read(addr)
+                    "::1"
+                }
+                else -> { client.close(); return@withContext }
             }
+            val portHi = inp.read()
+            val portLo = inp.read()
+            val targetPort = (portHi shl 8) or portLo
 
-            // Parser CONNECT host:port
-            val parts = firstLine.split(" ")
-            val hostPort = if (parts.size >= 2) parts[1] else "${ssh.host}:${ssh.port}"
-            val targetHost = hostPort.substringBefore(":")
-            val targetPort = hostPort.substringAfter(":").toIntOrNull() ?: ssh.port
+            KighmuLogger.info(TAG, "SOCKS5 CONNECT -> $targetHost:$targetPort")
 
-            KighmuLogger.info(TAG, "CONNECT -> $targetHost:$targetPort via DNS")
-
-            // Connexion TCP directe au SSH server
+            // Connexion au serveur cible
             val remote = Socket()
-            remote.soTimeout = 0
             remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
             KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
 
+            // 4. Server reply: VER=5, REP=0(success), RSV=0, ATYP=1, BND.ADDR, BND.PORT
+            out.write(byteArrayOf(5, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+            out.flush()
+            KighmuLogger.info(TAG, "SOCKS5 tunnel etabli")
+
+            // Relay bidirectionnel
             val remoteIn = remote.getInputStream()
             val remoteOut = remote.getOutputStream()
-            val rawIn = client.getInputStream()
-
-            out.write(byteArrayOf(72,84,84,80,47,49,46,48,32,50,48,48,32,79,75,13,10,13,10))
-            out.flush()
-            KighmuLogger.info(TAG, "Tunnel HTTP etabli - relay SSH demarre")
-
 
             val t1 = launch {
                 try {
                     val buf = ByteArray(8192)
                     while (running) {
-                        val len = rawIn.read(buf)
+                        val len = inp.read(buf)
                         if (len <= 0) break
                         remoteOut.write(buf, 0, len)
                         remoteOut.flush()
                     }
                 } catch (_: Exception) {}
             }
-
             val t2 = launch {
                 try {
                     val buf = ByteArray(8192)
@@ -155,25 +160,22 @@ class SlowDnsEngine(
                     }
                 } catch (_: Exception) {}
             }
-
             t1.join()
             t2.cancel()
-            KighmuLogger.info(TAG, "Session SSH terminee")
+            KighmuLogger.info(TAG, "Session terminee")
 
         } catch (e: Exception) {
-            KighmuLogger.error(TAG, "HTTP CONNECT error: ${e.message}")
+            KighmuLogger.error(TAG, "SOCKS5 error: ${e.message}")
         } finally {
             client.close()
         }
     }
 
-    private fun startSshViaHttpProxy(proxyPort: Int) {
+    private fun startSsh(proxyPort: Int) {
         val jsch = JSch()
         if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
             jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
         }
-
-        // JSch avec proxy HTTP CONNECT
         val session = jsch.getSession(ssh.username, ssh.host, ssh.port)
         session.setPassword(ssh.password)
         session.setConfig("StrictHostKeyChecking", "no")
@@ -181,12 +183,10 @@ class SlowDnsEngine(
         session.setConfig("compression.s2c", "zlib@openssh.com,zlib,none")
         session.setConfig("compression.c2s", "zlib@openssh.com,zlib,none")
         session.setConfig("compression_level", "9")
+        session.setProxy(com.jcraft.jsch.ProxySOCKS5("127.0.0.1", proxyPort))
 
-        // Utiliser proxy HTTP CONNECT
-        session.setProxy(com.jcraft.jsch.ProxyHTTP("127.0.0.1", proxyPort))
-
-        KighmuLogger.info(TAG, "SSH connexion via HTTP proxy (timeout 45s)...")
-        session.connect(45000)
+        KighmuLogger.info(TAG, "SSH connexion via SOCKS5 proxy (timeout 30s)...")
+        session.connect(30000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
         session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
