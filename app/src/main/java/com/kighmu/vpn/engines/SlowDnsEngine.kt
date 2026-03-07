@@ -117,24 +117,20 @@ class SlowDnsEngine(
 
             KighmuLogger.info(TAG, "CONNECT -> $targetHost:$targetPort via DNS")
 
-            // Connexion directe au SSH server (SlowDNS forward)
-            // Dans la vraie implementation, ceci passerait par DNS
-            // Pour l'instant: connexion TCP directe au serveur
+            // Connexion TCP directe au SSH server
             val remote = Socket()
+            remote.soTimeout = 0
             remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
             KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
 
-            // Repondre 200 au client
-            out.write(byteArrayOf(72,84,84,80,47,49,46,48,32,50,48,48,32,79,75,13,10,13,10))
-
-
-            out.flush()
-            KighmuLogger.info(TAG, "Tunnel HTTP etabli - relay SSH demarre")
-
-            // Relay bidirectionnel
             val remoteIn = remote.getInputStream()
             val remoteOut = remote.getOutputStream()
             val rawIn = client.getInputStream()
+
+            out.write(byteArrayOf(72,84,84,80,47,49,46,48,32,50,48,48,32,79,75,13,10,13,10))
+            out.flush()
+            KighmuLogger.info(TAG, "Tunnel HTTP etabli - relay SSH demarre")
+
 
             val t1 = launch {
                 try {
