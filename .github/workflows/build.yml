@@ -27,21 +27,25 @@ jobs:
       - name: Build dnstt-client for Android ARM
         run: |
           mkdir -p app/src/main/assets/dnstt
-          # Telecharger via API GitHub
-          curl -fsSL -H "Accept: application/vnd.github.v3+json"             "https://api.github.com/repos/jech/dnstt/tarball/master"             -o /tmp/dnstt.tar.gz
-          echo "Downloaded: $(ls -la /tmp/dnstt.tar.gz)"
-          echo "Type: $(file /tmp/dnstt.tar.gz)"
-          tar -xzf /tmp/dnstt.tar.gz -C /tmp/
-          DNSTT_DIR=$(ls /tmp | grep -i dnstt | grep -v tar | head -1)
-          echo "Dir: $DNSTT_DIR"
-          cd /tmp/$DNSTT_DIR/dnstt-client
-          GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -v -o /tmp/dnstt-client . 2>&1
+          # Creer module Go temporaire et telecharger dnstt
+          mkdir -p /tmp/dnstt-build
+          cd /tmp/dnstt-build
+          go mod init dnstt-build
+          GONOSUMCHECK=* GOFLAGS=-mod=mod GOPROXY=https://proxy.golang.org,direct             GONOSUMDB=* GOPATH=/tmp/gopath             go get github.com/jech/dnstt/dnstt-client@master 2>&1 || true
+          # Trouver les sources
+          find /tmp/gopath -name "main.go" -path "*/dnstt-client/*" 2>/dev/null | head -3
+          SRC=$(find /tmp/gopath -name "main.go" -path "*/dnstt-client/*" 2>/dev/null | head -1 | xargs dirname)
+          echo "Source dir: $SRC"
+          if [ -n "$SRC" ]; then
+            cd $SRC
+            GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -v -o /tmp/dnstt-client . 2>&1
+          fi
           if [ -f /tmp/dnstt-client ]; then
             cp /tmp/dnstt-client $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
             echo "SUCCESS: $(ls -la $GITHUB_WORKSPACE/app/src/main/assets/dnstt/)"
           else
-            echo "FAILED - using placeholder"
-            echo "placeholder" > $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
+            echo "FAILED - placeholder"
+            printf 'placeholder' > $GITHUB_WORKSPACE/app/src/main/assets/dnstt/dnstt-client
           fi
       - name: Build APK
         run: gradle assembleDebug --no-daemon
