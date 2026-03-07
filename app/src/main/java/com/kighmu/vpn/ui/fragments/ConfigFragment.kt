@@ -96,9 +96,9 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_xray_path).setText(c.xray.wsPath)
         view.findViewById<EditText>(R.id.et_xray_sni).setText(c.xray.sni)
         view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
-        view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverHost)
+        view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
         view.findViewById<EditText>(R.id.et_hys_port).setText(c.hysteria.serverPort.toString())
-        view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authString)
+        view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
         view.findViewById<EditText>(R.id.et_hys_sni).setText(c.hysteria.sni)
     }
 
@@ -139,9 +139,9 @@ class ConfigFragment : Fragment() {
             jsonConfig = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
         )
         val hys = c.hysteria.copy(
-            serverHost = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
+            serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
             serverPort = view.findViewById<EditText>(R.id.et_hys_port).text.toString().toIntOrNull() ?: 443,
-            authString = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
+            authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
             sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
         )
         viewModel.saveConfig(c.copy(
