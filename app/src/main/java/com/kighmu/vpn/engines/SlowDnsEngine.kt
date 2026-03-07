@@ -134,8 +134,7 @@ class SlowDnsEngine(
                         val b64 = android.util.Base64.encodeToString(
                             chunk.toByteArray(),
                             android.util.Base64.NO_PADDING or android.util.Base64.URL_SAFE
-                        ).replace("=","").replace("
-","")
+                        ).replace("=","").replace("\n","")
                         val q = buildTxtQuery("d${idx}.${sessionId}.${b64}.${dns.nameserver}")
                         udp.send(DatagramPacket(q, q.size, dnsAddr, dns.dnsPort))
                     }
