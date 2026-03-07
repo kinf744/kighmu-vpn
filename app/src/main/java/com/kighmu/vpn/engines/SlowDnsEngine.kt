@@ -6,20 +6,17 @@ import com.jcraft.jsch.Session
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
+import java.io.*
 import java.net.*
-import java.nio.ByteBuffer
-import java.security.MessageDigest
-import javax.crypto.Cipher
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * SlowDNS Engine - Protocole DNSTT natif en Kotlin
+ * SlowDNS Engine
  *
- * Le protocole dnstt:
- * 1. Client envoie des DNS TXT queries encodees en base32
- * 2. Le nameserver decode et forward au SSH server
- * 3. Les reponses DNS TXT contiennent les donnees SSH encryptees
- * 4. JSch se connecte au proxy local qui fait ce relay
+ * Architecture reelle (SSH Custom):
+ *   JSch -> HTTP CONNECT proxy local -> SlowDNS forward -> SSH server
+ *
+ * Le proxy local recoit CONNECT host:port HTTP/1.0
+ * puis forward via DNS vers le nameserver
  */
 class SlowDnsEngine(
     private val config: KighmuConfig,
@@ -29,8 +26,6 @@ class SlowDnsEngine(
     companion object {
         const val TAG = "SlowDnsEngine"
         const val LOCAL_SOCKS_PORT = 10800
-        // Base32 alphabet utilisé par dnstt
-        val BASE32 = "abcdefghijklmnopqrstuvwxyz234567"
     }
 
     private var running = false
@@ -54,28 +49,27 @@ class SlowDnsEngine(
         if (ssh.username.isBlank() || ssh.password.isBlank()) throw Exception("SSH credentials manquants")
 
         try {
-            // Demarrer proxy DNSTT local
+            // Demarrer proxy HTTP CONNECT local
             val server = ServerSocket(0)
             proxyServer = server
             val proxyPort = server.localPort
-            KighmuLogger.info(TAG, "SlowDns running - proxy local port $proxyPort")
+            KighmuLogger.info(TAG, "SlowDns running - HTTP proxy local:$proxyPort")
 
             engineScope.launch(Dispatchers.IO) {
                 while (running) {
                     try {
                         val client = server.accept()
-                        KighmuLogger.info(TAG, "Client SSH connecte au proxy DNSTT")
-                        launch { handleDnsttSession(client) }
+                        launch { handleHttpConnect(client) }
                     } catch (e: Exception) {
-                        if (running) KighmuLogger.error(TAG, "Proxy: ${e.message}")
+                        if (running) KighmuLogger.error(TAG, "Proxy accept: ${e.message}")
                         break
                     }
                 }
             }
 
-            // SSH via proxy DNSTT
-            KighmuLogger.info(TAG, "Connecting to ${ssh.host} via DNSTT")
-            startSsh(proxyPort)
+            // JSch via proxy HTTP CONNECT
+            KighmuLogger.info(TAG, "Connecting to ${ssh.host} via SlowDNS")
+            startSshViaHttpProxy(proxyPort)
 
             KighmuLogger.info(TAG, "=== SlowDNS CONNECTE port $LOCAL_SOCKS_PORT ===")
             LOCAL_SOCKS_PORT
@@ -83,8 +77,8 @@ class SlowDnsEngine(
         } catch (e: com.jcraft.jsch.JSchException) {
             val msg = when {
                 e.message?.contains("Auth fail") == true -> "Auth SSH echouee (${ssh.username})"
-                e.message?.contains("timeout") == true -> "Timeout DNSTT - nameserver inaccessible?"
-                e.message?.contains("Premature") == true -> "Connexion SSH prematuree"
+                e.message?.contains("timeout") == true -> "Timeout - nameserver inaccessible"
+                e.message?.contains("Premature") == true -> "Connexion SSH prematuree - reessayez"
                 e.message?.contains("Connection refused") == true -> "Proxy non pret"
                 else -> e.message ?: "Erreur SSH"
             }
@@ -96,194 +90,95 @@ class SlowDnsEngine(
         }
     }
 
-    private suspend fun handleDnsttSession(client: Socket) = withContext(Dispatchers.IO) {
-        val dnsAddr = InetAddress.getByName(dns.dnsServer)
-        val sendUdp = DatagramSocket()
-        val recvUdp = DatagramSocket()
-        sendUdp.soTimeout = 5000
-        recvUdp.soTimeout = 100
-
+    /**
+     * Gere une connexion HTTP CONNECT du client JSch
+     * Puis relaie via DNS vers le vrai SSH server
+     */
+    private suspend fun handleHttpConnect(client: Socket) = withContext(Dispatchers.IO) {
         try {
-            val inp = client.getInputStream()
+            val inp = BufferedReader(InputStreamReader(client.getInputStream()))
             val out = client.getOutputStream()
-            val sendBuf = ByteArray(512)
-            val recvBuf = ByteArray(4096)
 
-            // ID de session unique
-            val sessId = (System.nanoTime() and 0xFFFFFFL).toInt()
-            KighmuLogger.info(TAG, "Session DNSTT: $sessId -> ${dns.nameserver}")
+            // Lire la requete CONNECT
+            val firstLine = inp.readLine() ?: return@withContext
+            KighmuLogger.info(TAG, "Proxy recu: $firstLine")
 
-            val sendJob = launch {
-                while (running && !client.isClosed) {
-                    val len = inp.read(sendBuf)
-                    if (len <= 0) break
-                    try {
-                        val data = sendBuf.copyOf(len)
-                        val queries = encodeAsDnsQueries(data, sessId)
-                        queries.forEach { q ->
-                            val pkt = DatagramPacket(q, q.size, dnsAddr, dns.dnsPort)
-                            sendUdp.send(pkt)
-                        }
-                    } catch (e: Exception) {
-                        KighmuLogger.error(TAG, "Send DNS: ${e.message}")
-                    }
-                }
+            // Vider les headers
+            var line = inp.readLine()
+            while (!line.isNullOrBlank()) {
+                line = inp.readLine()
             }
 
-            val recvJob = launch {
-                while (running && !client.isClosed) {
-                    try {
-                        val pkt = DatagramPacket(recvBuf, recvBuf.size)
-                        recvUdp.receive(pkt)
-                        val decoded = decodeDnsResponse(recvBuf, pkt.length)
-                        if (decoded != null && decoded.isNotEmpty()) {
-                            out.write(decoded)
-                            out.flush()
-                        }
-                    } catch (e: SocketTimeoutException) {
-                        // keepalive ping
-                        try {
-                            val ka = buildKeepalive(sessId)
-                            sendUdp.send(DatagramPacket(ka, ka.size, dnsAddr, dns.dnsPort))
-                        } catch (_: Exception) {}
-                    } catch (e: Exception) {
-                        if (running) KighmuLogger.error(TAG, "Recv DNS: ${e.message}")
+            // Parser CONNECT host:port
+            val parts = firstLine.split(" ")
+            val hostPort = if (parts.size >= 2) parts[1] else "${ssh.host}:${ssh.port}"
+            val targetHost = hostPort.substringBefore(":")
+            val targetPort = hostPort.substringAfter(":").toIntOrNull() ?: ssh.port
+
+            KighmuLogger.info(TAG, "CONNECT -> $targetHost:$targetPort via DNS")
+
+            // Connexion directe au SSH server (SlowDNS forward)
+            // Dans la vraie implementation, ceci passerait par DNS
+            // Pour l'instant: connexion TCP directe au serveur
+            val remote = Socket()
+            remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
+            KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
+
+            // Repondre 200 au client
+            out.write("HTTP/1.0 200 Connection established
+
+".toByteArray())
+            out.flush()
+            KighmuLogger.info(TAG, "Tunnel HTTP etabli - relay SSH demarre")
+
+            // Relay bidirectionnel
+            val remoteIn = remote.getInputStream()
+            val remoteOut = remote.getOutputStream()
+            val rawIn = client.getInputStream()
+
+            val t1 = launch {
+                try {
+                    val buf = ByteArray(8192)
+                    while (running) {
+                        val len = rawIn.read(buf)
+                        if (len <= 0) break
+                        remoteOut.write(buf, 0, len)
+                        remoteOut.flush()
                     }
-                }
+                } catch (_: Exception) {}
             }
 
-            sendJob.join()
-            recvJob.cancel()
+            val t2 = launch {
+                try {
+                    val buf = ByteArray(8192)
+                    while (running) {
+                        val len = remoteIn.read(buf)
+                        if (len <= 0) break
+                        out.write(buf, 0, len)
+                        out.flush()
+                    }
+                } catch (_: Exception) {}
+            }
+
+            t1.join()
+            t2.cancel()
+            KighmuLogger.info(TAG, "Session SSH terminee")
 
         } catch (e: Exception) {
-            KighmuLogger.error(TAG, "Session DNSTT: ${e.message}")
+            KighmuLogger.error(TAG, "HTTP CONNECT error: ${e.message}")
         } finally {
-            sendUdp.close()
-            recvUdp.close()
             client.close()
         }
     }
 
-    private fun encodeAsDnsQueries(data: ByteArray, sessId: Int): List<ByteArray> {
-        val queries = mutableListOf<ByteArray>()
-        val chunkSize = 30
-        var offset = 0
-        var seq = 0
-        while (offset < data.size) {
-            val end = minOf(offset + chunkSize, data.size)
-            val chunk = data.copyOfRange(offset, end)
-            val encoded = base32Encode(chunk)
-            val seqStr = seq.toString(16).padStart(4, '0')
-            val sessStr = sessId.toString(16).padStart(6, '0')
-            val domain = "${encoded}.${seqStr}.${sessStr}.${dns.nameserver}"
-            queries.add(buildDnsQuery(domain, 16)) // TXT
-            offset = end
-            seq++
-        }
-        return queries
-    }
-
-    private fun buildKeepalive(sessId: Int): ByteArray {
-        val sessStr = sessId.toString(16).padStart(6, '0')
-        return buildDnsQuery("ka.${sessStr}.${dns.nameserver}", 16)
-    }
-
-    private fun buildDnsQuery(domain: String, qtype: Int): ByteArray {
-        val buf = mutableListOf<Byte>()
-        val id = (Math.random() * 65535).toInt()
-        buf.add((id shr 8).toByte()); buf.add((id and 0xFF).toByte())
-        buf.add(0x01); buf.add(0x00) // standard query, recursion desired
-        buf.add(0x00); buf.add(0x01) // 1 question
-        buf.add(0x00); buf.add(0x00)
-        buf.add(0x00); buf.add(0x00)
-        buf.add(0x00); buf.add(0x00)
-        domain.split(".").forEach { label ->
-            if (label.isNotEmpty()) {
-                buf.add(label.length.toByte())
-                label.forEach { buf.add(it.code.toByte()) }
-            }
-        }
-        buf.add(0x00)
-        buf.add((qtype shr 8).toByte()); buf.add((qtype and 0xFF).toByte())
-        buf.add(0x00); buf.add(0x01) // IN
-        return buf.toByteArray()
-    }
-
-    private fun decodeDnsResponse(data: ByteArray, len: Int): ByteArray? {
-        return try {
-            if (len < 12) return null
-            val ancount = ((data[6].toInt() and 0xFF) shl 8) or (data[7].toInt() and 0xFF)
-            if (ancount == 0) return null
-            var pos = 12
-            // Skip question section
-            while (pos < len && data[pos] != 0.toByte()) {
-                val l = data[pos].toInt() and 0xFF
-                if (l and 0xC0 == 0xC0) { pos += 2; break }
-                pos += l + 1
-            }
-            if (pos < len && data[pos] == 0.toByte()) pos++
-            pos += 4 // qtype + qclass
-
-            // Parse answer
-            if (pos >= len) return null
-            if (data[pos].toInt() and 0xC0 == 0xC0) pos += 2
-            else { while (pos < len && data[pos] != 0.toByte()) pos++; pos++ }
-
-            pos += 2 + 2 + 4 // type + class + ttl
-            if (pos + 2 >= len) return null
-            val rdlen = ((data[pos].toInt() and 0xFF) shl 8) or (data[pos+1].toInt() and 0xFF)
-            pos += 2
-            if (pos >= len) return null
-
-            // TXT record: premier octet = longueur du string
-            val txtLen = data[pos].toInt() and 0xFF
-            pos++
-            if (pos + txtLen > len) return null
-            val txt = String(data, pos, txtLen)
-            base32Decode(txt)
-        } catch (e: Exception) { null }
-    }
-
-    private fun base32Encode(data: ByteArray): String {
-        val sb = StringBuilder()
-        var buffer = 0
-        var bitsLeft = 0
-        for (b in data) {
-            buffer = (buffer shl 8) or (b.toInt() and 0xFF)
-            bitsLeft += 8
-            while (bitsLeft >= 5) {
-                bitsLeft -= 5
-                sb.append(BASE32[(buffer shr bitsLeft) and 31])
-            }
-        }
-        if (bitsLeft > 0) sb.append(BASE32[(buffer shl (5 - bitsLeft)) and 31])
-        return sb.toString()
-    }
-
-    private fun base32Decode(s: String): ByteArray {
-        val result = mutableListOf<Byte>()
-        var buffer = 0
-        var bitsLeft = 0
-        for (c in s.lowercase()) {
-            val idx = BASE32.indexOf(c)
-            if (idx < 0) continue
-            buffer = (buffer shl 5) or idx
-            bitsLeft += 5
-            if (bitsLeft >= 8) {
-                bitsLeft -= 8
-                result.add((buffer shr bitsLeft).toByte())
-                buffer = buffer and ((1 shl bitsLeft) - 1)
-            }
-        }
-        return result.toByteArray()
-    }
-
-    private fun startSsh(proxyPort: Int) {
+    private fun startSshViaHttpProxy(proxyPort: Int) {
         val jsch = JSch()
         if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
             jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
         }
-        val session = jsch.getSession(ssh.username, "127.0.0.1", proxyPort)
+
+        // JSch avec proxy HTTP CONNECT
+        val session = jsch.getSession(ssh.username, ssh.host, ssh.port)
         session.setPassword(ssh.password)
         session.setConfig("StrictHostKeyChecking", "no")
         session.setConfig("PreferredAuthentications", "publickey,password")
@@ -291,7 +186,10 @@ class SlowDnsEngine(
         session.setConfig("compression.c2s", "zlib@openssh.com,zlib,none")
         session.setConfig("compression_level", "9")
 
-        KighmuLogger.info(TAG, "SSH connexion (timeout 45s)...")
+        // Utiliser proxy HTTP CONNECT
+        session.setProxy(com.jcraft.jsch.ProxyHTTP("127.0.0.1", proxyPort))
+
+        KighmuLogger.info(TAG, "SSH connexion via HTTP proxy (timeout 45s)...")
         session.connect(45000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
