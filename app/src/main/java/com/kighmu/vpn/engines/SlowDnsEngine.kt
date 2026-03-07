@@ -134,7 +134,7 @@ class SlowDnsEngine(
                 KighmuLogger.info("dnstt", line)
             }
         }
-        KighmuLogger.info(TAG, "dnstt-client demarre (PID: ${dnsttProcess?.pid()})")
+        KighmuLogger.info(TAG, "dnstt-client demarre")
     }
 
     private fun startFallbackProxy() {
