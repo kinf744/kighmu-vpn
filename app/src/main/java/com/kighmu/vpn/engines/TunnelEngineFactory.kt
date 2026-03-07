@@ -10,7 +10,7 @@ object TunnelEngineFactory {
 
     fun create(config: KighmuConfig, context: Context): TunnelEngine {
         val mode = config.tunnelMode
-        KighmuLogger.info(TAG, "=== Creation engine: \${mode.label} ===")
+        KighmuLogger.info(TAG, "=== Creation engine: ${mode.label} ===")
         return when (mode) {
             TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)

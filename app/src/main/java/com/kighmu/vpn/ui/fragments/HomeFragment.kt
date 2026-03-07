@@ -43,6 +43,16 @@ class HomeFragment : Fragment() {
             spinnerMode.adapter = adapter
             spinnerMode.setSelection(viewModel.config.value.tunnelMode.id)
 
+            spinnerMode.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
+                    val selectedMode = TunnelMode.values()[position]
+                    if (selectedMode != viewModel.config.value.tunnelMode) {
+                        viewModel.updateTunnelMode(selectedMode)
+                    }
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+            }
+
             btnConnect.setOnClickListener {
                 val activity = requireActivity() as MainActivity
                 when (viewModel.connectionStatus.value) {
