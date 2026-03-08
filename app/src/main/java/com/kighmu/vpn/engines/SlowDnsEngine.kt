@@ -207,8 +207,7 @@ class SlowDnsEngine(
                 KighmuLogger.info(TAG, "Banniere SSH: $banner")
                 s.soTimeout = 0
                 // Remettre la banniere dans le stream via PushbackInputStream
-                val fullBanner = (banner + "
-").toByteArray()
+                val fullBanner = (banner + "\n").toByteArray()
                 val pbis = java.io.PushbackInputStream(inp, fullBanner.size)
                 pbis.unread(fullBanner)
                 KighmuLogger.info(TAG, "JSch socket pret")
