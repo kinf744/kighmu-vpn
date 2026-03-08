@@ -52,17 +52,44 @@ class SlowDnsEngine(
     }
 
     private fun createProtectedSocket(host: String, port: Int): Socket {
+        // Trouver l interface reseau physique (pas VPN)
+        val physicalIface = try {
+            java.net.NetworkInterface.getNetworkInterfaces()?.toList()
+                ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
+                ?.filter { iface ->
+                    val name = iface.name
+                    // Exclure interfaces VPN (tun, ppp, etc)
+                    !name.startsWith("tun") && !name.startsWith("ppp") &&
+                    !name.startsWith("vpn") && !name.startsWith("rmnet_vpn")
+                }
+                ?.firstOrNull { iface ->
+                    iface.inetAddresses?.toList()?.any { it is java.net.Inet4Address && !it.isLoopbackAddress } == true
+                }
+        } catch (e: Exception) { null }
+        
+        KighmuLogger.info(TAG, "Interface physique: ${physicalIface?.name ?: "non trouvee"}")
+        
         val s = Socket()
-        // protect() avant connect - fonctionne sur Android avec interface VPN active
+        // Lier a l'interface physique si trouvee
+        if (physicalIface != null) {
+            try {
+                val addr = physicalIface.inetAddresses?.toList()
+                    ?.firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }
+                if (addr != null) {
+                    s.bind(InetSocketAddress(addr, 0))
+                    KighmuLogger.info(TAG, "Socket lie a ${addr.hostAddress}")
+                }
+            } catch (e: Exception) {
+                KighmuLogger.warning(TAG, "Bind iface: ${e.message}")
+            }
+        }
         val r1 = vpnService?.protect(s) ?: false
         KighmuLogger.info(TAG, "protect avant connect = $r1")
         s.connect(InetSocketAddress(host, port), 20000)
-        // protect() apres connect aussi
         val r2 = protectSocketFd(s)
         KighmuLogger.info(TAG, "protect apres connect = $r2")
         s.soTimeout = 0
         s.tcpNoDelay = true
-        s.keepAlive = true
         return s
     }
 
