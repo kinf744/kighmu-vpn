@@ -233,8 +233,32 @@ class SlowDnsEngine(
             override fun createSocket(host: String, port: Int): Socket {
                 KighmuLogger.info(TAG, "SocketFactory -> $host:$port")
                 val s = createProtectedSocket(host, port)
-                KighmuLogger.info(TAG, "SocketFactory socket pret")
-                return s
+                // Lire banniere pour verifier que le socket fonctionne
+                try {
+                    s.soTimeout = 5000
+                    val banner = s.getInputStream().bufferedReader().readLine()
+                    KighmuLogger.info(TAG, "Banniere lue: $banner")
+                    s.soTimeout = 0
+                    // Remettre la banniere dans le stream
+                    val bannerBytes = (banner + "
+").toByteArray()
+                    val pbi = java.io.PushbackInputStream(s.getInputStream(), bannerBytes.size)
+                    pbi.unread(bannerBytes)
+                    KighmuLogger.info(TAG, "SocketFactory socket pret avec banniere")
+                    return object : Socket() {
+                        override fun getInputStream() = pbi
+                        override fun getOutputStream() = s.getOutputStream()
+                        override fun isClosed() = s.isClosed
+                        override fun isConnected() = s.isConnected
+                        override fun close() = s.close()
+                        override fun setSoTimeout(t: Int) = s.setSoTimeout(t)
+                        override fun getSoTimeout() = s.getSoTimeout()
+                        override fun setTcpNoDelay(on: Boolean) = s.setTcpNoDelay(on)
+                    }
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "Lecture banniere echouee: ${e.message}")
+                    throw e
+                }
             }
             override fun getInputStream(s: Socket): InputStream = s.getInputStream()
             override fun getOutputStream(s: Socket): OutputStream = s.getOutputStream()
