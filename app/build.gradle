@@ -72,7 +72,9 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
     implementation 'com.google.code.gson:gson:2.10.1'
     // trilead-ssh2 identique SSH Custom
-    implementation 'org.connectbot:sshlib:2.2.21'
+    implementation('org.connectbot:sshlib:2.2.21') {
+        exclude group: 'com.google.crypto.tink'
+    }
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'dnsjava:dnsjava:3.5.3'
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
