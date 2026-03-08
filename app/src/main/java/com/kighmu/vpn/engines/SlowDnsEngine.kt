@@ -3,15 +3,12 @@ package com.kighmu.vpn.engines
 import android.content.Context
 import com.trilead.ssh2.Connection
 import com.trilead.ssh2.ConnectionInfo
-import com.trilead.ssh2.crypto.CryptoWishList
-import com.trilead.ssh2.transport.ProxyData
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
 import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.Socket
 
 class SlowDnsEngine(
@@ -23,7 +20,8 @@ class SlowDnsEngine(
     companion object {
         const val TAG = "SlowDnsEngine"
         const val LOCAL_SOCKS_PORT = 10800
-        const val DNSTT_PORT = 7000       // dnstt expose SOCKS5 ici
+        const val DNSTT_PORT = 7000
+        const val SSH_RELAY_PORT = 7001   // port local ou on relaie SSH via SOCKS5
         const val VPN_ADDRESS = "10.0.0.2"
         const val VPN_PREFIX = "24"
         const val MTU = 1500
@@ -32,6 +30,8 @@ class SlowDnsEngine(
     private var running = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
+    private var relaySocket: Socket? = null
+    private var relayServer: ServerSocket? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
@@ -40,7 +40,6 @@ class SlowDnsEngine(
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS: ${dns.dnsServer}:${dns.dnsPort}")
-        KighmuLogger.info(TAG, "Nameserver: ${dns.nameserver}")
         KighmuLogger.info(TAG, "SSH: ${ssh.host}:${ssh.port} / ${ssh.username}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
@@ -52,6 +51,10 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "Attente dnstt (15s)...")
         delay(15000)
 
+        // Ouvrir tunnel SOCKS5 vers serveur SSH
+        startSshRelay()
+
+        // Connecter SSH via le relay local
         startSsh()
         KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $LOCAL_SOCKS_PORT ===")
 
@@ -80,8 +83,7 @@ class SlowDnsEngine(
     private fun extractDnsttBinary(): File {
         val nativeDir = context.applicationInfo.nativeLibraryDir
         val binFile = File(nativeDir, "libdnstt.so")
-        KighmuLogger.info(TAG, "dnstt path: ${binFile.absolutePath}")
-        KighmuLogger.info(TAG, "dnstt existe: ${binFile.exists()}, taille: ${binFile.length()}")
+        KighmuLogger.info(TAG, "dnstt path: ${binFile.absolutePath}, existe: ${binFile.exists()}")
         if (!binFile.exists()) throw Exception("libdnstt.so introuvable dans $nativeDir")
         return binFile
     }
@@ -123,75 +125,113 @@ class SlowDnsEngine(
         }
     }
 
-    private fun startSsh() {
-        KighmuLogger.info(TAG, "Connexion SSH via SOCKS5 dnstt (127.0.0.1:$DNSTT_PORT) -> ${ssh.host}:${ssh.port}")
+    /**
+     * Ouvre une connexion SOCKS5 via dnstt vers le vrai serveur SSH
+     * et l'expose sur un ServerSocket local (SSH_RELAY_PORT)
+     * pour que trilead puisse s'y connecter normalement
+     */
+    private fun startSshRelay() {
+        KighmuLogger.info(TAG, "Ouverture tunnel SOCKS5: dnstt:$DNSTT_PORT -> ${ssh.host}:${ssh.port}")
 
-        // Architecture SSH Custom:
-        // trilead se connecte au VRAI serveur SSH (host:port)
-        // MAIS via le proxy SOCKS5 que dnstt expose sur 127.0.0.1:7000
-        val conn = Connection(ssh.host, ssh.port)
+        // Connecter via SOCKS5 au vrai serveur SSH
+        val sock = connectViaSocks5("127.0.0.1", DNSTT_PORT, ssh.host, ssh.port)
+        relaySocket = sock
+        KighmuLogger.info(TAG, "SOCKS5 tunnel etabli vers ${ssh.host}:${ssh.port}")
 
-        // Proxy SOCKS5 = dnstt local port
-        conn.setProxyData(object : ProxyData {
-            override fun openConnection(hostname: String, port: Int): Socket {
-                KighmuLogger.info(TAG, "SOCKS5 connect via dnstt: $hostname:$port")
-                val sock = Socket()
-                sock.connect(InetSocketAddress("127.0.0.1", DNSTT_PORT), 30000)
+        // Exposer via un ServerSocket local pour trilead
+        val server = ServerSocket(SSH_RELAY_PORT)
+        relayServer = server
 
-                val out = sock.getOutputStream()
-                val inp = sock.getInputStream()
+        engineScope.launch(Dispatchers.IO) {
+            val client = server.accept()
+            server.close()
+            KighmuLogger.info(TAG, "trilead connecte au relay local")
 
-                // SOCKS5 handshake
-                out.write(byteArrayOf(0x05, 0x01, 0x00)) // version, 1 method, no auth
-                out.flush()
-                inp.read(); inp.read() // server choice
-
-                // SOCKS5 CONNECT request
-                val hostBytes = hostname.toByteArray()
-                val req = byteArrayOf(
-                    0x05, 0x01, 0x00, 0x03,             // ver, cmd CONNECT, rsv, atyp DOMAINNAME
-                    hostBytes.size.toByte()
-                ) + hostBytes + byteArrayOf(
-                    (port shr 8).toByte(),
-                    (port and 0xFF).toByte()
-                )
-                out.write(req)
-                out.flush()
-
-                // Read response (10 bytes min)
-                val resp = ByteArray(10)
-                var total = 0
-                while (total < 10) {
-                    val n = inp.read(resp, total, 10 - total)
-                    if (n < 0) break
-                    total += n
-                }
-                if (resp[1] != 0x00.toByte()) {
-                    throw Exception("SOCKS5 erreur: ${resp[1]}")
-                }
-                KighmuLogger.info(TAG, "SOCKS5 tunnel etabli vers $hostname:$port")
-                return sock
+            // Bidirectionnel relay
+            val j1 = launch {
+                try {
+                    val buf = ByteArray(8192)
+                    val inp = client.getInputStream()
+                    val out = sock.getOutputStream()
+                    var n: Int
+                    while (inp.read(buf).also { n = it } > 0) {
+                        out.write(buf, 0, n); out.flush()
+                    }
+                } catch (_: Exception) {}
             }
-        })
+            val j2 = launch {
+                try {
+                    val buf = ByteArray(8192)
+                    val inp = sock.getInputStream()
+                    val out = client.getOutputStream()
+                    var n: Int
+                    while (inp.read(buf).also { n = it } > 0) {
+                        out.write(buf, 0, n); out.flush()
+                    }
+                } catch (_: Exception) {}
+            }
+            j1.join(); j2.cancel()
+            client.close()
+        }
+    }
 
-        // Algos identiques SSH Custom
-        val wishList = CryptoWishList()
-        wishList.kexAlgos      = arrayOf("diffie-hellman-group-exchange-sha256", "diffie-hellman-group14-sha1")
-        wishList.c2s_enc_algos = arrayOf("aes256-ctr", "aes128-ctr", "aes256-cbc", "aes128-cbc")
-        wishList.s2c_enc_algos = arrayOf("aes256-ctr", "aes128-ctr", "aes256-cbc", "aes128-cbc")
-        wishList.c2s_mac_algos = arrayOf("hmac-sha2-512", "hmac-sha2-256", "hmac-sha1")
-        wishList.s2c_mac_algos = arrayOf("hmac-sha2-512", "hmac-sha2-256", "hmac-sha1")
+    private fun connectViaSocks5(proxyHost: String, proxyPort: Int, targetHost: String, targetPort: Int): Socket {
+        val sock = Socket()
+        sock.connect(InetSocketAddress(proxyHost, proxyPort), 30000)
+        val out = sock.getOutputStream()
+        val inp = sock.getInputStream()
 
-        val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000, wishList)
+        // Handshake: version 5, 1 method, no auth
+        out.write(byteArrayOf(0x05, 0x01, 0x00))
+        out.flush()
+        val serverChoice = ByteArray(2)
+        inp.read(serverChoice)
+        KighmuLogger.info(TAG, "SOCKS5 handshake: ${serverChoice[0]} ${serverChoice[1]}")
+
+        // CONNECT request avec domain name
+        val hostBytes = targetHost.toByteArray(Charsets.US_ASCII)
+        val req = byteArrayOf(0x05, 0x01, 0x00, 0x03, hostBytes.size.toByte()) +
+                  hostBytes +
+                  byteArrayOf((targetPort shr 8).toByte(), (targetPort and 0xFF).toByte())
+        out.write(req)
+        out.flush()
+
+        // Lire reponse (au moins 10 bytes)
+        val resp = ByteArray(256)
+        var total = 0
+        // Lire minimum 4 bytes pour connaitre le type d'adresse
+        while (total < 4) { total += inp.read(resp, total, 4 - total) }
+        val atyp = resp[3].toInt()
+        val remaining = when (atyp) {
+            0x01 -> 4 + 2  // IPv4 + port
+            0x03 -> inp.read().also { resp[4] = it.toByte() } + 2  // domain len + port
+            0x04 -> 16 + 2 // IPv6 + port
+            else -> 2
+        }
+        while (total < 4 + remaining) { total += inp.read(resp, total, 4 + remaining - total) }
+
+        if (resp[1] != 0x00.toByte()) {
+            throw Exception("SOCKS5 CONNECT echoue: code=${resp[1]}")
+        }
+        KighmuLogger.info(TAG, "SOCKS5 CONNECT OK vers $targetHost:$targetPort")
+        return sock
+    }
+
+    private fun startSsh() {
+        KighmuLogger.info(TAG, "Connexion SSH trilead -> relay local 127.0.0.1:$SSH_RELAY_PORT")
+
+        // trilead se connecte au relay local (qui pointe vers le vrai SSH via SOCKS5/dnstt)
+        val conn = Connection("127.0.0.1", SSH_RELAY_PORT)
+        val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
         KighmuLogger.info(TAG, "SSH connecte! banner=${connInfo.serverVersion} kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
         if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
         KighmuLogger.info(TAG, "SSH authentifie!")
 
-        // Dynamic SOCKS5 forwarding sur LOCAL_SOCKS_PORT pour tun2socks
+        // Dynamic SOCKS5 forwarding pour tun2socks
         conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
-        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur port $LOCAL_SOCKS_PORT")
+        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $LOCAL_SOCKS_PORT")
 
         sshConnection = conn
     }
@@ -201,6 +241,10 @@ class SlowDnsEngine(
         try { Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
+        try { relaySocket?.close() } catch (_: Exception) {}
+        relaySocket = null
+        try { relayServer?.close() } catch (_: Exception) {}
+        relayServer = null
         try { dnsttProcess?.destroy() } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
