@@ -56,15 +56,12 @@ class SlowDnsEngine(
     }
 
     private fun extractDnsttBinary(): File {
-        val binFile = File(context.filesDir, "dnstt-client")
-        if (!binFile.exists() || binFile.length() == 0L) {
-            KighmuLogger.info(TAG, "Extraction dnstt-client...")
-            context.assets.open("dnstt-client").use { inp ->
-                binFile.outputStream().use { out -> inp.copyTo(out) }
-            }
-        }
-        binFile.setExecutable(true, false)
-        KighmuLogger.info(TAG, "dnstt-client: ${binFile.length()} bytes, executable=${binFile.canExecute()}")
+        // Android interdit exec depuis filesDir - utiliser nativeLibraryDir
+        val nativeDir = context.applicationInfo.nativeLibraryDir
+        val binFile = File(nativeDir, "libdnstt.so")
+        KighmuLogger.info(TAG, "dnstt path: ${binFile.absolutePath}")
+        KighmuLogger.info(TAG, "dnstt existe: ${binFile.exists()}, taille: ${binFile.length()}, exec: ${binFile.canExecute()}")
+        if (!binFile.exists()) throw Exception("libdnstt.so introuvable dans $nativeDir")
         return binFile
     }
 
