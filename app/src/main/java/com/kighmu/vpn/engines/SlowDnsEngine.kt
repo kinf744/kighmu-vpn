@@ -186,6 +186,8 @@ class SlowDnsEngine(
             val remoteIn = remote.getInputStream()
             val remoteOut = remote.getOutputStream()
 
+            var bytesSent = 0L
+            var bytesRecv = 0L
             // Thread relay: client -> remote
             val t1 = Thread {
                 try {
@@ -195,8 +197,10 @@ class SlowDnsEngine(
                         if (len < 0) break
                         remoteOut.write(buf, 0, len)
                         remoteOut.flush()
+                        bytesSent += len
+                        if (bytesSent <= 200) KighmuLogger.info(TAG, "-> remote: $len bytes (total=$bytesSent)")
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { KighmuLogger.error(TAG, "t1 stop: ${e.message}") }
                 try { remote.close() } catch (_: Exception) {}
             }
             // Thread relay: remote -> client
@@ -208,8 +212,10 @@ class SlowDnsEngine(
                         if (len < 0) break
                         out.write(buf, 0, len)
                         out.flush()
+                        bytesRecv += len
+                        if (bytesRecv <= 200) KighmuLogger.info(TAG, "<- remote: $len bytes (total=$bytesRecv)")
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { KighmuLogger.error(TAG, "t2 stop: ${e.message}") }
                 try { client.close() } catch (_: Exception) {}
             }
             t1.start()
