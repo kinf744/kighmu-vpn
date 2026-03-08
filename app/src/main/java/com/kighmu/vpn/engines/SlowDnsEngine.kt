@@ -22,7 +22,6 @@ class SlowDnsEngine(
         const val VPN_PREFIX = "24"
         const val MTU = 1500
         // Version string identique a SSH Custom
-        const val SSH_CLIENT_VERSION = "SSH-2.0-easyPro"
     }
 
     private var running = false
@@ -128,7 +127,6 @@ class SlowDnsEngine(
 
         // Utiliser trilead-ssh2 exactement comme SSH Custom
         val conn = Connection("127.0.0.1", DNSTT_PORT)
-        conn.setClient_version(SSH_CLIENT_VERSION)
 
         // Connecter avec timeout 120s (tunnel DNS est lent)
         val connInfo: ConnectionInfo = conn.connect(

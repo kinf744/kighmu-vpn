@@ -1,11 +1,10 @@
 package com.kighmu.vpn.engines
-import com.kighmu.vpn.models.XrayConfig
 
+import com.kighmu.vpn.models.XrayConfig
 import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
-import com.jcraft.jsch.JSch
-import com.jcraft.jsch.Session
+import com.trilead.ssh2.Connection
 import kotlinx.coroutines.*
 import okhttp3.*
 import okio.ByteString
@@ -14,7 +13,6 @@ import java.net.*
 import java.security.SecureRandom
 import java.util.concurrent.LinkedBlockingQueue
 import javax.net.ssl.*
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mode 3: SSH WebSocket Engine
@@ -28,14 +26,12 @@ class SshWebSocketEngine(
     companion object {
         const val TAG = "SshWebSocketEngine"
         const val LOCAL_SOCKS_PORT = 10802
-        const val LOCAL_DYNAMIC_PORT = 10803
     }
 
     private var running = false
-    private var jschSession: Session? = null
+    private var sshConnection: Connection? = null
     private var wsSocket: WebSocket? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val sendQueue = LinkedBlockingQueue<ByteArray>(1000)
     private val receiveQueue = LinkedBlockingQueue<ByteArray>(1000)
 
     private val wsConfig get() = config.sshWebSocket
@@ -44,13 +40,8 @@ class SshWebSocketEngine(
     override suspend fun start(): Int {
         running = true
         KighmuLogger.info(TAG, "Starting SSH WebSocket engine")
-
-        // Step 1: Open WebSocket tunnel
         connectWebSocket()
-
-        // Step 2: SSH over WebSocket
         startSshTunnel()
-
         return LOCAL_SOCKS_PORT
     }
 
@@ -63,7 +54,6 @@ class SshWebSocketEngine(
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
 
         if (wsConfig.useWss) {
-            // Trust all for WSS (production: use proper cert pinning)
             val trustAll = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
                 override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
@@ -81,7 +71,6 @@ class SshWebSocketEngine(
         val client = clientBuilder.build()
         val request = requestBuilder.build()
 
-        // WebSocket listener bridges to SSH
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 KighmuLogger.info(TAG, "WebSocket connected")
@@ -91,7 +80,7 @@ class SshWebSocketEngine(
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 KighmuLogger.error(TAG, "WebSocket error: ${t.message}")
-                if (running) engineScope.launch { connectWebSocket() as Unit } // reconnect
+                if (running) engineScope.launch { connectWebSocket() }
             }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 KighmuLogger.info(TAG, "WebSocket closed: $reason")
@@ -99,43 +88,20 @@ class SshWebSocketEngine(
         }
 
         wsSocket = client.newWebSocket(request, listener)
-        delay(1000) // Wait for connection
+        delay(1000)
     }
 
     private fun startSshTunnel() {
         engineScope.launch {
             try {
-                val jsch = JSch()
-
-                // Set private key if applicable
-                if (sshConfig.usePrivateKey && sshConfig.privateKey.isNotEmpty()) {
-                    jsch.addIdentity("key", sshConfig.privateKey.toByteArray(), null, null)
-                }
-
-                // Create a custom proxy socket via WebSocket
                 val proxySocket = createWebSocketProxySocket()
-
-                val session = jsch.getSession(sshConfig.username, sshConfig.host, sshConfig.port)
-                session.setPassword(sshConfig.password)
-                session.setConfig("StrictHostKeyChecking", "no")
-                session.setConfig("PreferredAuthentications", "publickey,password")
-                session.setProxy(object : com.jcraft.jsch.Proxy {
-                    override fun connect(socketFactory: com.jcraft.jsch.SocketFactory?, host: String?, port: Int, timeout: Int) {
-                        // Already connected via WebSocket
-                    }
-                    override fun getInputStream(): InputStream = proxySocket.getInputStream()
-                    override fun getOutputStream(): OutputStream = proxySocket.getOutputStream()
-                    override fun getSocket(): Socket = proxySocket
-                    override fun close() { proxySocket.close() }
-                })
-
-                session.connect(15000)
-                jschSession = session
-
-                // Set up dynamic SOCKS5 port forwarding
-                session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_DYNAMIC_PORT)
+                val conn = Connection(sshConfig.host, sshConfig.port)
+                conn.connect(null, 15000, 15000)
+                val authenticated = conn.authenticateWithPassword(sshConfig.username, sshConfig.password)
+                if (!authenticated) throw Exception("SSH auth echoue")
+                conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT + 1)
+                sshConnection = conn
                 KighmuLogger.info(TAG, "SSH WebSocket tunnel established, SOCKS on $LOCAL_SOCKS_PORT")
-
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "SSH WebSocket failed: ${e.message}")
             }
@@ -143,7 +109,6 @@ class SshWebSocketEngine(
     }
 
     private fun createWebSocketProxySocket(): Socket {
-        // A pipe-based socket that reads/writes through the WebSocket
         val serverSocket = ServerSocket(0)
         val port = serverSocket.localPort
 
@@ -151,7 +116,6 @@ class SshWebSocketEngine(
             val conn = serverSocket.accept()
             serverSocket.close()
 
-            // Relay: socket → WS
             launch {
                 val buf = ByteArray(4096)
                 val inp = conn.getInputStream()
@@ -162,7 +126,6 @@ class SshWebSocketEngine(
                 }
             }
 
-            // Relay: WS → socket
             launch {
                 val out = conn.getOutputStream()
                 while (running) {
@@ -178,12 +141,12 @@ class SshWebSocketEngine(
 
     override suspend fun stop() {
         running = false
-        jschSession?.disconnect()
+        try { sshConnection?.close() } catch (_: Exception) {}
         wsSocket?.close(1000, "Stopped")
         engineScope.cancel()
     }
 
-    override suspend fun sendData(data: ByteArray, length: Int) { sendQueue.offer(data.copyOf(length)) }
+    override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = receiveQueue.poll(500, java.util.concurrent.TimeUnit.MILLISECONDS)
     override fun isRunning() = running
 }
@@ -203,7 +166,7 @@ class SshSslEngine(
     }
 
     private var running = false
-    private var jschSession: Session? = null
+    private var sshConnection: Connection? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val receiveQueue = LinkedBlockingQueue<ByteArray>(1000)
 
@@ -216,33 +179,13 @@ class SshSslEngine(
 
         withContext(Dispatchers.IO) {
             try {
-                val jsch = JSch()
-
-                if (sshConfig.usePrivateKey && sshConfig.privateKey.isNotEmpty()) {
-                    jsch.addIdentity("key", sshConfig.privateKey.toByteArray(), null, null)
-                }
-
-                // Build SSL socket
                 val sslSocket = buildSslSocket()
-
-                val session = jsch.getSession(sshConfig.username, sshConfig.host, sshConfig.port)
-                session.setPassword(sshConfig.password)
-                session.setConfig("StrictHostKeyChecking", "no")
-
-                session.setProxy(object : com.jcraft.jsch.Proxy {
-                    override fun connect(sf: com.jcraft.jsch.SocketFactory?, h: String?, p: Int, t: Int) {}
-                    override fun getInputStream(): InputStream = sslSocket.inputStream
-                    override fun getOutputStream(): OutputStream = sslSocket.outputStream
-                    override fun getSocket(): Socket = sslSocket
-                    override fun close() = sslSocket.close()
-                })
-
-                session.connect(15000)
-                jschSession = session
-
-                // Dynamic forwarding: all traffic via SOCKS5
-                session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT + 1)
-
+                val conn = Connection(sshConfig.host, sshConfig.port)
+                conn.connect(null, 15000, 15000)
+                val authenticated = conn.authenticateWithPassword(sshConfig.username, sshConfig.password)
+                if (!authenticated) throw Exception("SSH auth echoue")
+                conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT + 1)
+                sshConnection = conn
                 KighmuLogger.info(TAG, "SSH SSL/TLS tunnel ready on port $LOCAL_SOCKS_PORT")
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "SSH SSL/TLS failed: ${e.message}")
@@ -280,7 +223,7 @@ class SshSslEngine(
 
     override suspend fun stop() {
         running = false
-        jschSession?.disconnect()
+        try { sshConnection?.close() } catch (_: Exception) {}
         engineScope.cancel()
     }
 
@@ -290,7 +233,7 @@ class SshSslEngine(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mode 5: Xray Engine (wraps native xray-core binary)
+// Mode 5: Xray Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
 class XrayEngine(
@@ -315,10 +258,7 @@ class XrayEngine(
 
         withContext(Dispatchers.IO) {
             try {
-                // Write Xray config JSON to temp file
                 val xrayConfigFile = writeXrayConfig()
-
-                // Extract and start xray binary
                 val xrayBinary = extractXrayBinary()
                 if (xrayBinary != null) {
                     startXrayProcess(xrayBinary, xrayConfigFile)
@@ -326,7 +266,6 @@ class XrayEngine(
                     KighmuLogger.error(TAG, "Xray binary not found, using built-in SOCKS proxy")
                     startFallbackProxy()
                 }
-
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "Xray start error: ${e.message}")
                 startFallbackProxy()
@@ -338,18 +277,14 @@ class XrayEngine(
 
     private fun writeXrayConfig(): File {
         val xrayConfig = config.xray
-
-        // Use custom JSON if available, otherwise build from fields
         val jsonConfig = if (xrayConfig.jsonConfig.isNotBlank() &&
             xrayConfig.jsonConfig != XrayConfig.defaultXrayConfig) {
             xrayConfig.jsonConfig
         } else {
             buildXrayConfigFromFields(xrayConfig)
         }
-
         val file = File(context.filesDir, "xray_config.json")
         file.writeText(jsonConfig)
-        KighmuLogger.info(TAG, "Xray config written to ${file.absolutePath}")
         return file
     }
 
@@ -375,56 +310,20 @@ class XrayEngine(
         }
 
         val outbound = when (xc.protocol) {
-            "vmess" -> """
-                {
-                    "protocol": "vmess",
-                    "settings": {
-                        "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }]
-                    },
-                    $transport
-                }
-            """.trimIndent()
-            "vless" -> """
-                {
-                    "protocol": "vless",
-                    "settings": {
-                        "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }]
-                    },
-                    $transport
-                }
-            """.trimIndent()
-            "trojan" -> """
-                {
-                    "protocol": "trojan",
-                    "settings": {
-                        "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }]
-                    },
-                    $transport
-                }
-            """.trimIndent()
+            "vmess" -> """{ "protocol": "vmess", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }] }, $transport }"""
+            "vless" -> """{ "protocol": "vless", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }] }, $transport }"""
+            "trojan" -> """{ "protocol": "trojan", "settings": { "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }] }, $transport }"""
             else -> """{ "protocol": "${xc.protocol}", "settings": {} }"""
         }
 
-        return """
-            {
-                "log": { "loglevel": "warning" },
-                "inbounds": [
-                    { "port": $LOCAL_SOCKS_PORT, "protocol": "socks", "settings": { "udp": true } },
-                    { "port": $LOCAL_HTTP_PORT, "protocol": "http" }
-                ],
-                "outbounds": [$outbound],
-                "routing": { "rules": [] }
-            }
-        """.trimIndent()
+        return """{ "log": { "loglevel": "warning" }, "inbounds": [{ "port": $LOCAL_SOCKS_PORT, "protocol": "socks", "settings": { "udp": true } }, { "port": $LOCAL_HTTP_PORT, "protocol": "http" }], "outbounds": [$outbound], "routing": { "rules": [] } }"""
     }
 
     private fun extractXrayBinary(): File? {
         val abi = android.os.Build.SUPPORTED_ABIS[0]
-        val binaryName = "xray"
-        val target = File(context.filesDir, binaryName)
-
+        val target = File(context.filesDir, "xray")
         return try {
-            context.assets.open("xray/$abi/$binaryName").use { inp ->
+            context.assets.open("xray/$abi/xray").use { inp ->
                 target.outputStream().use { out -> inp.copyTo(out) }
             }
             target.setExecutable(true)
@@ -438,25 +337,12 @@ class XrayEngine(
     private fun startXrayProcess(binary: File, configFile: File) {
         val cmd = arrayOf(binary.absolutePath, "run", "-c", configFile.absolutePath)
         xrayProcess = Runtime.getRuntime().exec(cmd)
-
-        // Log xray output
-        engineScope.launch {
-            xrayProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
-                KighmuLogger.info(TAG, "[xray] $line")
-            }
-        }
-        engineScope.launch {
-            xrayProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
-                KighmuLogger.error(TAG, "[xray err] $line")
-            }
-        }
-
-        KighmuLogger.info(TAG, "Xray process started (PID: ${"N/A"})")
+        engineScope.launch { xrayProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[xray] $it") } }
+        engineScope.launch { xrayProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[xray err] $it") } }
+        KighmuLogger.info(TAG, "Xray process started")
     }
 
     private fun startFallbackProxy() {
-        // Minimal SOCKS5 proxy as fallback when binary unavailable
-        KighmuLogger.info(TAG, "Starting fallback SOCKS5 proxy")
         engineScope.launch {
             val server = ServerSocket(LOCAL_SOCKS_PORT)
             while (running) {
@@ -470,7 +356,6 @@ class XrayEngine(
     }
 
     private suspend fun handleDirectSocks(client: Socket) = withContext(Dispatchers.IO) {
-        // Simple pass-through SOCKS5 for testing
         try {
             val inp = DataInputStream(client.getInputStream())
             val out = DataOutputStream(client.getOutputStream())
@@ -493,14 +378,13 @@ class XrayEngine(
             val j2 = launch { try { val i = server.getInputStream(); val o = client.getOutputStream(); var l: Int; while (i.read(buf).also { l = it } > 0) { o.write(buf, 0, l); o.flush() } } catch (_: Exception) {} }
             j1.join(); j2.cancel()
             server.close()
-        } catch (e: Exception) { } finally { client.close() }
+        } catch (_: Exception) { } finally { client.close() }
     }
 
     override suspend fun stop() {
         running = false
         xrayProcess?.destroy()
         engineScope.cancel()
-        KighmuLogger.info(TAG, "Xray engine stopped")
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
@@ -509,7 +393,7 @@ class XrayEngine(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mode 6: V2Ray + SlowDNS (Xray over DNS)
+// Mode 6: Xray + SlowDNS
 // ─────────────────────────────────────────────────────────────────────────────
 
 class XraySlowDnsEngine(
@@ -526,23 +410,19 @@ class XraySlowDnsEngine(
     ), context)
 
     override suspend fun start(): Int {
-        KighmuLogger.info("XraySlowDns", "Starting V2Ray + SlowDNS combined engine")
+        KighmuLogger.info("XraySlowDns", "Starting Xray + SlowDNS")
         slowDns.start()
         return xray.start()
     }
 
-    override suspend fun stop() {
-        xray.stop()
-        slowDns.stop()
-    }
-
+    override suspend fun stop() { xray.stop(); slowDns.stop() }
     override suspend fun sendData(data: ByteArray, length: Int) = xray.sendData(data, length)
     override suspend fun receiveData(): ByteArray? = xray.receiveData()
     override fun isRunning() = xray.isRunning() && slowDns.isRunning()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mode 7: Hysteria UDP Engine (wraps hysteria2 binary)
+// Mode 7: Hysteria Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HysteriaEngine(
@@ -560,60 +440,25 @@ class HysteriaEngine(
     private var hysteriaProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val receiveQueue = LinkedBlockingQueue<ByteArray>(1000)
-
     private val hConfig get() = config.hysteria
 
     override suspend fun start(): Int {
         running = true
-        KighmuLogger.info(TAG, "Starting Hysteria engine: ${hConfig.serverAddress}:${hConfig.serverPort}")
-
+        KighmuLogger.info(TAG, "Starting Hysteria: ${hConfig.serverAddress}:${hConfig.serverPort}")
         withContext(Dispatchers.IO) {
             val configFile = writeHysteriaConfig()
             val binary = extractHysteriaBinary()
-
-            if (binary != null) {
-                startHysteriaProcess(binary, configFile)
-            } else {
-                KighmuLogger.error(TAG, "Hysteria binary not available")
-            }
+            if (binary != null) startHysteriaProcess(binary, configFile)
+            else KighmuLogger.error(TAG, "Hysteria binary not available")
         }
-
         return LOCAL_SOCKS_PORT
     }
 
     private fun writeHysteriaConfig(): File {
-        val cfg = buildHysteriaConfig()
         val file = File(context.filesDir, "hysteria_config.json")
-        file.writeText(cfg)
+        val obfs = if (hConfig.obfsPassword.isNotEmpty()) """"obfs": { "type": "salamander", "salamander": { "password": "${hConfig.obfsPassword}" } },""" else ""
+        file.writeText("""{ "server": "${hConfig.serverAddress}:${hConfig.serverPort}", "auth": "${hConfig.authPassword}", $obfs "tls": { "sni": "${hConfig.sni}", "insecure": ${hConfig.allowInsecure} }, "bandwidth": { "up": "${hConfig.uploadMbps} mbps", "down": "${hConfig.downloadMbps} mbps" }, "socks5": { "listen": "127.0.0.1:$LOCAL_SOCKS_PORT" }, "http": { "listen": "127.0.0.1:$LOCAL_HTTP_PORT" } }""")
         return file
-    }
-
-    private fun buildHysteriaConfig(): String {
-        val obfsSection = if (hConfig.obfsPassword.isNotEmpty()) {
-            """"obfs": { "type": "salamander", "salamander": { "password": "${hConfig.obfsPassword}" } },"""
-        } else ""
-
-        return """
-            {
-                "server": "${hConfig.serverAddress}:${hConfig.serverPort}",
-                "auth": "${hConfig.authPassword}",
-                $obfsSection
-                "tls": {
-                    "sni": "${hConfig.sni}",
-                    "insecure": ${hConfig.allowInsecure}
-                },
-                "bandwidth": {
-                    "up": "${hConfig.uploadMbps} mbps",
-                    "down": "${hConfig.downloadMbps} mbps"
-                },
-                "socks5": {
-                    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
-                },
-                "http": {
-                    "listen": "127.0.0.1:$LOCAL_HTTP_PORT"
-                }
-            }
-        """.trimIndent()
     }
 
     private fun extractHysteriaBinary(): File? {
@@ -634,26 +479,15 @@ class HysteriaEngine(
     private fun startHysteriaProcess(binary: File, configFile: File) {
         val cmd = arrayOf(binary.absolutePath, "client", "-c", configFile.absolutePath)
         hysteriaProcess = Runtime.getRuntime().exec(cmd)
-
-        engineScope.launch {
-            hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
-                KighmuLogger.info(TAG, "[hysteria] $line")
-            }
-        }
-        engineScope.launch {
-            hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
-                KighmuLogger.error(TAG, "[hysteria err] $line")
-            }
-        }
-
-        KighmuLogger.info(TAG, "Hysteria process started, SOCKS5 on $LOCAL_SOCKS_PORT")
+        engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
+        engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
+        KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
     }
 
     override suspend fun stop() {
         running = false
         hysteriaProcess?.destroy()
         engineScope.cancel()
-        KighmuLogger.info(TAG, "Hysteria engine stopped")
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
