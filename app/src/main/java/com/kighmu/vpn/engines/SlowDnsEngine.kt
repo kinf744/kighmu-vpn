@@ -223,7 +223,7 @@ class SlowDnsEngine(
         // trilead se connecte au relay local (qui pointe vers le vrai SSH via SOCKS5/dnstt)
         val conn = Connection("127.0.0.1", SSH_RELAY_PORT)
         val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
-        KighmuLogger.info(TAG, "SSH connecte! banner=${connInfo.serverVersion} kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
+        KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
         if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
