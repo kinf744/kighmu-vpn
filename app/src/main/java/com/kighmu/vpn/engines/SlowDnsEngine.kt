@@ -3,6 +3,7 @@ package com.kighmu.vpn.engines
 import android.content.Context
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
+import com.jcraft.jsch.SocketFactory
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
@@ -27,12 +28,23 @@ class SlowDnsEngine(
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
 
+    private fun protectSocket(socket: Socket): Boolean {
+        if (vpnService == null) {
+            KighmuLogger.warning(TAG, "vpnService null - socket non protege")
+            return false
+        }
+        val result = vpnService.protect(socket)
+        KighmuLogger.info(TAG, "protect(socket) = $result")
+        return result
+    }
+
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS : ${dns.dnsServer}:${dns.dnsPort}")
         KighmuLogger.info(TAG, "Nameserver : ${dns.nameserver}")
         KighmuLogger.info(TAG, "SSH : ${ssh.host}:${ssh.port} / ${ssh.username}")
+        KighmuLogger.info(TAG, "VpnService present: ${vpnService != null}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
@@ -66,9 +78,9 @@ class SlowDnsEngine(
         } catch (e: com.jcraft.jsch.JSchException) {
             val msg = when {
                 e.message?.contains("Auth fail") == true -> "Auth SSH echouee (${ssh.username})"
-                e.message?.contains("timeout") == true -> "Timeout SSH"
+                e.message?.contains("timeout") == true -> "Timeout SSH - boucle VPN?"
                 e.message?.contains("Premature") == true -> "Connexion SSH prematuree"
-                e.message?.contains("Connection refused") == true -> "Proxy non pret"
+                e.message?.contains("Connection refused") == true -> "Connexion refusee"
                 else -> e.message ?: "Erreur SSH"
             }
             KighmuLogger.error(TAG, "ECHEC SSH: $msg")
@@ -85,37 +97,27 @@ class SlowDnsEngine(
             val out = client.getOutputStream()
 
             // SOCKS5 handshake
-            // 1. Client: VER=5, NMETHODS, METHODS
             val ver = inp.read()
             if (ver != 5) { client.close(); return@withContext }
             val nMethods = inp.read()
             val methods = ByteArray(nMethods)
             inp.read(methods)
-
-            // 2. Server: VER=5, METHOD=0 (no auth)
             out.write(byteArrayOf(5, 0))
             out.flush()
 
-            // 3. Client: VER=5, CMD=1(CONNECT), RSV=0, ATYP, DST.ADDR, DST.PORT
             val req = ByteArray(4)
             inp.read(req)
-            if (req[1].toInt() != 1) { client.close(); return@withContext } // Only CONNECT
+            if (req[1].toInt() != 1) { client.close(); return@withContext }
 
-            val targetHost: String
-            val atyp = req[3].toInt()
-            targetHost = when (atyp) {
-                1 -> { // IPv4
+            val targetHost: String = when (req[3].toInt()) {
+                1 -> {
                     val addr = ByteArray(4); inp.read(addr)
                     "${addr[0].toInt() and 0xFF}.${addr[1].toInt() and 0xFF}.${addr[2].toInt() and 0xFF}.${addr[3].toInt() and 0xFF}"
                 }
-                3 -> { // Domain
+                3 -> {
                     val len = inp.read()
                     val domain = ByteArray(len); inp.read(domain)
                     String(domain)
-                }
-                4 -> { // IPv6
-                    val addr = ByteArray(16); inp.read(addr)
-                    "::1"
                 }
                 else -> { client.close(); return@withContext }
             }
@@ -125,20 +127,19 @@ class SlowDnsEngine(
 
             KighmuLogger.info(TAG, "SOCKS5 CONNECT -> $targetHost:$targetPort")
 
-            // Connexion au serveur cible
+            // Creer et proteger le socket remote AVANT connect
             val remote = Socket()
-            // Proteger le socket pour eviter la boucle VPN
-            vpnService?.protect(remote)
-            KighmuLogger.info(TAG, "Socket protege: ${vpnService != null}")
-            remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
-            KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
+            val prot = protectSocket(remote)
+            KighmuLogger.info(TAG, "Remote socket protege=$prot")
 
-            // 4. Server reply: VER=5, REP=0(success), RSV=0, ATYP=1, BND.ADDR, BND.PORT
+            remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
+            KighmuLogger.info(TAG, "Remote connecte vers $targetHost:$targetPort")
+
+            // Reply success
             out.write(byteArrayOf(5, 0, 0, 1, 0, 0, 0, 0, 0, 0))
             out.flush()
             KighmuLogger.info(TAG, "SOCKS5 tunnel etabli")
 
-            // Relay bidirectionnel
             val remoteIn = remote.getInputStream()
             val remoteOut = remote.getOutputStream()
 
@@ -166,7 +167,8 @@ class SlowDnsEngine(
             }
             t1.join()
             t2.cancel()
-            KighmuLogger.info(TAG, "Session terminee")
+            KighmuLogger.info(TAG, "Session SOCKS5 terminee")
+            remote.close()
 
         } catch (e: Exception) {
             KighmuLogger.error(TAG, "SOCKS5 error: ${e.message}")
@@ -180,73 +182,36 @@ class SlowDnsEngine(
         if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
             jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
         }
+
         val session = jsch.getSession(ssh.username, ssh.host, ssh.port)
         session.setPassword(ssh.password)
         session.setConfig("StrictHostKeyChecking", "no")
         session.setConfig("PreferredAuthentications", "password")
         session.setConfig("compression.s2c", "none")
         session.setConfig("compression.c2s", "none")
-        session.setTimeout(30000)
-        // Connexion JSch avec socket protege
-        val sf = object : com.jcraft.jsch.SocketFactory {
-            override fun createSocket(host: String, port: Int): java.net.Socket {
-                // Creer socket via SocketChannel pour avoir un FD valide
-                val channel = java.nio.channels.SocketChannel.open()
-                val s = channel.socket()
-                // protect() necessite un FD valide - utiliser le FD du channel
-                val fd = try {
-                    val m = channel.javaClass.getDeclaredMethod("getFD")
-                    m.isAccessible = true
-                    m.invoke(channel) as? java.io.FileDescriptor
-                } catch (_: Exception) { null }
-                
-                val protResult = if (fd != null) {
-                    vpnService?.protect(fd) ?: false
-                } else {
-                    vpnService?.protect(s) ?: false
-                }
-                KighmuLogger.info(TAG, "Socket protege=$protResult fd=${fd != null} pour $host:$port")
-                try {
-                    channel.connect(java.net.InetSocketAddress(host, port))
-                    KighmuLogger.info(TAG, "TCP connect OK vers $host:$port")
-                } catch (ce: Exception) {
-                    KighmuLogger.error(TAG, "TCP connect FAILED: ${ce.javaClass.simpleName}: ${ce.message}")
-                    throw ce
-                }
-                s.soTimeout = 20000
-                // Lire la banniere SSH manuellement
-                val bannerBytes = mutableListOf<Byte>()
-                val inp = s.getInputStream()
-                var b = inp.read()
-                while (b != -1 && b != 10) {
-                    bannerBytes.add(b.toByte())
-                    b = inp.read()
-                }
-                val banner = String(bannerBytes.toByteArray()).trim()
-                KighmuLogger.info(TAG, "Banniere SSH: $banner")
+        session.setTimeout(0)
+
+        // SocketFactory: proteger le socket SSH AVANT connect
+        session.setSocketFactory(object : SocketFactory {
+            override fun createSocket(host: String, port: Int): Socket {
+                KighmuLogger.info(TAG, "SocketFactory: creation socket pour $host:$port")
+                val s = Socket()
+                val prot = protectSocket(s)
+                KighmuLogger.info(TAG, "SocketFactory: socket protege=$prot")
+                s.connect(InetSocketAddress(host, port), 20000)
+                KighmuLogger.info(TAG, "SocketFactory: socket connecte OK")
                 s.soTimeout = 0
-                // Remettre la banniere dans le stream via PushbackInputStream
-                val fullBanner = (banner + "\n").toByteArray()
-                val pbis = java.io.PushbackInputStream(inp, fullBanner.size)
-                pbis.unread(fullBanner)
-                KighmuLogger.info(TAG, "JSch socket pret")
-                // Retourner socket avec stream modifie
-                return object : java.net.Socket() {
-                    override fun getInputStream() = pbis
-                    override fun getOutputStream() = s.getOutputStream()
-                    override fun isClosed() = s.isClosed
-                    override fun isConnected() = s.isConnected
-                    override fun close() = s.close()
-                    override fun setSoTimeout(t: Int) = s.setSoTimeout(t)
-                    override fun getSoTimeout() = s.getSoTimeout()
-                }
+                return s
             }
-            override fun getInputStream(s: java.net.Socket) = s.getInputStream()
-            override fun getOutputStream(s: java.net.Socket) = s.getOutputStream()
-        }
-        session.setSocketFactory(sf)
-        KighmuLogger.info(TAG, "SSH connexion JSch (timeout 30s)...")
-        session.connect(30000)
+            override fun getInputStream(socket: Socket): InputStream = socket.getInputStream()
+            override fun getOutputStream(socket: Socket): OutputStream = socket.getOutputStream()
+        })
+
+        // JSch se connecte via proxy SOCKS5 local
+        session.setProxy(com.jcraft.jsch.ProxySOCKS5("127.0.0.1", proxyPort))
+
+        KighmuLogger.info(TAG, "SSH connexion via SOCKS5 proxy local:$proxyPort (timeout 45s)...")
+        session.connect(45000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
         session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
