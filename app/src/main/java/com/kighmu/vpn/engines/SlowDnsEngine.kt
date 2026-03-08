@@ -212,7 +212,7 @@ class SlowDnsEngine(
             val sock = DatagramSocket()
             dnsSocket = sock
 
-            // Proteger le socket DNS aussi
+            // Proteger le socket DNS
             if (vpnService != null) {
                 try {
                     val f = sock.javaClass.getMethod("getFileDescriptor\$")
@@ -225,12 +225,15 @@ class SlowDnsEngine(
                     }
                 } catch (e: Exception) {
                     KighmuLogger.warning(TAG, "DNS protect: ${e.message}")
+                    vpnService.protect(sock)
                 }
             }
 
             sock.soTimeout = 3000
             connected = true
-            KighmuLogger.info(TAG, "DNSTT sessId=${sessId.toString(16)} -> $targetHost:$targetPort via ${dns.nameserver}")
+            // Le nameserver forward vers le SSH server configure cote serveur
+            // On n'inclut PAS l'IP SSH dans les queries - c'est le serveur qui sait
+            KighmuLogger.info(TAG, "DNSTT sessId=${sessId.toString(16)} via ${dns.nameserver} (DNS: ${dns.dnsServer}:${dns.dnsPort})")
 
             // Thread lecteur DNS
             Thread {
@@ -257,10 +260,17 @@ class SlowDnsEngine(
             val dnsAddr = InetAddress.getByName(dns.dnsServer)
             val sock = dnsSocket ?: return
             val chunk = data.copyOf(len)
+            // Encoder les donnees en base32 et envoyer via DNS TXT query
+            // Format dnstt: <data_b32>.<seq>.<sessid>.<nameserver>
             val b32 = base32Encode(chunk)
             val seq = seqSend++
-            val domain = "${b32.take(60)}.${seq.toString(16)}.${sessId.toString(16)}.${dns.nameserver}"
-            sendDnsQuery(sock, dnsAddr, domain, chunk)
+            // Chunker si trop long (max 63 chars par label DNS)
+            val chunks = b32.chunked(60)
+            chunks.forEachIndexed { i, part ->
+                val domain = "${part}.${seq.toString(16).padStart(4,'0')}${i.toString(16)}.${sessId.toString(16).padStart(6,'0')}.${dns.nameserver}"
+                KighmuLogger.info(TAG, "DNS query: ${domain.take(50)}...")
+                sendDnsQuery(sock, dnsAddr, domain, null)
+            }
         }
 
         fun read(): ByteArray? {
