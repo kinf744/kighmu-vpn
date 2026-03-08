@@ -115,6 +115,12 @@ class KighmuVpnService : VpnService() {
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Config: ${currentConfig.configName}")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "SSH host: '${currentConfig.sshCredentials.host}'")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "SSH port: ${currentConfig.sshCredentials.port}")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "SSH user: '${currentConfig.sshCredentials.username}'")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "SSH pass empty: ${currentConfig.sshCredentials.password.isEmpty()}")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "DNS server: '${currentConfig.slowDns.dnsServer}'")
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Nameserver: '${currentConfig.slowDns.nameserver}'")
 
                 // Start tunnel engine
                 val localPort = try {
