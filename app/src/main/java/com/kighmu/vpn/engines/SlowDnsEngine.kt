@@ -1,12 +1,13 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
+import android.system.Os
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
-import java.io.*
+import java.io.File
 import java.net.*
 
 class SlowDnsEngine(
@@ -19,11 +20,15 @@ class SlowDnsEngine(
         const val TAG = "SlowDnsEngine"
         const val LOCAL_SOCKS_PORT = 10800
         const val DNSTT_PORT = 7000
+        const val VPN_ADDRESS = "10.0.0.2"
+        const val VPN_PREFIX = "24"
+        const val MTU = 1500
     }
 
     private var running = false
     private var jschSession: Session? = null
     private var dnsttProcess: Process? = null
+    private var tunFd: Int = -1
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
@@ -38,25 +43,45 @@ class SlowDnsEngine(
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
 
-        // Extraire le binaire dnstt-client depuis les assets
+        // 1. Lancer dnstt-client
         val dnsttBin = extractDnsttBinary()
         KighmuLogger.info(TAG, "dnstt binaire: ${dnsttBin.absolutePath}")
-
-        // Lancer dnstt-client
         startDnsttProcess(dnsttBin)
 
-        // Attendre que dnstt soit pret
+        // 2. Attendre que dnstt soit pret
         KighmuLogger.info(TAG, "Attente dnstt (15s)...")
         delay(15000)
 
-        // Connecter SSH via dnstt
+        // 3. Connecter SSH via dnstt -> SOCKS5 sur LOCAL_SOCKS_PORT
         startSsh()
-        KighmuLogger.info(TAG, "=== SlowDNS CONNECTE port $LOCAL_SOCKS_PORT ===")
+        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 sur port $LOCAL_SOCKS_PORT ===")
+
         LOCAL_SOCKS_PORT
     }
 
+    // Appele par KighmuVpnService apres etablissement du VPN interface
+    fun startTun2Socks(fd: Int) {
+        tunFd = fd
+        KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd)")
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                Tun2Socks.runTun2Socks(
+                    tunFd        = fd,
+                    mtu          = MTU,
+                    ip           = VPN_ADDRESS,
+                    prefix       = VPN_PREFIX,
+                    socksServerAddress  = "127.0.0.1:$LOCAL_SOCKS_PORT",
+                    udpgwServerAddress  = "127.0.0.1:7300",
+                    udpgwTransparentDNS = true
+                )
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+            }
+        }
+        KighmuLogger.info(TAG, "tun2socks lance")
+    }
+
     private fun extractDnsttBinary(): File {
-        // Android interdit exec depuis filesDir - utiliser nativeLibraryDir
         val nativeDir = context.applicationInfo.nativeLibraryDir
         val binFile = File(nativeDir, "libdnstt.so")
         KighmuLogger.info(TAG, "dnstt path: ${binFile.absolutePath}")
@@ -75,19 +100,14 @@ class SlowDnsEngine(
         )
         KighmuLogger.info(TAG, "Lancement: ${cmd.joinToString(" ")}")
 
-        val pb = ProcessBuilder(cmd)
-            .redirectErrorStream(true)
-        
-        // Definir HOME pour que Go runtime fonctionne
-        pb.environment()["HOME"] = context.filesDir.absolutePath
+        val pb = ProcessBuilder(cmd).redirectErrorStream(true)
+        pb.environment()["HOME"]   = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
-        // Desactiver le VPN pour ce processus en utilisant le bon env
         pb.directory(context.filesDir)
-        
+
         val process = pb.start()
         dnsttProcess = process
 
-        // Logger les outputs de dnstt
         Thread {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
@@ -99,8 +119,7 @@ class SlowDnsEngine(
         }.start()
 
         KighmuLogger.info(TAG, "dnstt-client lance")
-        
-        // Verifier que le processus est vivant apres 2s
+
         Thread.sleep(2000)
         try {
             val exitVal = process.exitValue()
@@ -134,6 +153,7 @@ class SlowDnsEngine(
 
     override suspend fun stop() {
         running = false
+        try { Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { jschSession?.disconnect() } catch (_: Exception) {}
         jschSession = null
         try { dnsttProcess?.destroy() } catch (_: Exception) {}
