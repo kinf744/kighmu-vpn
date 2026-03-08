@@ -33,8 +33,45 @@ class SlowDnsEngine(
             KighmuLogger.warning(TAG, "vpnService null - socket non protege")
             return false
         }
-        val result = vpnService.protect(socket)
-        KighmuLogger.info(TAG, "protect(socket) = $result")
+        // Essai 1: protect(Socket) standard
+        var result = vpnService.protect(socket)
+        if (result) {
+            KighmuLogger.info(TAG, "protect(Socket) = true")
+            return true
+        }
+        // Essai 2: protect(int fd) via reflection
+        try {
+            val implField = socket.javaClass.getDeclaredField("impl")
+            implField.isAccessible = true
+            val impl = implField.get(socket)
+            val fdField = impl.javaClass.getDeclaredField("fd")
+            fdField.isAccessible = true
+            val fd = fdField.get(impl) as? java.io.FileDescriptor
+            if (fd != null) {
+                val fdInt = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
+                fdInt.isAccessible = true
+                val fdValue = fdInt.getInt(fd)
+                result = vpnService.protect(fdValue)
+                KighmuLogger.info(TAG, "protect(fd=$fdValue) = $result")
+                if (result) return true
+            }
+        } catch (e: Exception) {
+            KighmuLogger.warning(TAG, "protect via reflection: ${e.message}")
+        }
+        // Essai 3: getFileDescriptor via NetworkInterface
+        try {
+            val m = socket.javaClass.getMethod("getFileDescriptor$")
+            val fd = m.invoke(socket) as? java.io.FileDescriptor
+            if (fd != null) {
+                val fdInt = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
+                fdInt.isAccessible = true
+                val fdValue = fdInt.getInt(fd)
+                result = vpnService.protect(fdValue)
+                KighmuLogger.info(TAG, "protect(getFileDescriptor fd=$fdValue) = $result")
+            }
+        } catch (e: Exception) {
+            KighmuLogger.warning(TAG, "protect getFileDescriptor: ${e.message}")
+        }
         return result
     }
 
