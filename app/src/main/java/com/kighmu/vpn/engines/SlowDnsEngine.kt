@@ -52,33 +52,18 @@ class SlowDnsEngine(
     }
 
     private fun createProtectedSocket(host: String, port: Int): Socket {
-        // Utiliser SocketChannel NIO pour avoir FD avant connect
-        val channel = java.nio.channels.SocketChannel.open()
-        channel.configureBlocking(false)
-        // Obtenir FD via reflection sur le channel
-        val socket = channel.socket()
-        if (vpnService != null) {
-            try {
-                // Sur Android, SocketChannel expose le FD
-                val implField = channel.javaClass.getDeclaredField("fd")
-                implField.isAccessible = true
-                val fd = implField.get(channel) as? java.io.FileDescriptor
-                if (fd != null) {
-                    val f = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
-                    f.isAccessible = true
-                    val fdVal = f.getInt(fd)
-                    val r = vpnService.protect(fdVal)
-                    KighmuLogger.info(TAG, "NIO protect(fd=$fdVal) avant connect = $r")
-                }
-            } catch (e: Exception) {
-                KighmuLogger.warning(TAG, "NIO protect: ${e.message}")
-            }
-        }
-        channel.configureBlocking(true)
-        channel.connect(InetSocketAddress(host, port))
-        // Proteger aussi apres connect
-        protectSocketFd(socket)
-        return socket
+        val s = Socket()
+        // protect() avant connect - fonctionne sur Android avec interface VPN active
+        val r1 = vpnService?.protect(s) ?: false
+        KighmuLogger.info(TAG, "protect avant connect = $r1")
+        s.connect(InetSocketAddress(host, port), 20000)
+        // protect() apres connect aussi
+        val r2 = protectSocketFd(s)
+        KighmuLogger.info(TAG, "protect apres connect = $r2")
+        s.soTimeout = 0
+        s.tcpNoDelay = true
+        s.keepAlive = true
+        return s
     }
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
