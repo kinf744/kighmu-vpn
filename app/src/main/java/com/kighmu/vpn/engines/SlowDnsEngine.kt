@@ -240,8 +240,7 @@ class SlowDnsEngine(
                     KighmuLogger.info(TAG, "Banniere lue: $banner")
                     s.soTimeout = 0
                     // Remettre la banniere dans le stream
-                    val bannerBytes = (banner + "
-").toByteArray()
+                    val bannerBytes = (banner + "\n").toByteArray()
                     val pbi = java.io.PushbackInputStream(s.getInputStream(), bannerBytes.size)
                     pbi.unread(bannerBytes)
                     KighmuLogger.info(TAG, "SocketFactory socket pret avec banniere")
