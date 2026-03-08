@@ -1,14 +1,12 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
-import android.system.Os
-import com.jcraft.jsch.JSch
-import com.jcraft.jsch.Session
+import com.trilead.ssh2.Connection
+import com.trilead.ssh2.ConnectionInfo
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
 import java.io.File
-import java.net.*
 
 class SlowDnsEngine(
     private val config: KighmuConfig,
@@ -23,12 +21,13 @@ class SlowDnsEngine(
         const val VPN_ADDRESS = "10.0.0.2"
         const val VPN_PREFIX = "24"
         const val MTU = 1500
+        // Version string identique a SSH Custom
+        const val SSH_CLIENT_VERSION = "SSH-2.0-easyPro"
     }
 
     private var running = false
-    private var jschSession: Session? = null
+    private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
-    private var tunFd: Int = -1
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
@@ -45,31 +44,28 @@ class SlowDnsEngine(
 
         // 1. Lancer dnstt-client
         val dnsttBin = extractDnsttBinary()
-        KighmuLogger.info(TAG, "dnstt binaire: ${dnsttBin.absolutePath}")
         startDnsttProcess(dnsttBin)
 
         // 2. Attendre que dnstt soit pret
         KighmuLogger.info(TAG, "Attente dnstt (15s)...")
         delay(15000)
 
-        // 3. Connecter SSH via dnstt -> SOCKS5 sur LOCAL_SOCKS_PORT
+        // 3. Connecter SSH via trilead (identique SSH Custom)
         startSsh()
-        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 sur port $LOCAL_SOCKS_PORT ===")
+        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $LOCAL_SOCKS_PORT ===")
 
         LOCAL_SOCKS_PORT
     }
 
-    // Appele par KighmuVpnService apres etablissement du VPN interface
     fun startTun2Socks(fd: Int) {
-        tunFd = fd
         KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd)")
         engineScope.launch(Dispatchers.IO) {
             try {
                 Tun2Socks.runTun2Socks(
-                    tunFd        = fd,
-                    mtu          = MTU,
-                    ip           = VPN_ADDRESS,
-                    prefix       = VPN_PREFIX,
+                    tunFd               = fd,
+                    mtu                 = MTU,
+                    ip                  = VPN_ADDRESS,
+                    prefix              = VPN_PREFIX,
                     socksServerAddress  = "127.0.0.1:$LOCAL_SOCKS_PORT",
                     udpgwServerAddress  = "127.0.0.1:7300",
                     udpgwTransparentDNS = true
@@ -98,7 +94,7 @@ class SlowDnsEngine(
             dns.nameserver,
             "127.0.0.1:$DNSTT_PORT"
         )
-        KighmuLogger.info(TAG, "Lancement: ${cmd.joinToString(" ")}")
+        KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
 
         val pb = ProcessBuilder(cmd).redirectErrorStream(true)
         pb.environment()["HOME"]   = context.filesDir.absolutePath
@@ -118,44 +114,47 @@ class SlowDnsEngine(
             }
         }.start()
 
-        KighmuLogger.info(TAG, "dnstt-client lance")
-
         Thread.sleep(2000)
         try {
             val exitVal = process.exitValue()
-            KighmuLogger.error(TAG, "dnstt mort immediatement! exitCode=$exitVal")
             throw Exception("dnstt-client crashed (exit=$exitVal)")
         } catch (_: IllegalThreadStateException) {
-            KighmuLogger.info(TAG, "dnstt vivant apres 2s OK")
+            KighmuLogger.info(TAG, "dnstt vivant OK")
         }
     }
 
     private fun startSsh() {
-        KighmuLogger.info(TAG, "Connexion SSH via dnstt 127.0.0.1:$DNSTT_PORT...")
-        val jsch = JSch()
-        if (ssh.usePrivateKey && ssh.privateKey.isNotEmpty()) {
-            jsch.addIdentity("key", ssh.privateKey.toByteArray(), null, null)
-        }
-        val session = jsch.getSession(ssh.username, "127.0.0.1", DNSTT_PORT)
-        session.setPassword(ssh.password)
-        session.setConfig("StrictHostKeyChecking", "no")
-        session.setConfig("PreferredAuthentications", "password")
-        session.setConfig("compression.s2c", "none")
-        session.setConfig("compression.c2s", "none")
-        session.setTimeout(0)
-        KighmuLogger.info(TAG, "SSH connect (timeout 60s)...")
-        session.connect(60000)
-        jschSession = session
-        KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
-        session.setPortForwardingL(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
-        KighmuLogger.info(TAG, "SOCKS port $LOCAL_SOCKS_PORT forwarde")
+        KighmuLogger.info(TAG, "Connexion SSH trilead -> 127.0.0.1:$DNSTT_PORT")
+
+        // Utiliser trilead-ssh2 exactement comme SSH Custom
+        val conn = Connection("127.0.0.1", DNSTT_PORT)
+        conn.setClient_version(SSH_CLIENT_VERSION)
+
+        // Connecter avec timeout 120s (tunnel DNS est lent)
+        val connInfo: ConnectionInfo = conn.connect(
+            null,          // verifier host key: null = accepter tout
+            120000,        // connect timeout ms
+            120000         // kex timeout ms
+        )
+        KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
+
+        // Authentifier
+        val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
+        if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
+        KighmuLogger.info(TAG, "SSH authentifie!")
+
+        // Port forwarding local: 127.0.0.1:10800 -> 127.0.0.1:10800 via SSH
+        conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
+        KighmuLogger.info(TAG, "Port forward local $LOCAL_SOCKS_PORT OK")
+
+        sshConnection = conn
     }
 
     override suspend fun stop() {
         running = false
         try { Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
-        try { jschSession?.disconnect() } catch (_: Exception) {}
-        jschSession = null
+        try { sshConnection?.close() } catch (_: Exception) {}
+        sshConnection = null
         try { dnsttProcess?.destroy() } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
@@ -164,5 +163,5 @@ class SlowDnsEngine(
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = null
-    override fun isRunning() = running && jschSession?.isConnected == true
+    override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
 }
