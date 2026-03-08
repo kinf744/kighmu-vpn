@@ -46,8 +46,8 @@ class SlowDnsEngine(
         startDnsttProcess(dnsttBin)
 
         // Attendre que dnstt soit pret
-        KighmuLogger.info(TAG, "Attente dnstt (5s)...")
-        delay(5000)
+        KighmuLogger.info(TAG, "Attente dnstt (15s)...")
+        delay(15000)
 
         // Connecter SSH via dnstt
         startSsh()
@@ -88,10 +88,22 @@ class SlowDnsEngine(
                 process.inputStream.bufferedReader().forEachLine { line ->
                     KighmuLogger.info(TAG, "dnstt: $line")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "dnstt stdout: ${e.message}")
+            }
         }.start()
 
-        KighmuLogger.info(TAG, "dnstt-client lance (pid via Process)")
+        KighmuLogger.info(TAG, "dnstt-client lance")
+        
+        // Verifier que le processus est vivant apres 2s
+        Thread.sleep(2000)
+        try {
+            val exitVal = process.exitValue()
+            KighmuLogger.error(TAG, "dnstt mort immediatement! exitCode=$exitVal")
+            throw Exception("dnstt-client crashed (exit=$exitVal)")
+        } catch (_: IllegalThreadStateException) {
+            KighmuLogger.info(TAG, "dnstt vivant apres 2s OK")
+        }
     }
 
     private fun startSsh() {
