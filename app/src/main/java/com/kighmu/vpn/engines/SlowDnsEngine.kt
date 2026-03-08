@@ -190,11 +190,24 @@ class SlowDnsEngine(
         // Connexion JSch avec socket protege
         val sf = object : com.jcraft.jsch.SocketFactory {
             override fun createSocket(host: String, port: Int): java.net.Socket {
-                val s = java.net.Socket()
-                val protected = vpnService?.protect(s) ?: false
-                KighmuLogger.info(TAG, "JSch socket protege=$protected vpnService=${vpnService != null} pour $host:$port")
+                // Creer socket via SocketChannel pour avoir un FD valide
+                val channel = java.nio.channels.SocketChannel.open()
+                val s = channel.socket()
+                // protect() necessite un FD valide - utiliser le FD du channel
+                val fd = try {
+                    val m = channel.javaClass.getDeclaredMethod("getFD")
+                    m.isAccessible = true
+                    m.invoke(channel) as? java.io.FileDescriptor
+                } catch (_: Exception) { null }
+                
+                val protResult = if (fd != null) {
+                    vpnService?.protect(fd) ?: false
+                } else {
+                    vpnService?.protect(s) ?: false
+                }
+                KighmuLogger.info(TAG, "Socket protege=$protResult fd=${fd != null} pour $host:$port")
                 try {
-                    s.connect(java.net.InetSocketAddress(host, port), 20000)
+                    channel.connect(java.net.InetSocketAddress(host, port))
                     KighmuLogger.info(TAG, "TCP connect OK vers $host:$port")
                 } catch (ce: Exception) {
                     KighmuLogger.error(TAG, "TCP connect FAILED: ${ce.javaClass.simpleName}: ${ce.message}")
