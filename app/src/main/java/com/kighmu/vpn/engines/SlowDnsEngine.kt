@@ -191,9 +191,15 @@ class SlowDnsEngine(
         val sf = object : com.jcraft.jsch.SocketFactory {
             override fun createSocket(host: String, port: Int): java.net.Socket {
                 val s = java.net.Socket()
-                vpnService?.protect(s)
-                KighmuLogger.info(TAG, "JSch socket protege pour $host:$port")
-                s.connect(java.net.InetSocketAddress(host, port), 20000)
+                val protected = vpnService?.protect(s) ?: false
+                KighmuLogger.info(TAG, "JSch socket protege=$protected vpnService=${vpnService != null} pour $host:$port")
+                try {
+                    s.connect(java.net.InetSocketAddress(host, port), 20000)
+                    KighmuLogger.info(TAG, "TCP connect OK vers $host:$port")
+                } catch (ce: Exception) {
+                    KighmuLogger.error(TAG, "TCP connect FAILED: ${ce.javaClass.simpleName}: ${ce.message}")
+                    throw ce
+                }
                 s.soTimeout = 20000
                 // Lire la banniere SSH manuellement
                 val bannerBytes = mutableListOf<Byte>()
