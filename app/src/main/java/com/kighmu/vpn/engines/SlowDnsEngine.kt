@@ -78,7 +78,12 @@ class SlowDnsEngine(
         val pb = ProcessBuilder(cmd)
             .redirectErrorStream(true)
         
-        // Proteger le processus du VPN si possible
+        // Definir HOME pour que Go runtime fonctionne
+        pb.environment()["HOME"] = context.filesDir.absolutePath
+        pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
+        // Desactiver le VPN pour ce processus en utilisant le bon env
+        pb.directory(context.filesDir)
+        
         val process = pb.start()
         dnsttProcess = process
 
