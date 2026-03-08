@@ -111,6 +111,23 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
                 startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
 
+                // Etablir interface VPN minimale pour activer protect()
+                // Sans cette etape, protect() retourne false
+                val tempVpn = try {
+                    Builder()
+                        .setSession("KIGHMU VPN")
+                        .addAddress("10.0.0.2", 24)
+                        .addRoute("0.0.0.0", 0)
+                        .addDnsServer("8.8.8.8")
+                        .setMtu(1500)
+                        .addDisallowedApplication(packageName)
+                        .establish()
+                } catch (e: Exception) {
+                    com.kighmu.vpn.utils.KighmuLogger.warning("VpnService", "TempVPN: ${e.message}")
+                    null
+                }
+                com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Interface temp etablie: ${tempVpn != null}")
+
                 // Log config summary
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
@@ -134,9 +151,12 @@ class KighmuVpnService : VpnService() {
                 }
                 com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "Engine démarré sur port $localPort")
 
+                // Fermer interface temporaire
+                try { tempVpn?.close() } catch (_: Exception) {}
+
                 updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
 
-                // Build VPN interface
+                // Build VPN interface finale
                 vpnInterface = buildVpnInterface(localPort)
 
                 if (vpnInterface == null) {
