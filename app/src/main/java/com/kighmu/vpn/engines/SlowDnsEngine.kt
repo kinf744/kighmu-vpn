@@ -243,6 +243,17 @@ class SlowDnsEngine(
         session.setConfig("compression.c2s", "none")
         session.setTimeout(0)
         // Pas de proxy - connexion directe avec socket protege
+        // SocketFactory: protege le socket AVANT et APRES connect
+        session.setSocketFactory(object : SocketFactory {
+            override fun createSocket(host: String, port: Int): Socket {
+                KighmuLogger.info(TAG, "SocketFactory -> $host:$port")
+                val s = createProtectedSocket(host, port)
+                KighmuLogger.info(TAG, "SocketFactory socket pret")
+                return s
+            }
+            override fun getInputStream(s: Socket): InputStream = s.getInputStream()
+            override fun getOutputStream(s: Socket): OutputStream = s.getOutputStream()
+        })
         KighmuLogger.info(TAG, "SSH connexion directe avec socket protege (timeout 45s)...")
         session.connect(45000)
         jschSession = session
