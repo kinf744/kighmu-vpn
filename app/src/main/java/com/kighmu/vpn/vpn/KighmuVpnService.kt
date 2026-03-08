@@ -168,8 +168,8 @@ class KighmuVpnService : VpnService() {
 
                 // Start traffic routing
                 val engine = tunnelEngine
-                // Routing manuel via SOCKS5 pour tous les modes
-                startTrafficRouting(vpnInterface!!, localPort)
+                // Routing via SOCKS5 local
+                startSocks5Routing(vpnInterface!!, localPort)
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())

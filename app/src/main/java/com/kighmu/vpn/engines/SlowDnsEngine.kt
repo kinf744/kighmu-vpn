@@ -29,12 +29,14 @@ class SlowDnsEngine(
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
+    // Host SSH sans le port (au cas ou l'utilisateur met host:port dans le champ)
+    private val sshHost get() = ssh.host.substringBefore(":")
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS: ${dns.dnsServer}:${dns.dnsPort}")
-        KighmuLogger.info(TAG, "SSH: ${ssh.host}:${ssh.port} / ${ssh.username}")
+        KighmuLogger.info(TAG, "SSH: $sshHost:${ssh.port} / ${ssh.username}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
