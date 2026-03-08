@@ -30,6 +30,10 @@ class SlowDnsEngine(
 
     private fun protectSocketFd(socket: Socket): Boolean {
         if (vpnService == null) return false
+        // protect(Socket) simple - fonctionne sur Android moderne
+        val r = vpnService.protect(socket)
+        if (r) { KighmuLogger.info(TAG, "protect(Socket) = true"); return true }
+        // Fallback: via FD apres connect
         return try {
             val m = socket.javaClass.getMethod("getFileDescriptor\$")
             val fd = m.invoke(socket) as? java.io.FileDescriptor
@@ -37,14 +41,44 @@ class SlowDnsEngine(
                 val f = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
                 f.isAccessible = true
                 val fdVal = f.getInt(fd)
-                val r = vpnService.protect(fdVal)
-                KighmuLogger.info(TAG, "protect(fd=$fdVal) = $r")
-                r
-            } else vpnService.protect(socket)
+                val r2 = vpnService.protect(fdVal)
+                KighmuLogger.info(TAG, "protect(fd=$fdVal) = $r2")
+                r2
+            } else false
         } catch (e: Exception) {
             KighmuLogger.warning(TAG, "protectFd: ${e.message}")
-            vpnService.protect(socket)
+            false
         }
+    }
+
+    private fun createProtectedSocket(host: String, port: Int): Socket {
+        // Utiliser SocketChannel NIO pour avoir FD avant connect
+        val channel = java.nio.channels.SocketChannel.open()
+        channel.configureBlocking(false)
+        // Obtenir FD via reflection sur le channel
+        val socket = channel.socket()
+        if (vpnService != null) {
+            try {
+                // Sur Android, SocketChannel expose le FD
+                val implField = channel.javaClass.getDeclaredField("fd")
+                implField.isAccessible = true
+                val fd = implField.get(channel) as? java.io.FileDescriptor
+                if (fd != null) {
+                    val f = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
+                    f.isAccessible = true
+                    val fdVal = f.getInt(fd)
+                    val r = vpnService.protect(fdVal)
+                    KighmuLogger.info(TAG, "NIO protect(fd=$fdVal) avant connect = $r")
+                }
+            } catch (e: Exception) {
+                KighmuLogger.warning(TAG, "NIO protect: ${e.message}")
+            }
+        }
+        channel.configureBlocking(true)
+        channel.connect(InetSocketAddress(host, port))
+        // Proteger aussi apres connect
+        protectSocketFd(socket)
+        return socket
     }
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
@@ -140,11 +174,9 @@ class SlowDnsEngine(
 
             KighmuLogger.info(TAG, "SOCKS5 -> $targetHost:$targetPort")
 
-            val remote = Socket()
+            val remote = createProtectedSocket(targetHost, targetPort)
             remote.soTimeout = 0
-            remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
-            val prot = protectSocketFd(remote)
-            KighmuLogger.info(TAG, "Remote connecte+protege=$prot -> $targetHost:$targetPort")
+            KighmuLogger.info(TAG, "Remote connecte+protege -> $targetHost:$targetPort")
 
             // Reply success
             out.write(byteArrayOf(5, 0, 0, 1, 0, 0, 0, 0, 0, 0))
