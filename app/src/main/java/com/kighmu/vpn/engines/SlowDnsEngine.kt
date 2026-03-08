@@ -28,51 +28,30 @@ class SlowDnsEngine(
     private val dns get() = config.slowDns
     private val ssh get() = config.sshCredentials
 
-    private fun protectSocket(socket: Socket): Boolean {
-        if (vpnService == null) {
-            KighmuLogger.warning(TAG, "vpnService null - socket non protege")
-            return false
-        }
-        // Essai 1: protect(Socket) standard
-        var result = vpnService.protect(socket)
-        if (result) {
-            KighmuLogger.info(TAG, "protect(Socket) = true")
-            return true
-        }
-        // Essai 2: protect(int fd) via reflection
-        try {
-            val implField = socket.javaClass.getDeclaredField("impl")
-            implField.isAccessible = true
-            val impl = implField.get(socket)
-            val fdField = impl.javaClass.getDeclaredField("fd")
-            fdField.isAccessible = true
-            val fd = fdField.get(impl) as? java.io.FileDescriptor
-            if (fd != null) {
-                val fdInt = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
-                fdInt.isAccessible = true
-                val fdValue = fdInt.getInt(fd)
-                result = vpnService.protect(fdValue)
-                KighmuLogger.info(TAG, "protect(fd=$fdValue) = $result")
-                if (result) return true
-            }
-        } catch (e: Exception) {
-            KighmuLogger.warning(TAG, "protect via reflection: ${e.message}")
-        }
-        // Essai 3: getFileDescriptor via NetworkInterface
-        try {
-            val m = socket.javaClass.getMethod("getFileDescriptor$")
+    private fun protectSocketFd(socket: Socket): Boolean {
+        if (vpnService == null) return false
+        // FD disponible seulement apres connect()
+        return try {
+            val m = socket.javaClass.getMethod("getFileDescriptor\$")
             val fd = m.invoke(socket) as? java.io.FileDescriptor
             if (fd != null) {
-                val fdInt = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
-                fdInt.isAccessible = true
-                val fdValue = fdInt.getInt(fd)
-                result = vpnService.protect(fdValue)
-                KighmuLogger.info(TAG, "protect(getFileDescriptor fd=$fdValue) = $result")
-            }
+                val f = java.io.FileDescriptor::class.java.getDeclaredField("descriptor")
+                f.isAccessible = true
+                val fdVal = f.getInt(fd)
+                val r = vpnService.protect(fdVal)
+                KighmuLogger.info(TAG, "protect(fd=$fdVal) = $r")
+                r
+            } else false
         } catch (e: Exception) {
-            KighmuLogger.warning(TAG, "protect getFileDescriptor: ${e.message}")
+            KighmuLogger.warning(TAG, "protectFd: ${e.message}")
+            vpnService.protect(socket)
         }
-        return result
+    }
+
+    private fun protectSocket(socket: Socket): Boolean {
+        // protect() avant connect() ne marche pas (fd=-1)
+        // On protege APRES connect() via FD
+        return false // placeholder - appeler protectSocketFd apres connect
     }
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
@@ -170,7 +149,8 @@ class SlowDnsEngine(
             KighmuLogger.info(TAG, "Remote socket protege=$prot")
 
             remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
-            KighmuLogger.info(TAG, "Remote connecte vers $targetHost:$targetPort")
+            val protR = protectSocketFd(remote)
+            KighmuLogger.info(TAG, "Remote connecte+protege=$protR vers $targetHost:$targetPort")
 
             // Reply success
             out.write(byteArrayOf(5, 0, 0, 1, 0, 0, 0, 0, 0, 0))
@@ -236,7 +216,8 @@ class SlowDnsEngine(
                 val prot = protectSocket(s)
                 KighmuLogger.info(TAG, "SocketFactory: socket protege=$prot")
                 s.connect(InetSocketAddress(host, port), 20000)
-                KighmuLogger.info(TAG, "SocketFactory: socket connecte OK")
+                val protJ = protectSocketFd(s)
+                KighmuLogger.info(TAG, "SocketFactory: socket connecte+protege=$protJ")
                 s.soTimeout = 0
                 return s
             }
