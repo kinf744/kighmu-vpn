@@ -167,7 +167,13 @@ class KighmuVpnService : VpnService() {
                 }
 
                 // Start traffic routing
-                startTrafficRouting(vpnInterface!!, localPort)
+                val engine = tunnelEngine
+                if (engine is com.kighmu.vpn.engines.SlowDnsEngine) {
+                    engine.startTun2Socks(vpnInterface!!.fd)
+                    com.kighmu.vpn.utils.KighmuLogger.info("VpnService", "tun2socks lance pour SlowDNS")
+                } else {
+                    startTrafficRouting(vpnInterface!!, localPort)
+                }
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
