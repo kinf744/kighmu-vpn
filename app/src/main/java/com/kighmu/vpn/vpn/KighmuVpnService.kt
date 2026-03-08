@@ -118,7 +118,7 @@ class KighmuVpnService : VpnService() {
 
                 // Start tunnel engine
                 val localPort = try {
-                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService)
+                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
                     com.kighmu.vpn.utils.KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")

@@ -11,7 +11,8 @@ import java.net.*
 
 class SlowDnsEngine(
     private val config: KighmuConfig,
-    private val context: Context
+    private val context: Context,
+    private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
     companion object {
@@ -126,6 +127,9 @@ class SlowDnsEngine(
 
             // Connexion au serveur cible
             val remote = Socket()
+            // Proteger le socket pour eviter la boucle VPN
+            vpnService?.protect(remote)
+            KighmuLogger.info(TAG, "Socket protege: ${vpnService != null}")
             remote.connect(InetSocketAddress(targetHost, targetPort), 15000)
             KighmuLogger.info(TAG, "Connexion etablie vers $targetHost:$targetPort")
 
@@ -183,7 +187,20 @@ class SlowDnsEngine(
         session.setConfig("compression.s2c", "none")
         session.setConfig("compression.c2s", "none")
         session.setTimeout(30000)
-        KighmuLogger.info(TAG, "SSH connexion DIRECTE vers ${ssh.host}:${ssh.port}...")
+        // Proteger via SocketFactory
+        val sf = object : com.jcraft.jsch.SocketFactory {
+            override fun createSocket(host: String, port: Int): java.net.Socket {
+                val s = java.net.Socket()
+                vpnService?.protect(s)
+                KighmuLogger.info(TAG, "JSch socket protege pour $host:$port")
+                s.connect(java.net.InetSocketAddress(host, port), 15000)
+                return s
+            }
+            override fun getInputStream(s: java.net.Socket) = s.getInputStream()
+            override fun getOutputStream(s: java.net.Socket) = s.getOutputStream()
+        }
+        session.setSocketFactory(sf)
+        KighmuLogger.info(TAG, "SSH connexion via SOCKS5 proxy (timeout 30s)...")
         session.connect(30000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
