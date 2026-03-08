@@ -20,6 +20,12 @@ jobs:
         id: ndk
         with:
           ndk-version: r26d
+      - name: Download dnstt binary
+        run: |
+          mkdir -p app/src/main/jniLibs/armeabi-v7a
+          curl -L -o app/src/main/jniLibs/armeabi-v7a/libdnstt.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libdnstt.so
+          ls -la app/src/main/jniLibs/armeabi-v7a/
+
       - name: Build APK
         run: gradle assembleDebug --no-daemon
         env:
