@@ -187,15 +187,6 @@ class SlowDnsEngine(
         session.setConfig("compression.s2c", "none")
         session.setConfig("compression.c2s", "none")
         session.setTimeout(30000)
-        // Test lecture banniere SSH avant JSch
-        val testSock = java.net.Socket()
-        vpnService?.protect(testSock)
-        testSock.connect(java.net.InetSocketAddress(ssh.host, ssh.port), 10000)
-        testSock.soTimeout = 5000
-        val banner = testSock.getInputStream().bufferedReader().readLine()
-        KighmuLogger.info(TAG, "Banniere SSH recue: $banner")
-        testSock.close()
-
         // Connexion JSch avec socket protege
         val sf = object : com.jcraft.jsch.SocketFactory {
             override fun createSocket(host: String, port: Int): java.net.Socket {
