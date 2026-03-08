@@ -68,21 +68,7 @@ class SlowDnsEngine(
         } catch (e: Exception) { null }
         
         KighmuLogger.info(TAG, "Interface physique: ${physicalIface?.name ?: "non trouvee"}")
-        
         val s = Socket()
-        // Lier a l'interface physique si trouvee
-        if (physicalIface != null) {
-            try {
-                val addr = physicalIface.inetAddresses?.toList()
-                    ?.firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }
-                if (addr != null) {
-                    s.bind(InetSocketAddress(addr, 0))
-                    KighmuLogger.info(TAG, "Socket lie a ${addr.hostAddress}")
-                }
-            } catch (e: Exception) {
-                KighmuLogger.warning(TAG, "Bind iface: ${e.message}")
-            }
-        }
         val r1 = vpnService?.protect(s) ?: false
         KighmuLogger.info(TAG, "protect avant connect = $r1")
         s.connect(InetSocketAddress(host, port), 20000)
