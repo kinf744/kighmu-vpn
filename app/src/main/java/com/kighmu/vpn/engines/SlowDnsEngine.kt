@@ -193,10 +193,35 @@ class SlowDnsEngine(
                 val s = java.net.Socket()
                 vpnService?.protect(s)
                 KighmuLogger.info(TAG, "JSch socket protege pour $host:$port")
+                s.connect(java.net.InetSocketAddress(host, port), 20000)
+                s.soTimeout = 20000
+                // Lire la banniere SSH manuellement
+                val bannerBytes = mutableListOf<Byte>()
+                val inp = s.getInputStream()
+                var b = inp.read()
+                while (b != -1 && b != 10) {
+                    bannerBytes.add(b.toByte())
+                    b = inp.read()
+                }
+                val banner = String(bannerBytes.toByteArray()).trim()
+                KighmuLogger.info(TAG, "Banniere SSH: $banner")
                 s.soTimeout = 0
-                s.connect(java.net.InetSocketAddress(host, port), 15000)
-                KighmuLogger.info(TAG, "JSch socket connecte OK")
-                return s
+                // Remettre la banniere dans le stream via PushbackInputStream
+                val fullBanner = (banner + "
+").toByteArray()
+                val pbis = java.io.PushbackInputStream(inp, fullBanner.size)
+                pbis.unread(fullBanner)
+                KighmuLogger.info(TAG, "JSch socket pret")
+                // Retourner socket avec stream modifie
+                return object : java.net.Socket() {
+                    override fun getInputStream() = pbis
+                    override fun getOutputStream() = s.getOutputStream()
+                    override fun isClosed() = s.isClosed
+                    override fun isConnected() = s.isConnected
+                    override fun close() = s.close()
+                    override fun setSoTimeout(t: Int) = s.setSoTimeout(t)
+                    override fun getSoTimeout() = s.getSoTimeout()
+                }
             }
             override fun getInputStream(s: java.net.Socket) = s.getInputStream()
             override fun getOutputStream(s: java.net.Socket) = s.getOutputStream()
