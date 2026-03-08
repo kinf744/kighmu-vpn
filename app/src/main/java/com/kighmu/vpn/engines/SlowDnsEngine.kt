@@ -3,6 +3,7 @@ package com.kighmu.vpn.engines
 import android.content.Context
 import com.trilead.ssh2.Connection
 import com.trilead.ssh2.ConnectionInfo
+import com.trilead.ssh2.crypto.CryptoWishList
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
@@ -21,7 +22,6 @@ class SlowDnsEngine(
         const val VPN_ADDRESS = "10.0.0.2"
         const val VPN_PREFIX = "24"
         const val MTU = 1500
-        // Version string identique a SSH Custom
     }
 
     private var running = false
@@ -41,15 +41,12 @@ class SlowDnsEngine(
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
 
-        // 1. Lancer dnstt-client
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
 
-        // 2. Attendre que dnstt soit pret
         KighmuLogger.info(TAG, "Attente dnstt (15s)...")
         delay(15000)
 
-        // 3. Connecter SSH via trilead (identique SSH Custom)
         startSsh()
         KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $LOCAL_SOCKS_PORT ===")
 
@@ -73,7 +70,6 @@ class SlowDnsEngine(
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
         }
-        KighmuLogger.info(TAG, "tun2socks lance")
     }
 
     private fun extractDnsttBinary(): File {
@@ -125,23 +121,23 @@ class SlowDnsEngine(
     private fun startSsh() {
         KighmuLogger.info(TAG, "Connexion SSH trilead -> 127.0.0.1:$DNSTT_PORT")
 
-        // Utiliser trilead-ssh2 exactement comme SSH Custom
         val conn = Connection("127.0.0.1", DNSTT_PORT)
 
-        // Connecter avec timeout 120s (tunnel DNS est lent)
-        val connInfo: ConnectionInfo = conn.connect(
-            null,          // verifier host key: null = accepter tout
-            120000,        // connect timeout ms
-            120000         // kex timeout ms
-        )
-        KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
+        // Forcer exactement les memes algos que SSH Custom
+        val wishList = CryptoWishList()
+        wishList.kexAlgos = arrayOf("diffie-hellman-group-exchange-sha256", "diffie-hellman-group14-sha1")
+        wishList.c2s_enc_algos = arrayOf("aes256-ctr", "aes128-ctr", "aes256-cbc", "aes128-cbc")
+        wishList.s2c_enc_algos = arrayOf("aes256-ctr", "aes128-ctr", "aes256-cbc", "aes128-cbc")
+        wishList.c2s_mac_algos = arrayOf("hmac-sha2-512", "hmac-sha2-256", "hmac-sha1")
+        wishList.s2c_mac_algos = arrayOf("hmac-sha2-512", "hmac-sha2-256", "hmac-sha1")
 
-        // Authentifier
+        val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000, wishList)
+        KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm} mac=${connInfo.clientToServerMACAlgorithm}")
+
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
         if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
         KighmuLogger.info(TAG, "SSH authentifie!")
 
-        // Port forwarding local: 127.0.0.1:10800 -> 127.0.0.1:10800 via SSH
         conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
         KighmuLogger.info(TAG, "Port forward local $LOCAL_SOCKS_PORT OK")
 
