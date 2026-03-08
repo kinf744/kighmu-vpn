@@ -242,9 +242,8 @@ class SlowDnsEngine(
         session.setConfig("compression.s2c", "none")
         session.setConfig("compression.c2s", "none")
         session.setTimeout(0)
-        session.setProxy(com.jcraft.jsch.ProxySOCKS5("127.0.0.1", proxyPort))
-
-        KighmuLogger.info(TAG, "SSH connexion via SOCKS5 local:$proxyPort (timeout 45s)...")
+        // Pas de proxy - connexion directe avec socket protege
+        KighmuLogger.info(TAG, "SSH connexion directe avec socket protege (timeout 45s)...")
         session.connect(45000)
         jschSession = session
         KighmuLogger.info(TAG, "SSH connecte! ${session.serverVersion}")
