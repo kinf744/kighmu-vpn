@@ -121,7 +121,7 @@ class SlowDnsEngine(
         )
         KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
 
-        val pb = ProcessBuilder(*cmd).redirectErrorStream(true)
+        val pb = ProcessBuilder(cmd).redirectErrorStream(true)
         pb.environment()["HOME"]   = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
         pb.directory(context.filesDir)
