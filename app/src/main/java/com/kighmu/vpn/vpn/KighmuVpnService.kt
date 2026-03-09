@@ -73,9 +73,15 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
-        instance = null
-        try { stopVpn() } catch (_: Exception) {}
+        try { instance = null } catch (_: Exception) {}
+        try { statsJob?.cancel() } catch (_: Exception) {}
         try { serviceJob.cancel() } catch (_: Exception) {}
+        try {
+            tunnelEngine = null
+            vpnInterface?.close()
+            vpnInterface = null
+        } catch (_: Exception) {}
+        try { stopForeground(true) } catch (_: Exception) {}
         super.onDestroy()
     }
 
@@ -245,12 +251,14 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun updateStatus(status: ConnectionStatus, message: String = "") {
-        currentStatus = status
-        KighmuLogger.log(message, if (status == ConnectionStatus.ERROR) LogEntry.LogLevel.ERROR else LogEntry.LogLevel.INFO)
-        sendBroadcast(Intent(BROADCAST_STATUS).apply {
-            putExtra(EXTRA_STATUS, status.name)
-            putExtra(EXTRA_MESSAGE, message)
-        })
+        try {
+            currentStatus = status
+            KighmuLogger.log(message, if (status == ConnectionStatus.ERROR) LogEntry.LogLevel.ERROR else LogEntry.LogLevel.INFO)
+            sendBroadcast(Intent(BROADCAST_STATUS).apply {
+                putExtra(EXTRA_STATUS, status.name)
+                putExtra(EXTRA_MESSAGE, message)
+            })
+        } catch (_: Exception) {}
     }
 
     private fun createNotificationChannel() {
