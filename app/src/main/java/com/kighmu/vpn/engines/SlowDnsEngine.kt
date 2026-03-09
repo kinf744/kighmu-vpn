@@ -70,8 +70,37 @@ class SlowDnsEngine(
     private var tun2socksProcess: Process? = null
 
     fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "startTun2Socks fd=$fd - relay Kotlin actif via startSocks5Routing")
-        // Le relay est gere par KighmuVpnService.startSocks5Routing via Tun2SocksRelay
+        KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val nativeDir = context.applicationInfo.nativeLibraryDir
+                val bin = File(nativeDir, "libtun2socks.so")
+                if (!bin.exists()) {
+                    KighmuLogger.error(TAG, "libtun2socks.so introuvable dans $nativeDir")
+                    return@launch
+                }
+                bin.setExecutable(true)
+                val cmd = listOf(
+                    bin.absolutePath,
+                    "--tunfd", "$fd",
+                    "--tunmtu", "$MTU",
+                    "--netif-ipaddr", "10.0.0.1",
+                    "--netif-netmask", "255.255.255.0",
+                    "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
+                    "--enable-udprelay",
+                    "--loglevel", "4"
+                )
+                KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
+                val pb = ProcessBuilder(cmd)
+                pb.redirectErrorStream(true)
+                tun2socksProcess = pb.start()
+                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
+                    KighmuLogger.info(TAG, "tun2socks: $line")
+                }
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+            }
+        }
     }
 
     private fun extractDnsttBinary(): File {
