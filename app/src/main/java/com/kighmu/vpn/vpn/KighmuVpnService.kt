@@ -169,7 +169,7 @@ class KighmuVpnService : VpnService() {
                 val eng = tunnelEngine
                 if (eng is com.kighmu.vpn.engines.SlowDnsEngine) {
                     try {
-                        eng.startTun2Socks(vpnInterface!!.fd)
+                        eng.startTun2Socks(vpnInterface!!.detachFd())
                         KighmuLogger.info(TAG, "tun2socks process lance")
                     } catch (e: Exception) {
                         KighmuLogger.error(TAG, "tun2socks failed: \${e.message}")
