@@ -27,6 +27,7 @@ jobs:
 
       - name: Download native binaries and build tun2socks armv7 JNI
         run: |
+          cd $GITHUB_WORKSPACE
           mkdir -p app/src/main/jniLibs/arm64-v8a
           mkdir -p app/src/main/jniLibs/armeabi-v7a
 
