@@ -59,11 +59,14 @@ class KighmuVpnService : VpnService() {
         instance = this
         configManager = ConfigManager(this)
         createNotificationChannel()
-        // Capturer tous les crashes non geres
+        // Capturer et sauvegarder les crashes dans un fichier
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            KighmuLogger.error(TAG, "CRASH NON GERE: ${throwable.javaClass.simpleName}: ${throwable.message}")
-            KighmuLogger.error(TAG, "Stack: ${throwable.stackTrace.take(5).joinToString(" | ")}")
+            try {
+                val crashFile = java.io.File(filesDir, "crash_log.txt")
+                val stack = throwable.stackTrace.take(10).joinToString("\n")
+                crashFile.writeText("CRASH: \${throwable.javaClass.name}\nMessage: \${throwable.message}\nThread: \${thread.name}\nStack:\n\$stack")
+            } catch (_: Exception) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }
