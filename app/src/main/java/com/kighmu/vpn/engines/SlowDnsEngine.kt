@@ -80,7 +80,7 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                val cmd = arrayOf(
+                val cmd = listOf(
                     bin.absolutePath,
                     "--tunfd", fd.toString(),
                     "--tunmtu", MTU.toString(),
@@ -91,7 +91,7 @@ class SlowDnsEngine(
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
-                val pb = ProcessBuilder(*cmd)
+                val pb = ProcessBuilder(cmd)
                 pb.redirectErrorStream(true)
                 tun2socksProcess = pb.start()
                 tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
