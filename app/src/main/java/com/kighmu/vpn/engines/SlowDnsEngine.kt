@@ -81,6 +81,21 @@ class SlowDnsEngine(
         val t2s = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
         trafficLog.appendText("libtun2socks.so existe: ${t2s.exists()}\n")
         trafficLog.appendText("SOCKS5 port: $LOCAL_SOCKS_PORT\n")
+        // Tester SOCKS5 connectivite
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val sock = java.net.Socket()
+                sock.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 2000)
+                trafficLog.appendText("SOCKS5 connecte: OUI\n")
+                sock.close()
+            } catch (e: Exception) {
+                trafficLog.appendText("SOCKS5 connecte: NON - ${e.message}\n")
+            }
+            // Tester fd valide
+            trafficLog.appendText("fd valide: ${fd > 0}\n")
+            val fdFile = java.io.File("/proc/self/fd/$fd")
+            trafficLog.appendText("fd dans /proc: ${fdFile.exists()}\n")
+        }
         if (Tun2Socks.isAvailable) {
             KighmuLogger.info(TAG, "Mode JNI tun2socks")
             engineScope.launch(Dispatchers.IO) {
