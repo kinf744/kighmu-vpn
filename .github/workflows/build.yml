@@ -33,7 +33,7 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+          cp kighmu.keystore app/keystore.jks
 
       - name: Build APK
         run: gradle assembleRelease --no-daemon
