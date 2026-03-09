@@ -31,10 +31,10 @@ jobs:
           ls -la app/src/main/jniLibs/arm64-v8a/
           ls -la app/src/main/jniLibs/armeabi-v7a/
 
-      - name: Verify Keystore
+      - name: Create Keystore
         run: |
-          ls -la kighmu.keystore
-          keytool -list -keystore kighmu.keystore -storepass KighmuStore2024! 2>&1 | head -3
+          keytool -genkeypair -v             -keystore kighmu.keystore             -alias kighmu_key             -keyalg RSA             -keysize 2048             -validity 10000             -storepass KighmuStore2024!             -keypass KighmuKey2024!             -dname "CN=KIGHMU VPN, OU=Mobile, O=KIGHMU, L=Unknown, S=Unknown, C=US"
+          keytool -list -keystore kighmu.keystore -storepass KighmuStore2024! | head -3
 
       - name: Build APK
         run: gradle assembleRelease --no-daemon
