@@ -71,6 +71,16 @@ class SlowDnsEngine(
 
     fun startTun2Socks(fd: Int) {
         KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd, JNI=${Tun2Socks.isAvailable})")
+        // Log diagnostic trafic
+        val trafficLog = java.io.File("/sdcard/Download/kighmu_trafic.txt")
+        trafficLog.writeText("=== DIAGNOSTIC TRAFIC ===\n")
+        trafficLog.appendText("tunFd=$fd\n")
+        trafficLog.appendText("JNI disponible: ${Tun2Socks.isAvailable}\n")
+        trafficLog.appendText("ABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}\n")
+        trafficLog.appendText("nativeLibDir: ${context.applicationInfo.nativeLibraryDir}\n")
+        val t2s = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+        trafficLog.appendText("libtun2socks.so existe: ${t2s.exists()}\n")
+        trafficLog.appendText("SOCKS5 port: $LOCAL_SOCKS_PORT\n")
         if (Tun2Socks.isAvailable) {
             KighmuLogger.info(TAG, "Mode JNI tun2socks")
             engineScope.launch(Dispatchers.IO) {
