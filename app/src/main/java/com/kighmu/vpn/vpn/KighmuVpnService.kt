@@ -63,7 +63,8 @@ class KighmuVpnService : VpnService() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                val crashFile = java.io.File(filesDir, "crash_log.txt")
+                // Ecrire dans stockage externe accessible
+                val crashFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_crash.txt")
                 val stack = throwable.stackTrace.take(10).joinToString("\n")
                 crashFile.writeText("CRASH: \${throwable.javaClass.name}\nMessage: \${throwable.message}\nThread: \${thread.name}\nStack:\n\$stack")
             } catch (_: Exception) {}
