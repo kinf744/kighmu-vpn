@@ -27,7 +27,6 @@ jobs:
           curl -L -o app/src/main/jniLibs/arm64-v8a/libdnstt.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libdnstt-arm64.so
           curl -L -o app/src/main/jniLibs/arm64-v8a/libtun2socks.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libtun2socks-arm64.so
           curl -L -o app/src/main/jniLibs/armeabi-v7a/libdnstt.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libdnstt-arm64.so
-          curl -L -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libtun2socks-arm64.so
           ls -la app/src/main/jniLibs/arm64-v8a/
           ls -la app/src/main/jniLibs/armeabi-v7a/
 
