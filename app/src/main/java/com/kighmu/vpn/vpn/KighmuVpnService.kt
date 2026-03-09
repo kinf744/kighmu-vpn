@@ -59,6 +59,13 @@ class KighmuVpnService : VpnService() {
         instance = this
         configManager = ConfigManager(this)
         createNotificationChannel()
+        // Capturer tous les crashes non geres
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            KighmuLogger.error(TAG, "CRASH NON GERE: ${throwable.javaClass.simpleName}: ${throwable.message}")
+            KighmuLogger.error(TAG, "Stack: ${throwable.stackTrace.take(5).joinToString(" | ")}")
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
