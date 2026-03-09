@@ -80,10 +80,10 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                val cmd = listOf(
+                val cmd = arrayOf(
                     bin.absolutePath,
-                    "--tunfd", "$fd",
-                    "--tunmtu", "$MTU",
+                    "--tunfd", fd.toString(),
+                    "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.1",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
@@ -91,7 +91,7 @@ class SlowDnsEngine(
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
-                val pb = ProcessBuilder(cmd)
+                val pb = ProcessBuilder(*cmd)
                 pb.redirectErrorStream(true)
                 tun2socksProcess = pb.start()
                 tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
@@ -121,7 +121,7 @@ class SlowDnsEngine(
         )
         KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
 
-        val pb = ProcessBuilder(cmd).redirectErrorStream(true)
+        val pb = ProcessBuilder(*cmd).redirectErrorStream(true)
         pb.environment()["HOME"]   = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
         pb.directory(context.filesDir)
