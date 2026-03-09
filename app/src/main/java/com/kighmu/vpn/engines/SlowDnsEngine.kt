@@ -156,7 +156,15 @@ class SlowDnsEngine(
         try { Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
-        try { dnsttProcess?.destroy() } catch (_: Exception) {}
+        try { 
+            dnsttProcess?.destroyForcibly()
+            dnsttProcess?.destroy()
+        } catch (_: Exception) {}
+        // Killer aussi par nom de process au cas ou
+        try {
+            Runtime.getRuntime().exec("killall libdnstt.so")
+            Runtime.getRuntime().exec("pkill -f libdnstt")
+        } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
         KighmuLogger.info(TAG, "SlowDNS arrete")
