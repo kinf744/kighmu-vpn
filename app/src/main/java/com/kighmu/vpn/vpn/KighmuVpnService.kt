@@ -244,7 +244,9 @@ class KighmuVpnService : VpnService() {
 
     private fun startSocks5Routing(vpnFd: ParcelFileDescriptor, socksPort: Int) {
         KighmuLogger.info(TAG, "VPN interface active sur port $socksPort - routing actif")
-        // Tun2SocksRelay desactive temporairement pour stabilite
+        tun2socksRelay = Tun2SocksRelay(vpnFd.fileDescriptor, "127.0.0.1", socksPort)
+        tun2socksRelay?.start()
+        KighmuLogger.info(TAG, "Tun2SocksRelay demarre")
     }
 
     private fun startStatsUpdate() {
