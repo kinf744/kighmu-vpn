@@ -44,8 +44,20 @@ class SlowDnsEngine(
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
 
-        KighmuLogger.info(TAG, "Attente dnstt (15s)...")
-        delay(15000)
+        // Attendre que dnstt soit pret (max 30s, check toutes les 500ms)
+        KighmuLogger.info(TAG, "Attente dnstt pret...")
+        var waited = 0
+        while (waited < 30000) {
+            delay(500)
+            waited += 500
+            try {
+                val sock = java.net.Socket()
+                sock.connect(java.net.InetSocketAddress("127.0.0.1", DNSTT_PORT), 200)
+                sock.close()
+                KighmuLogger.info(TAG, "dnstt pret en ${waited}ms")
+                break
+            } catch (_: Exception) {}
+        }
 
         // dnstt expose le flux SSH brut directement sur port 7000
         // trilead se connecte directement a 127.0.0.1:7000
