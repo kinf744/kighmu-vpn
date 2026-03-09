@@ -71,31 +71,11 @@ class SlowDnsEngine(
 
     fun startTun2Socks(fd: Int) {
         KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd, JNI=${Tun2Socks.isAvailable})")
-        // Log diagnostic trafic
+        
+        // Log diagnostic
         val trafficLog = java.io.File("/sdcard/Download/kighmu_trafic.txt")
-        trafficLog.writeText("=== DIAGNOSTIC TRAFIC ===\n")
-        trafficLog.appendText("tunFd=$fd\n")
-        trafficLog.appendText("JNI disponible: ${Tun2Socks.isAvailable}\n")
-        trafficLog.appendText("ABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}\n")
-        trafficLog.appendText("nativeLibDir: ${context.applicationInfo.nativeLibraryDir}\n")
-        val t2s = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-        trafficLog.appendText("libtun2socks.so existe: ${t2s.exists()}\n")
-        trafficLog.appendText("SOCKS5 port: $LOCAL_SOCKS_PORT\n")
-        // Tester SOCKS5 connectivite
-        engineScope.launch(Dispatchers.IO) {
-            try {
-                val sock = java.net.Socket()
-                sock.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 2000)
-                trafficLog.appendText("SOCKS5 connecte: OUI\n")
-                sock.close()
-            } catch (e: Exception) {
-                trafficLog.appendText("SOCKS5 connecte: NON - ${e.message}\n")
-            }
-            // Tester fd valide
-            trafficLog.appendText("fd valide: ${fd > 0}\n")
-            val fdFile = java.io.File("/proc/self/fd/$fd")
-            trafficLog.appendText("fd dans /proc: ${fdFile.exists()}\n")
-        }
+        trafficLog.appendText("startTun2Socks appele avec fd=$fd\n")
+
         if (Tun2Socks.isAvailable) {
             KighmuLogger.info(TAG, "Mode JNI tun2socks")
             engineScope.launch(Dispatchers.IO) {
@@ -115,33 +95,58 @@ class SlowDnsEngine(
             }
             return
         }
-        KighmuLogger.info(TAG, "Mode processus externe tun2socks")
+
+        // Mode socket Unix - passer fd au processus tun2socks
+        KighmuLogger.info(TAG, "Mode socket Unix pour fd=$fd")
         engineScope.launch(Dispatchers.IO) {
             try {
                 val nativeDir = context.applicationInfo.nativeLibraryDir
                 val bin = File(nativeDir, "libtun2socks.so")
                 if (!bin.exists()) {
-                    KighmuLogger.error(TAG, "libtun2socks.so introuvable dans $nativeDir")
+                    KighmuLogger.error(TAG, "libtun2socks.so introuvable")
                     return@launch
                 }
                 bin.setExecutable(true)
-                delay(1000)
-                val fdPath = "fd://" + fd
+
+                // Creer socket Unix pour passer le fd
+                val socketPath = "${context.cacheDir}/tun2socks.sock"
+                File(socketPath).delete()
+                
+                val serverSocket = android.net.LocalServerSocket(socketPath)
+                trafficLog.appendText("LocalServerSocket cree: $socketPath\n")
+
+                // Lancer tun2socks avec le socket path
                 val cmd = listOf(
                     bin.absolutePath,
-                    "--device", fdPath,
+                    "--device", "fd://3",
                     "--proxy", "socks5://127.0.0.1:$LOCAL_SOCKS_PORT",
                     "--loglevel", "info"
                 )
                 KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
+                
                 val pb = ProcessBuilder(cmd)
                 pb.redirectErrorStream(true)
+                
+                // Passer le fd via heritage (avant fork)
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                
+                // Accepter connexion et envoyer le fd
+                val clientConn = serverSocket.accept()
+                trafficLog.appendText("Client connecte\n")
+                
+                // Envoyer fd via ancdata
+                clientConn.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                clientConn.outputStream.write(1)
+                clientConn.outputStream.flush()
+                trafficLog.appendText("fd envoye via socket\n")
+                
                 tun2socksProcess = pb.start()
                 tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
                     KighmuLogger.info(TAG, "tun2socks: $line")
                 }
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "tun2socks process error: ${e.message}")
+                KighmuLogger.error(TAG, "tun2socks socket error: ${e.message}")
+                trafficLog.appendText("ERREUR: ${e.message}\n")
             }
         }
     }
