@@ -83,6 +83,7 @@ class SlowDnsEngine(
                 bin.setExecutable(true)
                 // tun2socks v2 utilise --device /dev/fd/N
                 // Utiliser /proc/self/fd/ pour acceder au fd VPN
+                    delay(1000)
                     val fdPath = "fd://" + fd
                 val cmd = listOf(
                     bin.absolutePath,
