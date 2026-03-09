@@ -166,15 +166,18 @@ class KighmuVpnService : VpnService() {
         try { statsJob?.cancel() } catch (_: Exception) {}
         try { updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected") } catch (_: Exception) {}
         // Arreter dans un thread separé pour ne pas bloquer/crasher
-        Thread {
-            try { tun2socksRelay?.stop() } catch (_: Exception) {}
-            tun2socksRelay = null
-            try { tunnelEngine?.stop() } catch (_: Exception) {}
-            tunnelEngine = null
-            try { vpnInterface?.close() } catch (_: Exception) {}
-            vpnInterface = null
-            stats = VpnStats()
-        }.start()
+        val engineRef = tunnelEngine
+        val relayRef = tun2socksRelay
+        val vpnRef = vpnInterface
+        tunnelEngine = null
+        tun2socksRelay = null
+        vpnInterface = null
+        stats = VpnStats()
+        serviceScope.launch {
+            try { relayRef?.stop() } catch (_: Exception) {}
+            try { engineRef?.stop() } catch (_: Exception) {}
+            try { vpnRef?.close() } catch (_: Exception) {}
+        }
         try { stopForeground(true) } catch (_: Exception) {}
         // stopSelf retire - le service reste actif
     }
