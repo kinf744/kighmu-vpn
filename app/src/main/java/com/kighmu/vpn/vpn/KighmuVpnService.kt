@@ -166,7 +166,17 @@ class KighmuVpnService : VpnService() {
                 }
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
-                startSocks5Routing(vpnInterface!!, localPort)
+                val eng = tunnelEngine
+                if (eng is com.kighmu.vpn.engines.SlowDnsEngine) {
+                    try {
+                        eng.startTun2Socks(vpnInterface!!.fd)
+                        KighmuLogger.info(TAG, "tun2socks process lance")
+                    } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "tun2socks failed: \${e.message}")
+                    }
+                } else {
+                    startSocks5Routing(vpnInterface!!, localPort)
+                }
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())

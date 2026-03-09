@@ -67,19 +67,35 @@ class SlowDnsEngine(
         LOCAL_SOCKS_PORT
     }
 
+    private var tun2socksProcess: Process? = null
+
     fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd)")
+        KighmuLogger.info(TAG, "Demarrage tun2socks process (tunFd=$fd)")
         engineScope.launch(Dispatchers.IO) {
             try {
-                Tun2Socks.runTun2Socks(
-                    tunFd               = fd,
-                    mtu                 = MTU,
-                    ip                  = VPN_ADDRESS,
-                    prefix              = VPN_PREFIX,
-                    socksServerAddress  = "127.0.0.1:$LOCAL_SOCKS_PORT",
-                    udpgwServerAddress  = "127.0.0.1:7300",
-                    udpgwTransparentDNS = true
+                // Utiliser le binaire tun2socks-armv7 comme processus externe
+                val nativeDir = context.applicationInfo.nativeLibraryDir
+                val bin = File(nativeDir, "libtun2socks.so")
+                if (!bin.exists()) {
+                    KighmuLogger.error(TAG, "libtun2socks.so introuvable dans $nativeDir")
+                    return@launch
+                }
+                bin.setExecutable(true)
+                // tun2socks v2 utilise --device /dev/fd/N
+                val cmd = listOf(
+                    bin.absolutePath,
+                    "--device", "fd://$fd",
+                    "--proxy", "socks5://127.0.0.1:$LOCAL_SOCKS_PORT",
+                    "--loglevel", "info"
                 )
+                KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
+                val pb = ProcessBuilder(cmd)
+                pb.redirectErrorStream(true)
+                tun2socksProcess = pb.start()
+                // Lire les logs
+                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
+                    KighmuLogger.info(TAG, "tun2socks: $line")
+                }
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
@@ -154,6 +170,8 @@ class SlowDnsEngine(
     override suspend fun stop() {
         running = false
         try { if (Tun2Socks.isAvailable) Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
+        try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
+        tun2socksProcess = null
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
         try { 
