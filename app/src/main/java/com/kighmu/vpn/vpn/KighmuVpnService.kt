@@ -65,8 +65,14 @@ class KighmuVpnService : VpnService() {
             try {
                 // Ecrire dans stockage externe accessible
                 val crashFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_crash.txt")
-                val stack = throwable.stackTrace.take(10).joinToString("\n")
-                crashFile.writeText("CRASH: \${throwable.javaClass.name}\nMessage: \${throwable.message}\nThread: \${thread.name}\nStack:\n\$stack")
+                val stack = throwable.stackTrace.take(10).joinToString("
+")
+                val msg = "CRASH: " + throwable.javaClass.name + "
+Message: " + throwable.message + "
+Thread: " + thread.name + "
+Stack:
+" + stack
+                crashFile.writeText(msg)
             } catch (_: Exception) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
