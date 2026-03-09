@@ -82,9 +82,11 @@ class SlowDnsEngine(
                 }
                 bin.setExecutable(true)
                 // tun2socks v2 utilise --device /dev/fd/N
+                // Utiliser /proc/self/fd/ pour acceder au fd VPN
+                val fdPath = "/proc/self/fd/$fd"
                 val cmd = listOf(
                     bin.absolutePath,
-                    "--device", "fd://$fd",
+                    "--device", fdPath,
                     "--proxy", "socks5://127.0.0.1:$LOCAL_SOCKS_PORT",
                     "--loglevel", "info"
                 )
