@@ -86,7 +86,8 @@ jobs:
             cp /tmp/libtun2socks-armv7-jni.so app/src/main/jniLibs/armeabi-v7a/libtun2socks.so
             echo "tun2socks armv7 JNI compile avec succes"
           else
-            curl -L -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libtun2socks-armv7.so
+            mkdir -p app/src/main/jniLibs/armeabi-v7a
+          curl -L -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libtun2socks-armv7.so
             echo "Utilisation binaire precompile armv7"
           fi
 
