@@ -10,7 +10,7 @@ android {
             storeFile rootProject.file("kighmu.keystore")
             storePassword "KighmuStore2024!"
             keyAlias "kighmu_key"
-            keyPassword "KighmuKey2024!"
+            keyPassword "KighmuStore2024!"
         }
     }
     namespace 'com.kighmu.vpn'
