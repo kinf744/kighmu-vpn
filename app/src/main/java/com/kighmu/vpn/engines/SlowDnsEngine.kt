@@ -70,10 +70,29 @@ class SlowDnsEngine(
     private var tun2socksProcess: Process? = null
 
     fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "Demarrage tun2socks process (tunFd=$fd)")
+        KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd, JNI=${Tun2Socks.isAvailable})")
+        if (Tun2Socks.isAvailable) {
+            KighmuLogger.info(TAG, "Mode JNI tun2socks")
+            engineScope.launch(Dispatchers.IO) {
+                try {
+                    Tun2Socks.runTun2Socks(
+                        tunFd = fd,
+                        mtu = MTU,
+                        ip = VPN_ADDRESS,
+                        prefix = VPN_PREFIX,
+                        socksServerAddress = "127.0.0.1:$LOCAL_SOCKS_PORT",
+                        udpgwServerAddress = "127.0.0.1:7300",
+                        udpgwTransparentDNS = true
+                    )
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "tun2socks JNI error: ${e.message}")
+                }
+            }
+            return
+        }
+        KighmuLogger.info(TAG, "Mode processus externe tun2socks")
         engineScope.launch(Dispatchers.IO) {
             try {
-                // Utiliser le binaire tun2socks-armv7 comme processus externe
                 val nativeDir = context.applicationInfo.nativeLibraryDir
                 val bin = File(nativeDir, "libtun2socks.so")
                 if (!bin.exists()) {
@@ -81,10 +100,8 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // tun2socks v2 utilise --device /dev/fd/N
-                // Utiliser /proc/self/fd/ pour acceder au fd VPN
-                    delay(1000)
-                    val fdPath = "fd://" + fd
+                delay(1000)
+                val fdPath = "fd://" + fd
                 val cmd = listOf(
                     bin.absolutePath,
                     "--device", fdPath,
@@ -95,12 +112,11 @@ class SlowDnsEngine(
                 val pb = ProcessBuilder(cmd)
                 pb.redirectErrorStream(true)
                 tun2socksProcess = pb.start()
-                // Lire les logs
                 tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
                     KighmuLogger.info(TAG, "tun2socks: $line")
                 }
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+                KighmuLogger.error(TAG, "tun2socks process error: ${e.message}")
             }
         }
     }
