@@ -8,9 +8,9 @@ android {
     signingConfigs {
         release {
             storeFile rootProject.file("kighmu.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias System.getenv("KEY_ALIAS") ?: ""
-            keyPassword System.getenv("KEY_PASSWORD") ?: ""
+            storePassword "KighmuStore2024!"
+            keyAlias "kighmu_key"
+            keyPassword "KighmuKey2024!"
         }
     }
     namespace 'com.kighmu.vpn'
