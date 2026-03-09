@@ -89,11 +89,11 @@ class KighmuVpnService : VpnService() {
                 when (validationResult) {
                     is ConfigEncryption.ValidationResult.Expired -> {
                         updateStatus(ConnectionStatus.ERROR, "Config expired")
-                        stopSelf(); return@launch
+                        return@launch
                     }
                     is ConfigEncryption.ValidationResult.WrongDevice -> {
                         updateStatus(ConnectionStatus.ERROR, "Config locked to another device")
-                        stopSelf(); return@launch
+                        return@launch
                     }
                     else -> {}
                 }
@@ -132,7 +132,7 @@ class KighmuVpnService : VpnService() {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
                     updateStatus(ConnectionStatus.ERROR, "Tunnel error: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
-                    stopSelf(); return@launch
+                    return@launch
                 }
                 KighmuLogger.info("VpnService", "Engine démarré sur port $localPort")
 
@@ -144,7 +144,7 @@ class KighmuVpnService : VpnService() {
                 if (vpnInterface == null) {
                     updateStatus(ConnectionStatus.ERROR, "Failed to create VPN interface")
                     try { tunnelEngine?.stop() } catch (_: Exception) {}
-                    stopSelf(); return@launch
+                    return@launch
                 }
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
@@ -169,7 +169,6 @@ class KighmuVpnService : VpnService() {
             } catch (e: Exception) {
                 Log.e(TAG, "VPN start error", e)
                 updateStatus(ConnectionStatus.ERROR, e.message ?: "Connection failed")
-                handleReconnect()
             }
         }
     }
@@ -187,7 +186,7 @@ class KighmuVpnService : VpnService() {
             stats = VpnStats()
         }
         try { stopForeground(true) } catch (_: Exception) {}
-        try { stopSelf() } catch (_: Exception) {}
+        // stopSelf retire - le service reste actif
     }
 
     private fun reconnect() {
@@ -250,17 +249,7 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun handleReconnect() {
-        if (!currentConfig.autoReconnect) { stopSelf(); return }
-        if (reconnectAttempts >= maxReconnectAttempts) {
-            updateStatus(ConnectionStatus.ERROR, "Max reconnect attempts reached")
-            stopSelf(); return
-        }
-        reconnectAttempts++
-        updateStatus(ConnectionStatus.RECONNECTING, "Reconnecting (attempt $reconnectAttempts)...")
-        serviceScope.launch {
-            delay(3000L * reconnectAttempts)
-            startVpn()
-        }
+        // Ne jamais fermer le service - juste signaler l'erreur
     }
 
     private fun updateStatus(status: ConnectionStatus, message: String = "") {
