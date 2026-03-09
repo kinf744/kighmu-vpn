@@ -153,7 +153,7 @@ class SlowDnsEngine(
 
     override suspend fun stop() {
         running = false
-        try { Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
+        try { if (Tun2Socks.isAvailable) Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
         try { 

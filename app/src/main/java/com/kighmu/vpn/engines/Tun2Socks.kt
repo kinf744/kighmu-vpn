@@ -1,8 +1,15 @@
 package com.kighmu.vpn.engines
 
 object Tun2Socks {
+    var isAvailable = false
+
     init {
-        System.loadLibrary("tun2socks")
+        isAvailable = try {
+            System.loadLibrary("tun2socks")
+            true
+        } catch (_: UnsatisfiedLinkError) {
+            false
+        }
     }
 
     external fun runTun2Socks(
