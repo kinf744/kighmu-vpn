@@ -70,85 +70,8 @@ class SlowDnsEngine(
     private var tun2socksProcess: Process? = null
 
     fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "Demarrage tun2socks (tunFd=$fd, JNI=${Tun2Socks.isAvailable})")
-        
-        // Log diagnostic
-        val trafficLog = java.io.File("/sdcard/Download/kighmu_trafic.txt")
-        trafficLog.appendText("startTun2Socks appele avec fd=$fd\n")
-
-        if (Tun2Socks.isAvailable) {
-            KighmuLogger.info(TAG, "Mode JNI tun2socks")
-            engineScope.launch(Dispatchers.IO) {
-                try {
-                    Tun2Socks.runTun2Socks(
-                        tunFd = fd,
-                        mtu = MTU,
-                        ip = VPN_ADDRESS,
-                        prefix = VPN_PREFIX,
-                        socksServerAddress = "127.0.0.1:$LOCAL_SOCKS_PORT",
-                        udpgwServerAddress = "127.0.0.1:7300",
-                        udpgwTransparentDNS = true
-                    )
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "tun2socks JNI error: ${e.message}")
-                }
-            }
-            return
-        }
-
-        // Mode socket Unix - passer fd au processus tun2socks
-        KighmuLogger.info(TAG, "Mode socket Unix pour fd=$fd")
-        engineScope.launch(Dispatchers.IO) {
-            try {
-                val nativeDir = context.applicationInfo.nativeLibraryDir
-                val bin = File(nativeDir, "libtun2socks.so")
-                if (!bin.exists()) {
-                    KighmuLogger.error(TAG, "libtun2socks.so introuvable")
-                    return@launch
-                }
-                bin.setExecutable(true)
-
-                // Creer socket Unix pour passer le fd
-                val socketPath = "${context.cacheDir}/tun2socks.sock"
-                File(socketPath).delete()
-                
-                val serverSocket = android.net.LocalServerSocket(socketPath)
-                trafficLog.appendText("LocalServerSocket cree: $socketPath\n")
-
-                // Lancer tun2socks avec le socket path
-                val cmd = listOf(
-                    bin.absolutePath,
-                    "--device", "fd://3",
-                    "--proxy", "socks5://127.0.0.1:$LOCAL_SOCKS_PORT",
-                    "--loglevel", "info"
-                )
-                KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
-                
-                val pb = ProcessBuilder(cmd)
-                pb.redirectErrorStream(true)
-                
-                // Passer le fd via heritage (avant fork)
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                
-                // Accepter connexion et envoyer le fd
-                val clientConn = serverSocket.accept()
-                trafficLog.appendText("Client connecte\n")
-                
-                // Envoyer fd via ancdata
-                clientConn.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                clientConn.outputStream.write(1)
-                clientConn.outputStream.flush()
-                trafficLog.appendText("fd envoye via socket\n")
-                
-                tun2socksProcess = pb.start()
-                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
-                    KighmuLogger.info(TAG, "tun2socks: $line")
-                }
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "tun2socks socket error: ${e.message}")
-                trafficLog.appendText("ERREUR: ${e.message}\n")
-            }
-        }
+        KighmuLogger.info(TAG, "startTun2Socks fd=$fd - relay Kotlin actif via startSocks5Routing")
+        // Le relay est gere par KighmuVpnService.startSocks5Routing via Tun2SocksRelay
     }
 
     private fun extractDnsttBinary(): File {
