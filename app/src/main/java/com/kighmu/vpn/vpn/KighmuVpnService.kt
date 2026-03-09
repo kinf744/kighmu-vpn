@@ -52,6 +52,7 @@ class KighmuVpnService : VpnService() {
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
+    private var tun2socksRelay: Tun2SocksRelay? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -166,6 +167,8 @@ class KighmuVpnService : VpnService() {
         statsJob?.cancel()
         try { updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected") } catch (_: Exception) {}
         serviceScope.launch {
+            try { tun2socksRelay?.stop() } catch (_: Exception) {}
+            tun2socksRelay = null
             try { tunnelEngine?.stop() } catch (e: Exception) { Log.e(TAG, "Engine stop error", e) }
             tunnelEngine = null
             try { vpnInterface?.close() } catch (e: Exception) { Log.e(TAG, "VPN close error", e) }
@@ -209,18 +212,9 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun startSocks5Routing(vpnFd: ParcelFileDescriptor, socksPort: Int) {
-        KighmuLogger.info(TAG, "Demarrage SOCKS5 routing sur port $socksPort")
-        // Stats upload monitor
-        serviceScope.launch {
-            val inputStream = FileInputStream(vpnFd.fileDescriptor)
-            val buffer = ByteArray(32768)
-            while (isActive && currentStatus == ConnectionStatus.CONNECTED) {
-                try {
-                    val len = inputStream.read(buffer)
-                    if (len > 0) stats.uploadBytes += len
-                } catch (_: Exception) { break }
-            }
-        }
+        KighmuLogger.info(TAG, "Demarrage Tun2SocksRelay sur port $socksPort")
+        tun2socksRelay = Tun2SocksRelay(vpnFd.fileDescriptor, "127.0.0.1", socksPort)
+        tun2socksRelay!!.start()
     }
 
     private fun startStatsUpdate() {
