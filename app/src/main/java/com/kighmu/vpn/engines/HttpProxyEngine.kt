@@ -80,14 +80,10 @@ class HttpProxyEngine(
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
-            // Trilead supporte HTTPProxyData nativement
-            val conn = Connection(ssh.host, ssh.port)
-            // trilead gere lui meme le CONNECT avec HTTPProxyData
-            // mais on doit fermer notre socket manuel d'abord
+            // Trilead gere le CONNECT via HTTPProxyData
             sock.close()
-            val conn2 = Connection(ssh.host, ssh.port)
-            conn2.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.proxyHost, proxy.proxyPort))
-            val conn = conn2
+            val conn = Connection(ssh.host, ssh.port)
+            conn.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.proxyHost, proxy.proxyPort))
             conn.connect(null, 30000, 30000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
