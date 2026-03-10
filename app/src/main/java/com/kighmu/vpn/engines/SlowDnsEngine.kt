@@ -93,9 +93,9 @@ class SlowDnsEngine(
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
-                val pb = ProcessBuilder(cmd)
-                pb.redirectErrorStream(true)
-                tun2socksProcess = pb.start()
+                // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
+                val cmdArray = cmd.toTypedArray()
+                tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
                 // Envoyer le fd via socket Unix a BadVPN
                 delay(500)
                 try {
