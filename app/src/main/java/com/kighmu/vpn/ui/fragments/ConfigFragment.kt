@@ -38,8 +38,6 @@ class ConfigFragment : Fragment() {
             view.findViewById<Button>(R.id.tab_xray),
             view.findViewById<Button>(R.id.tab_v2dns),
             view.findViewById<Button>(R.id.tab_hysteria),
-            view.findViewById<Button>(R.id.tab_zivpn),
-            view.findViewById<Button>(R.id.tab_psiphon)
         )
 
         val sshSection = view.findViewById<LinearLayout>(R.id.section_ssh)
@@ -51,8 +49,6 @@ class ConfigFragment : Fragment() {
             view.findViewById<LinearLayout>(R.id.panel_xray),
             view.findViewById<LinearLayout>(R.id.panel_v2dns),
             view.findViewById<LinearLayout>(R.id.panel_hysteria),
-            view.findViewById<LinearLayout>(R.id.panel_zivpn),
-            view.findViewById<LinearLayout>(R.id.panel_psiphon)
         )
 
         // SSH not needed for xray(4), v2dns(5), hysteria(6)
@@ -177,8 +173,6 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
         view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
         view.findViewById<EditText>(R.id.et_hys_sni).setText(c.hysteria.sni)
-        view.findViewById<EditText>(R.id.et_zivpn_host).setText(c.zivpn.host)
-        view.findViewById<EditText>(R.id.et_zivpn_password).setText(c.zivpn.password)
     }
 
     private fun saveConfig(view: View) {
@@ -221,13 +215,9 @@ class ConfigFragment : Fragment() {
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
             sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
         )
-        val zivpn = c.zivpn.copy(
-            host = view.findViewById<EditText>(R.id.et_zivpn_host).text.toString(),
-            password = view.findViewById<EditText>(R.id.et_zivpn_password).text.toString()
         )
         viewModel.saveConfig(c.copy(
             sshCredentials = ssh, slowDns = dns, httpProxy = http,
-            sshWebSocket = ws, sshSsl = ssl, xray = xray, hysteria = hys, zivpn = zivpn
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }

@@ -4,7 +4,6 @@ import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.models.TunnelMode
 import com.kighmu.vpn.utils.KighmuLogger
-import com.kighmu.vpn.engines.ZivpnEngine
 
 object TunnelEngineFactory {
     private const val TAG = "TunnelEngineFactory"
@@ -15,8 +14,6 @@ object TunnelEngineFactory {
         return when (mode) {
             TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context, vpnService)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
-            TunnelMode.UDP_ZIVPN     -> ZivpnEngine(config, context)
-            TunnelMode.UDP_PSIPHON   -> PsiphonEngine(config, context)
             TunnelMode.SSH_WEBSOCKET -> SshWebSocketEngine(config, context)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context)
