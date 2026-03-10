@@ -96,7 +96,7 @@ class SlowDnsEngine(
                 // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
                 val cmdArray = cmd.toTypedArray()
                 val badvpnLog = java.io.File("/sdcard/Download/kighmu_badvpn.txt")
-                badvpnLog.writeText("=== BadVPN LOG ===\ncmd: ${cmd.joinToString(\" \")}\n")
+                badvpnLog.writeText("=== BadVPN LOG ===\ncmd: " + cmd.joinToString(" ") + "\n")
                 tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
                 // Lire stdout+stderr dans fichier
                 val proc = tun2socksProcess!!
