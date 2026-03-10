@@ -111,6 +111,13 @@
                 <EditText android:id="@+id/et_hys_sni" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="SNI" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
             </LinearLayout>
 
+            <!-- UDP Psiphon Panel -->
+            <LinearLayout android:id="@+id/panel_psiphon" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp" android:visibility="gone">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="UDP PSIPHON SETTINGS" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Psiphon utilise des serveurs intégrés automatiquement.
+Aucune configuration requise - appuyez sur Connect." android:textColor="#AAAAAA" android:textSize="13sp" android:padding="12dp"/>
+            </LinearLayout>
+
             <!-- UDP ZIVPN Panel -->
             <LinearLayout android:id="@+id/panel_zivpn" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp" android:visibility="gone">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="UDP ZIVPN SETTINGS" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>

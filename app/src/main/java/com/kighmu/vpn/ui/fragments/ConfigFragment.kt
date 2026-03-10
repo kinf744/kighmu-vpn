@@ -38,7 +38,8 @@ class ConfigFragment : Fragment() {
             view.findViewById<Button>(R.id.tab_xray),
             view.findViewById<Button>(R.id.tab_v2dns),
             view.findViewById<Button>(R.id.tab_hysteria),
-            view.findViewById<Button>(R.id.tab_zivpn)
+            view.findViewById<Button>(R.id.tab_zivpn),
+            view.findViewById<Button>(R.id.tab_psiphon)
         )
 
         val sshSection = view.findViewById<LinearLayout>(R.id.section_ssh)
@@ -50,11 +51,12 @@ class ConfigFragment : Fragment() {
             view.findViewById<LinearLayout>(R.id.panel_xray),
             view.findViewById<LinearLayout>(R.id.panel_v2dns),
             view.findViewById<LinearLayout>(R.id.panel_hysteria),
-            view.findViewById<LinearLayout>(R.id.panel_zivpn)
+            view.findViewById<LinearLayout>(R.id.panel_zivpn),
+            view.findViewById<LinearLayout>(R.id.panel_psiphon)
         )
 
         // SSH not needed for xray(4), v2dns(5), hysteria(6)
-        val noSshTabs = setOf(4, 5, 6, 7)
+        val noSshTabs = setOf(4, 5, 6, 7, 8)
 
         fun selectTab(index: Int) {
             currentTab = index

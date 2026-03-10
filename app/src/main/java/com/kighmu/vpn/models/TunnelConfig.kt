@@ -15,7 +15,8 @@ enum class TunnelMode(val id: Int, val label: String) {
     V2RAY_XRAY(4, "V2Ray / Xray"),
     V2RAY_SLOWDNS(5, "V2Ray + SlowDNS"),
     HYSTERIA_UDP(6, "Hysteria UDP"),
-    UDP_ZIVPN(7, "UDP ZIVPN");
+    UDP_ZIVPN(7, "UDP ZIVPN"),
+    UDP_PSIPHON(8, "UDP Psiphon");
 
     companion object {
         fun fromId(id: Int) = values().firstOrNull { it.id == id } ?: HTTP_PROXY
