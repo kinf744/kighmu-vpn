@@ -96,6 +96,13 @@ class SlowDnsEngine(
                 // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
                 val cmdArray = cmd.toTypedArray()
                 tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
+                // Lire stderr en parallele
+                val proc = tun2socksProcess!!
+                Thread {
+                    proc.errorStream.bufferedReader().forEachLine { line ->
+                        KighmuLogger.info(TAG, "tun2socks stderr: $line")
+                    }
+                }.start()
                 // Envoyer le fd via socket Unix a BadVPN
                 delay(500)
                 try {
