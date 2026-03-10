@@ -81,7 +81,7 @@ class SlowDnsEngine(
                 }
                 bin.setExecutable(true)
                 // Copier dans un chemin sans espaces
-                val binCopy = File(context.cacheDir, "tun2socks")
+                val binCopy = File(context.getDir("bin", android.content.Context.MODE_PRIVATE), "tun2socks")
                 bin.copyTo(binCopy, overwrite = true)
                 binCopy.setExecutable(true)
                 val cmd = listOf(
