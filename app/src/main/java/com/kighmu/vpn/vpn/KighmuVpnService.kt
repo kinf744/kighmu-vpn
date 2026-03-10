@@ -50,7 +50,7 @@ class KighmuVpnService : VpnService() {
     private lateinit var configManager: ConfigManager
     private var currentConfig: KighmuConfig = KighmuConfig()
     private var reconnectAttempts = 0
-    private val MAX_RECONNECT = 3
+    private val MAX_RECONNECT = 20
     private val RECONNECT_DELAY = 5000L
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
