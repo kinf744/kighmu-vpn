@@ -60,12 +60,16 @@ class HttpProxyEngine(
             out.flush()
 
             val resp = StringBuilder()
-            var prev = 0; var curr: Int
+            var last4 = ""
             while (true) {
-                curr = inp.read(); if (curr == -1) break
+                val curr = inp.read(); if (curr == -1) break
                 resp.append(curr.toChar())
-                if (prev == '\n'.code && curr == '\n'.code) break
-                prev = curr
+                last4 = (last4 + curr.toChar()).takeLast(4)
+                if (last4 == "\r\n\r\n") break
+                // Aussi accepter 
+
+
+                if (last4.endsWith("\n\n")) break
             }
             val respStr = resp.toString()
             KighmuLogger.info(TAG, "Reponse proxy: ${respStr.take(80)}")
