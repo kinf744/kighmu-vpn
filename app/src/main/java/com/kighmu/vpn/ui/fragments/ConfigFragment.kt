@@ -217,7 +217,7 @@ class ConfigFragment : Fragment() {
         )
         )
         viewModel.saveConfig(c.copy(
-            sshCredentials = ssh, slowDns = dns, httpProxy = http,
+            sshCredentials = ssh, slowDns = dns, httpProxy = http
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
