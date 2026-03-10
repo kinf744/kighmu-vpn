@@ -82,13 +82,7 @@ class HttpProxyEngine(
 
             // Trilead supporte HTTPProxyData nativement
             val conn = Connection(ssh.host, ssh.port)
-            conn.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.host, proxy.port, null, null,
-                if (proxy.customPayload.isNotBlank()) proxy.customPayload
-                    .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
-                    .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
-                    .replace("\r\n", "\r\n").replace("\n", "\n")
-                else null
-            ))
+            conn.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.proxyHost, proxy.proxyPort))
             conn.connect(null, 15000, 15000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
