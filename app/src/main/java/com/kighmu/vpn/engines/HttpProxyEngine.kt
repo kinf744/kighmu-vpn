@@ -77,9 +77,9 @@ class HttpProxyEngine(
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
-            // Trilead SSH via socket proxy
+            // Trilead SSH via le socket proxy deja ouvert
             val conn = Connection(ssh.host, ssh.port)
-            conn.connect(null, 15000, 15000)
+            conn.connect(sock, null, 15000, 15000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
             if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
