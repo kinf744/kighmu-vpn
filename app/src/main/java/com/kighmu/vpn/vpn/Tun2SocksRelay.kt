@@ -4,9 +4,11 @@ import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
 import java.io.FileDescriptor
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 
 class Tun2SocksRelay(
     private val tunFd: FileDescriptor,
@@ -16,10 +18,11 @@ class Tun2SocksRelay(
     companion object { const val TAG = "Tun2SocksRelay" }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val sessions = java.util.concurrent.ConcurrentHashMap<String, TcpSession>()
+    private val sessions = ConcurrentHashMap<String, Session>()
+    private val tunOut = FileOutputStream(tunFd)
 
     fun start() {
-        scope.launch { readTunLoop() }
+        scope.launch { readLoop() }
         KighmuLogger.info(TAG, "Relay demarre -> SOCKS5 $socksHost:$socksPort")
     }
 
@@ -27,101 +30,144 @@ class Tun2SocksRelay(
         scope.cancel()
         sessions.values.forEach { it.close() }
         sessions.clear()
-        KighmuLogger.info(TAG, "Relay arrete")
     }
 
-    private suspend fun readTunLoop() = withContext(Dispatchers.IO) {
+    private suspend fun readLoop() = withContext(Dispatchers.IO) {
         val inp = FileInputStream(tunFd)
-        val buf = ByteArray(32768)
+        val buf = ByteArray(65536)
         while (isActive) {
             try {
                 val len = inp.read(buf)
                 if (len < 20) continue
-                val pkt = buf.copyOf(len)
-                launch { processPacket(pkt) }
+                launch { handlePacket(buf.copyOf(len)) }
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "readTun: ${e.message}")
-                delay(100)
+                if (isActive) KighmuLogger.error(TAG, "readLoop: ${e.message}")
+                delay(50)
             }
         }
     }
 
-    private suspend fun processPacket(pkt: ByteArray) = withContext(Dispatchers.IO) {
-        try {
-            val version = (pkt[0].toInt() and 0xFF) shr 4
-            if (version != 4) return@withContext
+    private suspend fun handlePacket(pkt: ByteArray) {
+        val ver = (pkt[0].toInt() and 0xFF) shr 4
+        if (ver != 4) return
+        val ihl = (pkt[0].toInt() and 0x0F) * 4
+        val proto = pkt[9].toInt() and 0xFF
+        val srcIp = ipStr(pkt, 12)
+        val dstIp = ipStr(pkt, 16)
 
-            val proto = pkt[9].toInt() and 0xFF
-            val ihl = (pkt[0].toInt() and 0x0F) * 4
-
-            val dstIp = "${pkt[16].toInt() and 0xFF}.${pkt[17].toInt() and 0xFF}.${pkt[18].toInt() and 0xFF}.${pkt[19].toInt() and 0xFF}"
-            val srcIp = "${pkt[12].toInt() and 0xFF}.${pkt[13].toInt() and 0xFF}.${pkt[14].toInt() and 0xFF}.${pkt[15].toInt() and 0xFF}"
-
-            if (proto == 6 && pkt.size >= ihl + 20) { // TCP
-                val dstPort = ((pkt[ihl+2].toInt() and 0xFF) shl 8) or (pkt[ihl+3].toInt() and 0xFF)
-                val srcPort = ((pkt[ihl+0].toInt() and 0xFF) shl 8) or (pkt[ihl+1].toInt() and 0xFF)
-                val flags = pkt[ihl+13].toInt() and 0xFF
-                val isSyn = (flags and 0x02) != 0
-                val isFin = (flags and 0x01) != 0 || (flags and 0x04) != 0
-
-                val key = "$srcIp:$srcPort->$dstIp:$dstPort"
-
-                if (isSyn && !sessions.containsKey(key)) {
-                    KighmuLogger.info(TAG, "TCP SYN: $key")
-                    val session = TcpSession(srcIp, srcPort, dstIp, dstPort, tunFd, socksHost, socksPort)
-                    sessions[key] = session
-                    launch {
-                        session.start()
-                        sessions.remove(key)
-                    }
-                } else if (isFin) {
-                    sessions[key]?.close()
-                    sessions.remove(key)
-                } else {
-                    val dataOffset = ihl + ((pkt[ihl+12].toInt() and 0xF0) shr 4) * 4
-                    if (dataOffset < pkt.size) {
-                        sessions[key]?.sendToRemote(pkt.copyOfRange(dataOffset, pkt.size))
-                    }
-                }
-            } else if (proto == 17 && pkt.size >= ihl + 8) { // UDP - DNS
-                val dstPort = ((pkt[ihl+2].toInt() and 0xFF) shl 8) or (pkt[ihl+3].toInt() and 0xFF)
-                if (dstPort == 53) {
-                    val dataOffset = ihl + 8
-                    if (dataOffset < pkt.size) {
-                        handleDns(pkt.copyOfRange(dataOffset, pkt.size), srcIp,
-                            ((pkt[ihl+0].toInt() and 0xFF) shl 8) or (pkt[ihl+1].toInt() and 0xFF))
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            KighmuLogger.error(TAG, "processPacket: ${e.message}")
+        when (proto) {
+            6 -> handleTcp(pkt, ihl, srcIp, dstIp)
+            17 -> handleUdp(pkt, ihl, srcIp, dstIp)
         }
     }
 
-    private fun handleDns(query: ByteArray, srcIp: String, srcPort: Int) {
-        // Forward DNS via SOCKS5 UDP ou TCP
+    private suspend fun handleTcp(pkt: ByteArray, ihl: Int, srcIp: String, dstIp: String) {
+        if (pkt.size < ihl + 20) return
+        val srcPort = port(pkt, ihl)
+        val dstPort = port(pkt, ihl + 2)
+        val flags = pkt[ihl + 13].toInt() and 0xFF
+        val syn = flags and 0x02 != 0
+        val fin = flags and 0x01 != 0
+        val rst = flags and 0x04 != 0
+        val dataOff = ihl + ((pkt[ihl + 12].toInt() and 0xF0) shr 4) * 4
+        val key = "$srcIp:$srcPort-$dstIp:$dstPort"
+
+        if (syn && !sessions.containsKey(key)) {
+            val session = Session(key, srcIp, srcPort, dstIp, dstPort)
+            sessions[key] = session
+            scope.launch {
+                session.connect(socksHost, socksPort)
+                session.startReading { data -> writeIpPacket(dstIp, srcIp, dstPort, srcPort, data) }
+            }
+        }
+
+        if (fin || rst) {
+            sessions.remove(key)?.close()
+            return
+        }
+
+        if (dataOff < pkt.size) {
+            val data = pkt.copyOfRange(dataOff, pkt.size)
+            if (data.isNotEmpty()) sessions[key]?.write(data)
+        }
+    }
+
+    private suspend fun handleUdp(pkt: ByteArray, ihl: Int, srcIp: String, dstIp: String) {
+        if (pkt.size < ihl + 8) return
+        val dstPort = port(pkt, ihl + 2)
+        val dataOff = ihl + 8
+        if (dataOff >= pkt.size) return
+        val data = pkt.copyOfRange(dataOff, pkt.size)
+
+        // DNS uniquement
+        if (dstPort != 53) return
+
         scope.launch(Dispatchers.IO) {
             try {
                 val sock = connectSocks5("8.8.8.8", 53) ?: return@launch
-                sock.getOutputStream().write(byteArrayOf((query.size shr 8).toByte(), (query.size and 0xFF).toByte()))
-                sock.getOutputStream().write(query)
-                sock.getOutputStream().flush()
+                // DNS over TCP: prefixer avec longueur 2 bytes
+                val out = sock.getOutputStream()
+                out.write(byteArrayOf((data.size shr 8).toByte(), (data.size and 0xFF).toByte()))
+                out.write(data)
+                out.flush()
                 val lenBuf = ByteArray(2)
-                sock.getInputStream().read(lenBuf)
+                val inp = sock.getInputStream()
+                inp.read(lenBuf)
                 val len = ((lenBuf[0].toInt() and 0xFF) shl 8) or (lenBuf[1].toInt() and 0xFF)
                 val resp = ByteArray(len)
-                var r = 0; while (r < len) r += sock.getInputStream().read(resp, r, len - r)
+                var r = 0; while (r < len) r += inp.read(resp, r, len - r)
                 sock.close()
-                KighmuLogger.info(TAG, "DNS reponse: ${resp.size} bytes")
+                KighmuLogger.info(TAG, "DNS reponse ${resp.size} bytes")
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "DNS: ${e.message}")
+                KighmuLogger.error(TAG, "UDP/DNS: ${e.message}")
             }
+        }
+    }
+
+    private fun writeIpPacket(srcIp: String, dstIp: String, srcPort: Int, dstPort: Int, data: ByteArray) {
+        try {
+            // Construire paquet IP+TCP minimal avec PSH+ACK
+            val ipHeader = ByteArray(20)
+            val tcpHeader = ByteArray(20)
+            val total = 20 + 20 + data.size
+
+            // IP header
+            ipHeader[0] = 0x45.toByte()
+            ipHeader[1] = 0
+            ipHeader[2] = (total shr 8).toByte()
+            ipHeader[3] = (total and 0xFF).toByte()
+            ipHeader[8] = 64 // TTL
+            ipHeader[9] = 6  // TCP
+            val srcParts = srcIp.split(".").map { it.toInt() }
+            val dstParts = dstIp.split(".").map { it.toInt() }
+            for (i in 0..3) {
+                ipHeader[12 + i] = srcParts[i].toByte()
+                ipHeader[16 + i] = dstParts[i].toByte()
+            }
+            ipHeader[10] = 0; ipHeader[11] = 0
+            val ipCsum = checksum(ipHeader)
+            ipHeader[10] = (ipCsum shr 8).toByte()
+            ipHeader[11] = (ipCsum and 0xFF).toByte()
+
+            // TCP header
+            tcpHeader[0] = (srcPort shr 8).toByte()
+            tcpHeader[1] = (srcPort and 0xFF).toByte()
+            tcpHeader[2] = (dstPort shr 8).toByte()
+            tcpHeader[3] = (dstPort and 0xFF).toByte()
+            tcpHeader[12] = 0x50.toByte() // data offset = 5
+            tcpHeader[13] = 0x18.toByte() // PSH + ACK
+
+            val pkt = ipHeader + tcpHeader + data
+            synchronized(tunOut) { tunOut.write(pkt) }
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "writeIpPacket: ${e.message}")
         }
     }
 
     fun connectSocks5(host: String, port: Int): Socket? {
         return try {
             val sock = Socket()
+            sock.soTimeout = 10000
             sock.connect(InetSocketAddress(socksHost, socksPort), 5000)
             val out = sock.getOutputStream()
             val inp = sock.getInputStream()
@@ -138,38 +184,65 @@ class Tun2SocksRelay(
             val tmp = ByteArray(extra); var r = 0
             while (r < extra) r += inp.read(tmp, r, extra - r)
             sock
-        } catch (e: Exception) {
-            KighmuLogger.error(TAG, "SOCKS5 $host:$port: ${e.message}"); null
+        } catch (e: Exception) { null }
+    }
+
+    private fun ipStr(pkt: ByteArray, off: Int) =
+        "${pkt[off].toInt() and 0xFF}.${pkt[off+1].toInt() and 0xFF}.${pkt[off+2].toInt() and 0xFF}.${pkt[off+3].toInt() and 0xFF}"
+
+    private fun port(pkt: ByteArray, off: Int) =
+        ((pkt[off].toInt() and 0xFF) shl 8) or (pkt[off+1].toInt() and 0xFF)
+
+    private fun checksum(buf: ByteArray): Int {
+        var sum = 0
+        for (i in 0 until buf.size - 1 step 2)
+            sum += ((buf[i].toInt() and 0xFF) shl 8) or (buf[i+1].toInt() and 0xFF)
+        if (buf.size % 2 != 0) sum += (buf.last().toInt() and 0xFF) shl 8
+        while (sum shr 16 != 0) sum = (sum and 0xFFFF) + (sum shr 16)
+        return sum.inv() and 0xFFFF
+    }
+
+    inner class Session(
+        val key: String,
+        val srcIp: String, val srcPort: Int,
+        val dstIp: String, val dstPort: Int
+    ) {
+        private var socket: Socket? = null
+        private val writeScope = CoroutineScope(Dispatchers.IO)
+
+        suspend fun connect(socksHost: String, socksPort: Int) {
+            socket = connectSocks5(dstIp, dstPort)
+            if (socket == null) {
+                sessions.remove(key)
+                KighmuLogger.error(TAG, "Connexion echouee: $dstIp:$dstPort")
+            }
         }
-    }
-}
 
-class TcpSession(
-    private val srcIp: String, private val srcPort: Int,
-    private val dstIp: String, private val dstPort: Int,
-    private val tunFd: FileDescriptor,
-    private val socksHost: String, private val socksPort: Int
-) {
-    private var socket: Socket? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    suspend fun start() = withContext(Dispatchers.IO) {
-        try {
-            val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(tunFd, socksHost, socksPort)
-            socket = relay.connectSocks5(dstIp, dstPort) ?: return@withContext
-            KighmuLogger.info("TcpSession", "Connecte $srcIp:$srcPort -> $dstIp:$dstPort")
-        } catch (e: Exception) {
-            KighmuLogger.error("TcpSession", "start: ${e.message}")
+        suspend fun startReading(onData: (ByteArray) -> Unit) = withContext(Dispatchers.IO) {
+            val sock = socket ?: return@withContext
+            val buf = ByteArray(32768)
+            try {
+                while (true) {
+                    val n = sock.getInputStream().read(buf)
+                    if (n <= 0) break
+                    onData(buf.copyOf(n))
+                }
+            } catch (e: Exception) {
+                // connexion fermee
+            } finally {
+                sessions.remove(key)
+                close()
+            }
         }
-    }
 
-    fun sendToRemote(data: ByteArray) {
-        try { socket?.getOutputStream()?.write(data); socket?.getOutputStream()?.flush() }
-        catch (e: Exception) {}
-    }
+        fun write(data: ByteArray) {
+            try { socket?.getOutputStream()?.write(data); socket?.getOutputStream()?.flush() }
+            catch (e: Exception) { sessions.remove(key); close() }
+        }
 
-    fun close() {
-        scope.cancel()
-        try { socket?.close() } catch (_: Exception) {}
+        fun close() {
+            writeScope.cancel()
+            try { socket?.close() } catch (_: Exception) {}
+        }
     }
 }
