@@ -80,13 +80,11 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // Copier dans un chemin sans espaces
-                val binCopy = File(context.getDir("bin", android.content.Context.MODE_PRIVATE), "tun2socks")
-                bin.copyTo(binCopy, overwrite = true)
-                binCopy.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd.sock"
+                File(sockPath).delete()
                 val cmd = listOf(
-                    binCopy.absolutePath,
-                    "--tunfd", fd.toString(),
+                    bin.absolutePath,
+                    "--sock-path", sockPath,
                     "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.1",
                     "--netif-netmask", "255.255.255.0",
@@ -98,6 +96,20 @@ class SlowDnsEngine(
                 val pb = ProcessBuilder(cmd)
                 pb.redirectErrorStream(true)
                 tun2socksProcess = pb.start()
+                // Envoyer le fd via socket Unix a BadVPN
+                delay(500)
+                try {
+                    val localSocket = android.net.LocalSocket()
+                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                    localSocket.outputStream.write(1)
+                    localSocket.outputStream.flush()
+                    localSocket.close()
+                    KighmuLogger.info(TAG, "fd $fd envoye via sock-path")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
+                }
                 tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
                     KighmuLogger.info(TAG, "tun2socks: $line")
                 }
