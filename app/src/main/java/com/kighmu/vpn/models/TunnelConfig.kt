@@ -14,7 +14,8 @@ enum class TunnelMode(val id: Int, val label: String) {
     SSH_SSL_TLS(3, "SSH SSL/TLS"),
     V2RAY_XRAY(4, "V2Ray / Xray"),
     V2RAY_SLOWDNS(5, "V2Ray + SlowDNS"),
-    HYSTERIA_UDP(6, "Hysteria UDP");
+    HYSTERIA_UDP(6, "Hysteria UDP"),
+    UDP_ZIVPN(7, "UDP ZIVPN");
 
     companion object {
         fun fromId(id: Int) = values().firstOrNull { it.id == id } ?: HTTP_PROXY
@@ -78,6 +79,11 @@ data class HttpProxyConfig(
 // ─────────────────────────────────────────────────────────────────────────────
 // SSH WebSocket Config
 // ─────────────────────────────────────────────────────────────────────────────
+
+data class ZivpnConfig(
+    @SerializedName("host") var host: String = "",
+    @SerializedName("password") var password: String = ""
+)
 
 data class SshWebSocketConfig(
     @SerializedName("wsHost") var wsHost: String = "",
@@ -178,6 +184,7 @@ data class KighmuConfig(
     @SerializedName("sshCredentials") var sshCredentials: SshCredentials = SshCredentials(),
     @SerializedName("slowDns") var slowDns: SlowDnsConfig = SlowDnsConfig(),
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
+    @SerializedName("zivpn") var zivpn: ZivpnConfig = ZivpnConfig(),
     @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
     @SerializedName("xray") var xray: XrayConfig = XrayConfig(),

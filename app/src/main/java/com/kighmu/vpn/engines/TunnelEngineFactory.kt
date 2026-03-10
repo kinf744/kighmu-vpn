@@ -14,6 +14,7 @@ object TunnelEngineFactory {
         return when (mode) {
             TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context, vpnService)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
+            TunnelMode.UDP_ZIVPN     -> ZivpnEngine(config, context)
             TunnelMode.SSH_WEBSOCKET -> SshWebSocketEngine(config, context)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context)
