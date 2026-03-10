@@ -80,8 +80,12 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
+                // Copier dans un chemin sans espaces
+                val binCopy = File(context.cacheDir, "tun2socks")
+                bin.copyTo(binCopy, overwrite = true)
+                binCopy.setExecutable(true)
                 val cmd = listOf(
-                    bin.absolutePath,
+                    binCopy.absolutePath,
                     "--tunfd", fd.toString(),
                     "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.1",
