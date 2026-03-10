@@ -3,7 +3,7 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        maven { url "https://raw.github.com/Psiphon-Labs/psiphon-tunnel-core-Android-library/master" }
+        maven { url "https://raw.githubusercontent.com/Psiphon-Labs/psiphon-tunnel-core-Android-library/master" }
         maven { url 'https://jitpack.io' }
     }
     dependencies {
