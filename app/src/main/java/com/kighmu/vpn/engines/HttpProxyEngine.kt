@@ -1,6 +1,7 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
+import java.io.File
 import com.trilead.ssh2.Connection
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
@@ -12,6 +13,8 @@ class HttpProxyEngine(
     private val config: KighmuConfig,
     private val context: Context
 ) : TunnelEngine {
+    private val MTU = 1500
+    private var tun2socksProcess: Process? = null
 
     companion object {
         const val TAG = "HttpProxyEngine"
@@ -127,7 +130,7 @@ class HttpProxyEngine(
     override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
 
 
-    fun startTun2Socks(fd: Int) {
+    override fun startTun2Socks(fd: Int) {
         KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
         engineScope.launch(Dispatchers.IO) {
             try {

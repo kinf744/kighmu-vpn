@@ -69,7 +69,7 @@ class SlowDnsEngine(
 
     private var tun2socksProcess: Process? = null
 
-    fun startTun2Socks(fd: Int) {
+    override fun startTun2Socks(fd: Int) {
         KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
         engineScope.launch(Dispatchers.IO) {
             try {
