@@ -4,6 +4,7 @@ import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.models.TunnelMode
 import com.kighmu.vpn.utils.KighmuLogger
+import com.kighmu.vpn.engines.ZivpnEngine
 
 object TunnelEngineFactory {
     private const val TAG = "TunnelEngineFactory"
