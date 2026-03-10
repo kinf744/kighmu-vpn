@@ -107,7 +107,10 @@ class HttpProxyEngine(
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
             if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
 
-            conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT)
+            // Dynamic SOCKS5 forwarding comme SlowDNS
+            conn.requestRemotePortForwarding("", 0, "127.0.0.1", 0)
+            val dynForward = conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
+            KighmuLogger.info(TAG, "Dynamic SOCKS5 actif sur $LOCAL_SOCKS_PORT")
             sshConnection = conn
             KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF sur port $LOCAL_SOCKS_PORT ===")
             LOCAL_SOCKS_PORT
