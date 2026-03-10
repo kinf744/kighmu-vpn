@@ -13,6 +13,8 @@ object Tun2Socks {
     }
 
     fun terminateTun2Socks() {
-        dev.epro.tun2socks.Tun2Socks.terminateTun2Socks()
+        if (isAvailable) {
+            try { dev.epro.tun2socks.Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
+        }
     }
 }
