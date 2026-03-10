@@ -88,8 +88,6 @@ class PsiphonEngine(
 
     // ── HostService interface ──
     override fun getContext(): Context = context
-    override fun getVpnService(): android.net.VpnService? = null
-    override fun newVpnServiceBuilder(): android.net.VpnService.Builder? = null
 
     override fun getPsiphonConfig(): String = JSONObject().apply {
         put("PropagationChannelId", "FFFFFFFFFFFFFFFF")
@@ -109,8 +107,6 @@ class PsiphonEngine(
     override fun onConnecting() { KighmuLogger.info(TAG, "Connexion...") }
     override fun onListeningHttpProxyPort(port: Int) {}
     override fun onUpstreamProxyError(message: String) {}
-    override fun onConnectionFailed() { KighmuLogger.error(TAG, "Connexion echouee") }
-    override fun onSystemProxySettingsRecommended() {}
     override fun onStartedWaitingForNetworkConnectivity() {}
     override fun onStoppedWaitingForNetworkConnectivity() {}
     override fun onClientRegion(region: String) {}
@@ -122,9 +118,7 @@ class PsiphonEngine(
     override fun onDiagnosticMessage(message: String) { KighmuLogger.info(TAG, message) }
     override fun onAvailableEgressRegions(regions: MutableList<String>) {}
     override fun onActiveAuthorizationIDs(authorizations: MutableList<String>) {}
-    override fun onTrafficRateLimitsChanged(upstreamBytesPerSecond: Long, downstreamBytesPerSecond: Long) {}
     override fun onApplicationParameters(parameters: Any) {}
     override fun onServerAlert(reason: String, subject: String, actionURLs: MutableList<String>) {}
     override fun onExiting() {}
-    override fun onClientVerificationRequired(serverNonce: String, ttlSeconds: Int, resetCache: Boolean) {}
 }
