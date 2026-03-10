@@ -80,28 +80,21 @@ class HttpProxyEngine(
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
-            // Pont local: trilead -> ServerSocket local -> socket proxy
-            val bridge = java.net.ServerSocket(0)
-            val bridgePort = bridge.localPort
-            Thread {
-                try {
-                    val client = bridge.accept()
-                    bridge.close()
-                    val proxyIn = sock.getInputStream()
-                    val proxyOut = sock.getOutputStream()
-                    val clientIn = client.getInputStream()
-                    val clientOut = client.getOutputStream()
-                    // Relay bidirectionnel
-                    Thread {
-                        try { proxyIn.copyTo(clientOut) } catch (_: Exception) {}
-                        try { client.close() } catch (_: Exception) {}
-                    }.start()
-                    try { clientIn.copyTo(proxyOut) } catch (_: Exception) {}
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "bridge error: ${e.message}")
-                }
-            }.start()
-            val conn = Connection("127.0.0.1", bridgePort)
+            // Injecter les streams du socket proxy dans trilead via reflexion
+            val conn = Connection(ssh.host, ssh.port)
+            val connClass = conn.javaClass
+            try {
+                val tdField = connClass.getDeclaredField("td")
+                tdField.isAccessible = true
+                val td = tdField.get(conn)
+                val tdClass = td.javaClass
+                // Injecter le socket
+                val sockField = tdClass.getDeclaredField("sock")
+                sockField.isAccessible = true
+                sockField.set(td, sock)
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "reflexion failed: ${e.message}")
+            }
             conn.connect(null, 15000, 15000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
