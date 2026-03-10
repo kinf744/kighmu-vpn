@@ -215,9 +215,8 @@ class ConfigFragment : Fragment() {
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
             sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
         )
-        )
         viewModel.saveConfig(c.copy(
-            sshCredentials = ssh, slowDns = dns, httpProxy = http
+            sshCredentials = ssh, slowDns = dns, httpProxy = http, hysteria = hys
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }

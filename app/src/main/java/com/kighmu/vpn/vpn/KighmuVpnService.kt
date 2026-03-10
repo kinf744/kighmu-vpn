@@ -50,6 +50,8 @@ class KighmuVpnService : VpnService() {
     private lateinit var configManager: ConfigManager
     private var currentConfig: KighmuConfig = KighmuConfig()
     private var reconnectAttempts = 0
+    private val MAX_RECONNECT = 3
+    private val RECONNECT_DELAY = 5000L
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
     private var tun2socksRelay: Tun2SocksRelay? = null
@@ -148,8 +150,17 @@ class KighmuVpnService : VpnService() {
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
-                    updateStatus(ConnectionStatus.ERROR, "Tunnel error: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
+                    if (reconnectAttempts < MAX_RECONNECT) {
+                        reconnectAttempts++
+                        updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
+                        KighmuLogger.info("VpnService", "Retry $reconnectAttempts/$MAX_RECONNECT dans ${RECONNECT_DELAY}ms")
+                        delay(RECONNECT_DELAY)
+                        startVpn()
+                    } else {
+                        reconnectAttempts = 0
+                        updateStatus(ConnectionStatus.ERROR, "Echec apres $MAX_RECONNECT tentatives: ${e.message}")
+                    }
                     return@launch
                 }
                 KighmuLogger.info("VpnService", "Engine démarré sur port $localPort")
