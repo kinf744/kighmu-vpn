@@ -38,13 +38,17 @@ class Tun2SocksRelay(
         while (isActive) {
             try {
                 val len = inp.read(buf)
+                if (len < 0) break
                 if (len < 20) continue
                 launch { handlePacket(buf.copyOf(len)) }
+            } catch (e: java.io.InterruptedIOException) {
+                break // VPN deconnecte normalement
             } catch (e: Exception) {
                 if (isActive) KighmuLogger.error(TAG, "readLoop: ${e.message}")
-                delay(50)
+                break
             }
         }
+        KighmuLogger.info(TAG, "readLoop termine")
     }
 
     private suspend fun handlePacket(pkt: ByteArray) {
