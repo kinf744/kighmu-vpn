@@ -24,4 +24,7 @@ interface TunnelEngine {
 
     /** Is the tunnel currently running? */
     fun isRunning(): Boolean
+
+    /** Start tun2socks routing with given TUN fd */
+    fun startTun2Socks(fd: Int) {}
 }

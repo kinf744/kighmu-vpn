@@ -125,4 +125,66 @@ class HttpProxyEngine(
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = null
     override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
+
+
+    fun startTun2Socks(fd: Int) {
+        KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val nativeDir = context.applicationInfo.nativeLibraryDir
+                val bin = File(nativeDir, "libtun2socks.so")
+                if (!bin.exists()) {
+                    KighmuLogger.error(TAG, "libtun2socks.so introuvable dans $nativeDir")
+                    return@launch
+                }
+                bin.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd.sock"
+                File(sockPath).delete()
+                val cmd = listOf(
+                    bin.absolutePath,
+                    "--sock-path", sockPath,
+                    "--tunmtu", MTU.toString(),
+                    "--netif-ipaddr", "10.0.0.1",
+                    "--netif-netmask", "255.255.255.0",
+                    "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
+                    "--enable-udprelay",
+                    "--loglevel", "4"
+                )
+                KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
+                // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
+                val cmdArray = cmd.toTypedArray()
+                val badvpnLog = java.io.File("/sdcard/Download/kighmu_badvpn.txt")
+                badvpnLog.writeText("=== BadVPN LOG ===\ncmd: " + cmd.joinToString(" ") + "\n")
+                tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
+                // Lire stdout+stderr dans fichier
+                val proc = tun2socksProcess!!
+                Thread {
+                    proc.errorStream.bufferedReader().forEachLine { line ->
+                        KighmuLogger.info(TAG, "tun2socks: $line")
+                        java.io.File("/sdcard/Download/kighmu_badvpn.txt").appendText("$line\n")
+                        KighmuLogger.info(TAG, "tun2socks stderr: $line")
+                    }
+                }.start()
+                // Envoyer le fd via socket Unix a BadVPN
+                delay(500)
+                try {
+                    val localSocket = android.net.LocalSocket()
+                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                    localSocket.outputStream.write(1)
+                    localSocket.outputStream.flush()
+                    localSocket.close()
+                    KighmuLogger.info(TAG, "fd $fd envoye via sock-path")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
+                }
+                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
+                    KighmuLogger.info(TAG, "tun2socks: $line")
+                }
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+            }
+        }
+    }
 }
