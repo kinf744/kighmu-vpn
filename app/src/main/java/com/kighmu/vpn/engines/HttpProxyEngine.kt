@@ -77,12 +77,29 @@ class HttpProxyEngine(
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
-            // Trilead SSH via le socket proxy deja ouvert
-            // On remplace les streams de trilead par ceux du socket proxy
-            val conn = Connection(ssh.host, ssh.port)
-            conn.connect(object : com.trilead.ssh2.ServerHostKeyVerifier {
-                override fun verifyServerHostKey(hostname: String?, port: Int, serverHostKeyAlgorithm: String?, serverHostKey: ByteArray?) = true
-            }, 15000, 15000, sock.getInputStream(), sock.getOutputStream())
+            // Pont local: trilead -> ServerSocket local -> socket proxy
+            val bridge = java.net.ServerSocket(0)
+            val bridgePort = bridge.localPort
+            Thread {
+                try {
+                    val client = bridge.accept()
+                    bridge.close()
+                    val proxyIn = sock.getInputStream()
+                    val proxyOut = sock.getOutputStream()
+                    val clientIn = client.getInputStream()
+                    val clientOut = client.getOutputStream()
+                    // Relay bidirectionnel
+                    Thread {
+                        try { proxyIn.copyTo(clientOut) } catch (_: Exception) {}
+                        try { client.close() } catch (_: Exception) {}
+                    }.start()
+                    try { clientIn.copyTo(proxyOut) } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "bridge error: ${e.message}")
+                }
+            }.start()
+            val conn = Connection("127.0.0.1", bridgePort)
+            conn.connect(null, 15000, 15000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
             if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
