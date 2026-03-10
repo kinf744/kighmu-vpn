@@ -80,21 +80,15 @@ class HttpProxyEngine(
 
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
-            // Injecter les streams du socket proxy dans trilead via reflexion
+            // Trilead supporte HTTPProxyData nativement
             val conn = Connection(ssh.host, ssh.port)
-            val connClass = conn.javaClass
-            try {
-                val tdField = connClass.getDeclaredField("td")
-                tdField.isAccessible = true
-                val td = tdField.get(conn)
-                val tdClass = td.javaClass
-                // Injecter le socket
-                val sockField = tdClass.getDeclaredField("sock")
-                sockField.isAccessible = true
-                sockField.set(td, sock)
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "reflexion failed: ${e.message}")
-            }
+            conn.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.host, proxy.port, null, null,
+                if (proxy.customPayload.isNotBlank()) proxy.customPayload
+                    .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
+                    .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
+                    .replace("\r\n", "\r\n").replace("\n", "\n")
+                else null
+            ))
             conn.connect(null, 15000, 15000)
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
