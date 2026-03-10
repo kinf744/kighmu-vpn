@@ -99,10 +99,11 @@ class SlowDnsEngine(
                 // Lire stdout+stderr dans fichier
                 val proc = tun2socksProcess!!
                 Thread {
-                    proc.errorStream.bufferedReader().forEachLine { line ->
-                        KighmuLogger.info(TAG, "tun2socks: $line")
-                        KighmuLogger.info(TAG, "tun2socks stderr: $line")
-                    }
+                    try {
+                        proc.errorStream.bufferedReader().forEachLine { line ->
+                            if (running) KighmuLogger.info(TAG, "tun2socks stderr: $line")
+                        }
+                    } catch (_: Exception) {}
                 }.start()
                 // Envoyer le fd via socket Unix a BadVPN
                 delay(500)
@@ -118,9 +119,11 @@ class SlowDnsEngine(
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
-                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
-                    KighmuLogger.info(TAG, "tun2socks: $line")
-                }
+                try {
+                    tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
+                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
+                    }
+                } catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
@@ -156,10 +159,10 @@ class SlowDnsEngine(
         Thread {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
-                    KighmuLogger.info(TAG, "dnstt: $line")
+                    if (running) KighmuLogger.info(TAG, "dnstt: $line")
                 }
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "dnstt stdout: ${e.message}")
+                if (running) KighmuLogger.error(TAG, "dnstt stdout: ${e.message}")
             }
         }.start()
 
