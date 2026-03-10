@@ -78,8 +78,11 @@ class HttpProxyEngine(
             KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
 
             // Trilead SSH via le socket proxy deja ouvert
+            // On remplace les streams de trilead par ceux du socket proxy
             val conn = Connection(ssh.host, ssh.port)
-            conn.connect(sock, null, 15000, 15000)
+            conn.connect(object : com.trilead.ssh2.ServerHostKeyVerifier {
+                override fun verifyServerHostKey(hostname: String?, port: Int, serverHostKeyAlgorithm: String?, serverHostKey: ByteArray?) = true
+            }, 15000, 15000, sock.getInputStream(), sock.getOutputStream())
 
             val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
             if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
