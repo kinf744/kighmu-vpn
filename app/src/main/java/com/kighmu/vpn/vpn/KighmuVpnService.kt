@@ -51,9 +51,11 @@ class KighmuVpnService : VpnService() {
     private var currentConfig: KighmuConfig = KighmuConfig()
     private var reconnectAttempts = 0
     private val MAX_RECONNECT = 20
+    private var userRequestedStop = false
     private val RECONNECT_DELAY = 5000L
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
+    private var vpnJob: Job? = null
     private var tun2socksRelay: Tun2SocksRelay? = null
 
     override fun onCreate() {
@@ -100,7 +102,8 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun startVpn() {
-        serviceScope.launch {
+        userRequestedStop = false
+        vpnJob = serviceScope.launch {
             try {
                 updateStatus(ConnectionStatus.CONNECTING, "Loading configuration...")
                 currentConfig = configManager.loadCurrentConfig()
@@ -151,7 +154,7 @@ class KighmuVpnService : VpnService() {
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
-                    if (reconnectAttempts < MAX_RECONNECT) {
+                    if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
                         KighmuLogger.info("VpnService", "Retry $reconnectAttempts/$MAX_RECONNECT dans ${RECONNECT_DELAY}ms")
@@ -193,9 +196,11 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun stopVpn() {
+        userRequestedStop = true
+        reconnectAttempts = 0
+        vpnJob?.cancel()
         try { statsJob?.cancel() } catch (_: Exception) {}
-        try { updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected") } catch (_: Exception) {}
-        // Arreter dans un thread separé pour ne pas bloquer/crasher
+        // Arrêt dans thread avec timeout
         val engineRef = tunnelEngine
         val relayRef = tun2socksRelay
         val vpnRef = vpnInterface
@@ -203,13 +208,16 @@ class KighmuVpnService : VpnService() {
         tun2socksRelay = null
         vpnInterface = null
         stats = VpnStats()
+        // Arrêt forcé immédiat avec timeout 2s
         serviceScope.launch {
-            try { relayRef?.stop() } catch (_: Exception) {}
-            try { engineRef?.stop() } catch (_: Exception) {}
+            withTimeoutOrNull(2000) {
+                try { relayRef?.stop() } catch (_: Exception) {}
+                try { engineRef?.stop() } catch (_: Exception) {}
+            }
             try { vpnRef?.close() } catch (_: Exception) {}
+            updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
         }
         try { stopForeground(true) } catch (_: Exception) {}
-        // stopSelf retire - le service reste actif
     }
 
     private fun reconnect() {
