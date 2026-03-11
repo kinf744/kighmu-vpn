@@ -242,7 +242,6 @@ class ConfigFragment : Fragment() {
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
-}
     private fun showProfileDialog(view: View, index: Int, profile: com.kighmu.vpn.models.SlowDnsConfig) {
         val ctx = requireContext()
         val layout = android.widget.LinearLayout(ctx).apply {
