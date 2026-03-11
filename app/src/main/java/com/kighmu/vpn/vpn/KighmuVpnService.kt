@@ -83,7 +83,7 @@ class KighmuVpnService : VpnService() {
             ACTION_STOP -> stopVpn()
             ACTION_RECONNECT -> reconnect()
         }
-        return START_STICKY
+        return if (userRequestedStop) START_NOT_STICKY else START_STICKY
     }
 
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
@@ -208,17 +208,17 @@ class KighmuVpnService : VpnService() {
         tun2socksRelay = null
         vpnInterface = null
         stats = VpnStats()
-        // Arrêt forcé immédiat avec timeout 2s
+        // Fermer l'interface VPN immédiatement
+        try { vpnRef?.close() } catch (_: Exception) {}
+        try { stopForeground(true) } catch (_: Exception) {}
+        try { stopSelf() } catch (_: Exception) {}
+        // Arrêt engine en background
         serviceScope.launch {
             withTimeoutOrNull(2000) {
                 try { relayRef?.stop() } catch (_: Exception) {}
                 try { engineRef?.stop() } catch (_: Exception) {}
             }
-            try { vpnRef?.close() } catch (_: Exception) {}
-            updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
         }
-        try { stopForeground(true) } catch (_: Exception) {}
-        try { stopSelf() } catch (_: Exception) {}
     }
 
     private fun reconnect() {
