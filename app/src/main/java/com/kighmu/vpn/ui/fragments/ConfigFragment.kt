@@ -273,3 +273,4 @@ class ConfigFragment : Fragment() {
             .setNegativeButton("Annuler", null)
             .show()
     }
+}
