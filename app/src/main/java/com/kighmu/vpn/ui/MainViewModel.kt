@@ -167,6 +167,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _importResult.emit("Wrong password: ${result.msg}")
                 is ConfigManager.ImportResult.ParseError ->
                     _importResult.emit("Parse error: ${result.msg}")
+                is ConfigManager.ImportResult.BurnedConfig ->
+                    _importResult.emit("❌ Config déjà utilisée: ${result.msg}")
+                is ConfigManager.ImportResult.AppMismatch ->
+                    _importResult.emit("❌ Config incompatible: ${result.msg}")
             }
         }
     }
