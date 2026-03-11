@@ -22,9 +22,15 @@ import android.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kighmu.vpn.ui.adapters.DnsProfileAdapter
+import com.kighmu.vpn.ui.adapters.SlowDnsProfileAdapter
+import com.kighmu.vpn.ui.dialogs.ProfileEditDialog
+import com.kighmu.vpn.profiles.ProfileRepository
+import com.kighmu.vpn.profiles.SlowDnsProfile
 
 class ConfigFragment : Fragment() {
     private var dnsProfileAdapter: DnsProfileAdapter? = null
+    private var slowDnsProfileAdapter: SlowDnsProfileAdapter? = null
+    private lateinit var profileRepo: ProfileRepository
     private val viewModel: MainViewModel by activityViewModels()
     private var currentTab = 0
 
@@ -156,23 +162,35 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ssh_port).setText(c.sshCredentials.port.toString())
         view.findViewById<EditText>(R.id.et_ssh_user).setText(c.sshCredentials.username)
         view.findViewById<EditText>(R.id.et_ssh_pass).setText(c.sshCredentials.password)
-        view.findViewById<EditText>(R.id.et_dns_server).setText(c.slowDns.dnsServer)
-        view.findViewById<EditText>(R.id.et_dns_nameserver).setText(c.slowDns.nameserver)
-        view.findViewById<EditText>(R.id.et_dns_pubkey).setText(c.slowDns.publicKey)
-
-        // Initialiser RecyclerView profils SlowDNS
+        // Initialiser ProfileRepository et RecyclerView
+        profileRepo = ProfileRepository(requireContext())
         val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
-        dnsProfileAdapter = DnsProfileAdapter(
-            c.slowDnsProfiles.toMutableList(),
-            onEdit = { idx, profile -> showProfileDialog(view, idx, profile) },
-            onDelete = { idx -> dnsProfileAdapter?.removeProfile(idx) },
-            onClone = { idx -> dnsProfileAdapter?.cloneProfile(idx) }
+        slowDnsProfileAdapter = SlowDnsProfileAdapter(
+            profileRepo.getAll(),
+            onSelectionChanged = { id, selected -> profileRepo.updateSelection(id, selected) },
+            onEdit = { profile ->
+                ProfileEditDialog.show(requireContext(), profile) { updated ->
+                    profileRepo.update(updated)
+                    slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
+                }
+            },
+            onDelete = { profile ->
+                profileRepo.delete(profile.id)
+                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
+            },
+            onClone = { profile ->
+                profileRepo.clone(profile.id)
+                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
+            }
         )
         rv.layoutManager = LinearLayoutManager(requireContext())
-        rv.adapter = dnsProfileAdapter
+        rv.adapter = slowDnsProfileAdapter
 
         view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
-            showProfileDialog(view, -1, SlowDnsConfig())
+            ProfileEditDialog.show(requireContext()) { newProfile ->
+                profileRepo.add(newProfile)
+                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
+            }
         }
 
         view.findViewById<EditText>(R.id.et_proxy_host).setText(c.httpProxy.proxyHost)
@@ -205,9 +223,9 @@ class ConfigFragment : Fragment() {
             password = view.findViewById<EditText>(R.id.et_ssh_pass).text.toString()
         )
         val dns = c.slowDns.copy(
-            dnsServer = view.findViewById<EditText>(R.id.et_dns_server).text.toString(),
-            nameserver = view.findViewById<EditText>(R.id.et_dns_nameserver).text.toString(),
-            publicKey = view.findViewById<EditText>(R.id.et_dns_pubkey).text.toString()
+            dnsServer = profileRepo.getSelected().firstOrNull()?.dnsServer ?: "8.8.8.8",
+            nameserver = profileRepo.getSelected().firstOrNull()?.nameserver ?: "",
+            publicKey = profileRepo.getSelected().firstOrNull()?.publicKey ?: ""
         )
         val http = c.httpProxy.copy(
             proxyHost = view.findViewById<EditText>(R.id.et_proxy_host).text.toString(),
@@ -242,35 +260,5 @@ class ConfigFragment : Fragment() {
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
-    private fun showProfileDialog(view: View, index: Int, profile: com.kighmu.vpn.models.SlowDnsConfig) {
-        val ctx = requireContext()
-        val layout = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-        }
-        fun et(hint: String, value: String) = android.widget.EditText(ctx).apply {
-            this.hint = hint; setText(value)
-            setTextColor(0xFF000000.toInt())
-            layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 }
-            layout.addView(this)
-        }
-        val etDns = et("DNS Server", profile.dnsServer)
-        val etNs  = et("Nameserver", profile.nameserver)
-        val etKey = et("Public Key", profile.publicKey)
 
-        AlertDialog.Builder(ctx)
-            .setTitle(if (index < 0) "Ajouter profil" else "Modifier profil ${index + 1}")
-            .setView(layout)
-            .setPositiveButton("Sauvegarder") { _, _ ->
-                val p = profile.copy(
-                    dnsServer = etDns.text.toString(),
-                    nameserver = etNs.text.toString(),
-                    publicKey = etKey.text.toString()
-                )
-                if (index < 0) dnsProfileAdapter?.addProfile(p)
-                else dnsProfileAdapter?.updateProfile(index, p)
-            }
-            .setNegativeButton("Annuler", null)
-            .show()
-    }
 }

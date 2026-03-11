@@ -41,16 +41,13 @@
 
             <!-- SlowDNS Panel -->
             <LinearLayout android:id="@+id/panel_slowdns" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SLOWDNS SETTINGS" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
-                <EditText android:id="@+id/et_dns_server" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="DNS Server (8.8.8.8)" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
-                <EditText android:id="@+id/et_dns_nameserver" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nameserver" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
-                <EditText android:id="@+id/et_dns_pubkey" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Public Key" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
-                <!-- Profils SlowDNS -->
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp" android:gravity="center_vertical">
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PROFILES" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true"/>
-                    <Button android:id="@+id/btn_add_dns_profile" android:layout_width="36dp" android:layout_height="36dp" android:text="+" android:textSize="18sp" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:padding="0dp"/>
+                <!-- Header avec bouton + -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="SLOWDNS PROFILES" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true"/>
+                    <Button android:id="@+id/btn_add_dns_profile" android:layout_width="36dp" android:layout_height="36dp" android:text="+" android:textSize="20sp" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:padding="0dp"/>
                 </LinearLayout>
-                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_dns_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:nestedScrollingEnabled="false"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Appui long sur un profil pour le modifier, cloner ou supprimer" android:textColor="#666666" android:textSize="11sp" android:layout_marginBottom="8dp"/>
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_dns_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
             </LinearLayout>
 
             <!-- HTTP Proxy Panel -->
