@@ -64,7 +64,7 @@ class MultiSlowDnsEngine(
         return activePort
     }
 
-    override fun stop() {
+    override suspend fun stop() {
         engines.forEach { 
             try { it.stop() } catch (_: Exception) {}
         }
@@ -87,5 +87,17 @@ class MultiSlowDnsEngine(
                 publicKey = p.publicKey
             )
         )
+    }
+
+    override suspend fun sendData(data: ByteArray, length: Int) {
+        engines.firstOrNull()?.sendData(data, length)
+    }
+
+    override suspend fun receiveData(): ByteArray? {
+        return engines.firstOrNull()?.receiveData()
+    }
+
+    override fun isRunning(): Boolean {
+        return engines.any { it.isRunning() }
     }
 }
