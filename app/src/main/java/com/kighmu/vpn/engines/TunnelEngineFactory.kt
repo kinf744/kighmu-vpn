@@ -12,7 +12,7 @@ object TunnelEngineFactory {
         val mode = config.tunnelMode
         KighmuLogger.info(TAG, "=== Creation engine: ${mode.label} ===")
         return when (mode) {
-            TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context, vpnService, profileIndex)
+            TunnelMode.SLOW_DNS      -> MultiSlowDnsEngine(config, context, vpnService)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
             TunnelMode.SSH_WEBSOCKET -> SshWebSocketEngine(config, context)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)

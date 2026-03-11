@@ -155,40 +155,8 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info("VpnService", "Nameserver: '${currentConfig.slowDns.nameserver}'")
 
                 val localPort = try {
-                    if (currentConfig.tunnelMode.name.contains("SLOW")) {
-                        // Multi-sessions: un engine par profil coché
-                        val repo = ProfileRepository(this@KighmuVpnService)
-                        val selected = repo.getSelected()
-                        if (selected.isNotEmpty()) {
-                            KighmuLogger.info("VpnService", "${selected.size} profil(s) SlowDNS sélectionné(s)")
-                            // Démarrer le premier profil comme engine principal
-                            // Les autres profils servent de failover via currentProfileIndex
-                            val idx = currentProfileIndex % selected.size
-                            val p = selected[idx]
-                            KighmuLogger.info("VpnService", "Profil SlowDNS [${idx+1}/${selected.size}]: ${p.profileName} → ${p.sshHost}")
-                            currentConfig = currentConfig.copy(
-                                sshCredentials = currentConfig.sshCredentials.copy(
-                                    host = p.sshHost,
-                                    port = p.sshPort,
-                                    username = p.sshUser,
-                                    password = p.sshPass
-                                ),
-                                slowDns = currentConfig.slowDns.copy(
-                                    dnsServer = p.dnsServer,
-                                    nameserver = p.nameserver,
-                                    publicKey = p.publicKey
-                                )
-                            )
-                            tunnelEngine = TunnelEngineFactory.create(
-                                currentConfig, this@KighmuVpnService, this@KighmuVpnService,
-                                profileIndex = idx
-                            )
-                        } else {
-                            tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
-                        }
-                    } else {
-                        tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
-                    }
+                    // MultiSlowDnsEngine gère automatiquement tous les profils cochés
+                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
