@@ -179,6 +179,7 @@ data class KighmuConfig(
     @SerializedName("sshCredentials") var sshCredentials: SshCredentials = SshCredentials(),
     @SerializedName("slowDns") var slowDns: SlowDnsConfig = SlowDnsConfig(),
     @SerializedName("slowDnsProfiles") var slowDnsProfiles: MutableList<SlowDnsConfig> = mutableListOf(),
+    @SerializedName("exportConfig") var exportConfig: ExportConfig? = null,
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
@@ -262,5 +263,14 @@ data class ExportConfig(
     @SerializedName("blockTorrent") var blockTorrent: Boolean = false,
     @SerializedName("gameMode") var gameMode: Boolean = false,
     @SerializedName("userMessage") var userMessage: String = "",
-    @SerializedName("securitySignature") var securitySignature: String = ""
+    @SerializedName("securitySignature") var securitySignature: String = "",
+    // Export type: "normal" | "burn" | "expiry"
+    @SerializedName("exportType") var exportType: String = "normal",
+    // Burn after import - config supprimée après 1ère utilisation
+    @SerializedName("burnAfterImport") var burnAfterImport: Boolean = false,
+    @SerializedName("burnToken") var burnToken: String = "",
+    // Verrouiller toutes les informations de la config
+    @SerializedName("lockAllConfig") var lockAllConfig: Boolean = false,
+    // Unique app identifier - empêche import dans autres apps
+    @SerializedName("appId") var appId: String = "com.kighmu.vpn"
 )

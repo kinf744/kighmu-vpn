@@ -1,5 +1,6 @@
 package com.kighmu.vpn.ui.activities
 
+import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -19,10 +20,12 @@ import com.kighmu.vpn.ui.MainViewModel
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.UUID
 
 class ExportActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private var expiresAt = 0L
+    private var exportType = "normal"  // normal | burn | expiry
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,10 +82,10 @@ class ExportActivity : AppCompatActivity() {
 
     private fun setupExportButtons() {
         findViewById<Button>(R.id.btn_export_save).setOnClickListener {
-            exportConfig(locked = false, share = false)
+            showExportTypeDialog(share = false)
         }
         findViewById<Button>(R.id.btn_export_locked_unlocked).setOnClickListener {
-            exportConfig(locked = true, share = false)
+            showExportTypeDialog(share = false, locked = true)
         }
         findViewById<Button>(R.id.btn_export_share).setOnClickListener {
             exportConfig(locked = false, share = true)
@@ -109,21 +112,27 @@ class ExportActivity : AppCompatActivity() {
         } else ""
 
         val config = viewModel.config.value
+        val isBurn = exportType == "burn"
         val exportConfig = ExportConfig(
-            fileName        = fileName,
-            accessCode      = accessCode,
-            expiresAt       = expiresAt,
-            hardwareId      = androidId,
-            lockOperator    = lockOperator,
-            operatorName    = operatorName,
-            blockRoot       = findViewById<CheckBox>(R.id.cb_block_root).isChecked,
-            mobileDataOnly  = findViewById<CheckBox>(R.id.cb_mobile_data_only).isChecked,
-            lockDeviceId    = lockDeviceId,
-            playStoreOnly   = findViewById<CheckBox>(R.id.cb_playstore_only).isChecked,
-            disableOverride = findViewById<CheckBox>(R.id.cb_disable_override).isChecked,
-            blockTorrent    = findViewById<CheckBox>(R.id.cb_block_torrent).isChecked,
-            gameMode        = findViewById<CheckBox>(R.id.cb_game_mode).isChecked,
-            userMessage     = userMessage,
+            fileName          = fileName,
+            accessCode        = accessCode,
+            expiresAt         = if (exportType == "expiry") expiresAt else 0L,
+            hardwareId        = androidId,
+            lockOperator      = lockOperator,
+            operatorName      = operatorName,
+            blockRoot         = findViewById<CheckBox>(R.id.cb_block_root).isChecked,
+            mobileDataOnly    = findViewById<CheckBox>(R.id.cb_mobile_data_only).isChecked,
+            lockDeviceId      = lockDeviceId,
+            playStoreOnly     = findViewById<CheckBox>(R.id.cb_playstore_only).isChecked,
+            disableOverride   = findViewById<CheckBox>(R.id.cb_disable_override).isChecked,
+            blockTorrent      = findViewById<CheckBox>(R.id.cb_block_torrent).isChecked,
+            gameMode          = findViewById<CheckBox>(R.id.cb_game_mode).isChecked,
+            userMessage       = userMessage,
+            exportType        = exportType,
+            burnAfterImport   = isBurn,
+            burnToken         = if (isBurn) UUID.randomUUID().toString() else "",
+            lockAllConfig     = locked,
+            appId             = packageName,
             securitySignature = buildSignature(config.toString(), androidId, expiresAt, operatorName)
         )
 
@@ -153,6 +162,24 @@ class ExportActivity : AppCompatActivity() {
             }
             startActivityForResult(intent, REQUEST_EXPORT)
         }
+    }
+
+    private fun showExportTypeDialog(share: Boolean, locked: Boolean = false) {
+        val options = arrayOf("Normal", "Brûler après importation", "Définir une date d'expiration")
+        var selected = 0
+        AlertDialog.Builder(this)
+            .setTitle("Type de configuration")
+            .setSingleChoiceItems(options, 0) { _, which -> selected = which }
+            .setPositiveButton("Exporter la configuration") { _, _ ->
+                exportType = when (selected) {
+                    1 -> "burn"
+                    2 -> "expiry"
+                    else -> "normal"
+                }
+                exportConfig(locked = locked, share = share)
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
     }
 
     private fun buildSignature(config: String, deviceId: String, expiry: Long, operator: String): String {

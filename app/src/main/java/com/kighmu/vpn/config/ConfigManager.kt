@@ -49,6 +49,8 @@ class ConfigManager(private val context: Context) {
         data class WrongDevice(val msg: String) : ImportResult()
         data class InvalidPassword(val msg: String) : ImportResult()
         data class ParseError(val msg: String) : ImportResult()
+        data class BurnedConfig(val msg: String) : ImportResult()
+        data class AppMismatch(val msg: String) : ImportResult()
     }
 
     suspend fun importFromUri(uri: Uri, password: String = DEFAULT_PASSWORD): ImportResult =
