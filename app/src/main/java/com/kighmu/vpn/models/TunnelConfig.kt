@@ -249,10 +249,18 @@ data class LogEntry(
 
 data class ExportConfig(
     @SerializedName("fileName") var fileName: String = "kighmu_config",
-    @SerializedName("expiresAt") var expiresAt: Long = 0L, // timestamp ms, 0 = no expiry
-    @SerializedName("hardwareId") var hardwareId: String = "", // locked to device
+    @SerializedName("accessCode") var accessCode: String = "",         // code ex: WmdE6mSB
+    @SerializedName("expiresAt") var expiresAt: Long = 0L,             // 0 = no expiry
+    @SerializedName("hardwareId") var hardwareId: String = "",         // device lock
     @SerializedName("lockOperator") var lockOperator: Boolean = false,
     @SerializedName("operatorName") var operatorName: String = "",
     @SerializedName("blockRoot") var blockRoot: Boolean = false,
+    @SerializedName("mobileDataOnly") var mobileDataOnly: Boolean = false,
+    @SerializedName("lockDeviceId") var lockDeviceId: Boolean = false,
+    @SerializedName("playStoreOnly") var playStoreOnly: Boolean = false,
+    @SerializedName("disableOverride") var disableOverride: Boolean = false,
+    @SerializedName("blockTorrent") var blockTorrent: Boolean = false,
+    @SerializedName("gameMode") var gameMode: Boolean = false,
+    @SerializedName("userMessage") var userMessage: String = "",
     @SerializedName("securitySignature") var securitySignature: String = ""
 )
