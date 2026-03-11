@@ -8,11 +8,11 @@ import com.kighmu.vpn.utils.KighmuLogger
 object TunnelEngineFactory {
     private const val TAG = "TunnelEngineFactory"
 
-    fun create(config: KighmuConfig, context: Context, vpnService: android.net.VpnService? = null): TunnelEngine {
+    fun create(config: KighmuConfig, context: Context, vpnService: android.net.VpnService? = null, profileIndex: Int = 0): TunnelEngine {
         val mode = config.tunnelMode
         KighmuLogger.info(TAG, "=== Creation engine: ${mode.label} ===")
         return when (mode) {
-            TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context, vpnService)
+            TunnelMode.SLOW_DNS      -> SlowDnsEngine(config, context, vpnService, profileIndex)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
             TunnelMode.SSH_WEBSOCKET -> SshWebSocketEngine(config, context)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)

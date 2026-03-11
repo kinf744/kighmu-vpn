@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 import com.kighmu.vpn.profiles.ProfileRepository
+import com.kighmu.vpn.profiles.SessionManager
 import com.kighmu.vpn.models.SshCredentials
 import android.os.Build
 import android.os.IBinder
@@ -55,6 +56,7 @@ class KighmuVpnService : VpnService() {
     private val MAX_RECONNECT = 20
     private var userRequestedStop = false
     private var currentProfileIndex = 0
+    private var sessionManager: SessionManager? = null
     private val RECONNECT_DELAY = 5000L
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
@@ -153,13 +155,17 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info("VpnService", "Nameserver: '${currentConfig.slowDns.nameserver}'")
 
                 val localPort = try {
-                    // Injecter profil SlowDNS sélectionné si mode SlowDNS
                     if (currentConfig.tunnelMode.name.contains("SLOW")) {
+                        // Multi-sessions: un engine par profil coché
                         val repo = ProfileRepository(this@KighmuVpnService)
                         val selected = repo.getSelected()
                         if (selected.isNotEmpty()) {
-                            val p = selected[currentProfileIndex % selected.size]
-                            KighmuLogger.info("VpnService", "Profil SlowDNS: ${p.profileName} → ${p.sshHost}")
+                            KighmuLogger.info("VpnService", "${selected.size} profil(s) SlowDNS sélectionné(s)")
+                            // Démarrer le premier profil comme engine principal
+                            // Les autres profils servent de failover via currentProfileIndex
+                            val idx = currentProfileIndex % selected.size
+                            val p = selected[idx]
+                            KighmuLogger.info("VpnService", "Profil SlowDNS [${idx+1}/${selected.size}]: ${p.profileName} → ${p.sshHost}")
                             currentConfig = currentConfig.copy(
                                 sshCredentials = currentConfig.sshCredentials.copy(
                                     host = p.sshHost,
@@ -173,9 +179,16 @@ class KighmuVpnService : VpnService() {
                                     publicKey = p.publicKey
                                 )
                             )
+                            tunnelEngine = TunnelEngineFactory.create(
+                                currentConfig, this@KighmuVpnService, this@KighmuVpnService,
+                                profileIndex = idx
+                            )
+                        } else {
+                            tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                         }
+                    } else {
+                        tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     }
-                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
@@ -183,15 +196,12 @@ class KighmuVpnService : VpnService() {
                     if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
                         // Rotation des profils SlowDNS si disponibles
-                        val profiles = currentConfig.slowDnsProfiles
-                        if (currentConfig.tunnelMode.name.contains("SLOW") && profiles.isNotEmpty()) {
-                            currentProfileIndex = (currentProfileIndex + 1) % (profiles.size + 1)
-                            if (currentProfileIndex > 0) {
-                                currentConfig = currentConfig.copy(slowDns = profiles[currentProfileIndex - 1])
-                                KighmuLogger.info("VpnService", "Profil SlowDNS $currentProfileIndex/${profiles.size}")
-                            } else {
-                                currentConfig = configManager.loadCurrentConfig()
-                                KighmuLogger.info("VpnService", "Profil SlowDNS principal")
+                        if (currentConfig.tunnelMode.name.contains("SLOW")) {
+                            val repo = ProfileRepository(this@KighmuVpnService)
+                            val selected = repo.getSelected()
+                            if (selected.isNotEmpty()) {
+                                currentProfileIndex = (currentProfileIndex + 1) % selected.size
+                                KighmuLogger.info("VpnService", "Failover → profil ${currentProfileIndex+1}/${selected.size}")
                             }
                         }
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")

@@ -11,18 +11,24 @@ import java.io.File
 class SlowDnsEngine(
     private val config: KighmuConfig,
     private val context: Context,
-    private val vpnService: android.net.VpnService? = null
+    private val vpnService: android.net.VpnService? = null,
+    private val profileIndex: Int = 0
 ) : TunnelEngine {
 
     companion object {
         const val TAG = "SlowDnsEngine"
-        const val LOCAL_SOCKS_PORT = 10800
-        const val DNSTT_PORT = 7000
+        const val BASE_SOCKS_PORT = 10800
+
+        // Pour compatibilité
+
+
         const val VPN_ADDRESS = "10.0.0.2"
         const val VPN_PREFIX = "24"
         const val MTU = 1500
     }
 
+    private val socksPort get() = 10800 + profileIndex
+    private val dnsttPort get() = 7000 + profileIndex
     private var running = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
@@ -52,7 +58,7 @@ class SlowDnsEngine(
             waited += 500
             try {
                 val sock = java.net.Socket()
-                sock.connect(java.net.InetSocketAddress("127.0.0.1", DNSTT_PORT), 200)
+                sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 200)
                 sock.close()
                 KighmuLogger.info(TAG, "dnstt pret en ${waited}ms")
                 break
@@ -62,9 +68,9 @@ class SlowDnsEngine(
         // dnstt expose le flux SSH brut directement sur port 7000
         // trilead se connecte directement a 127.0.0.1:7000
         startSsh()
-        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $LOCAL_SOCKS_PORT ===")
+        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $socksPort ===")
 
-        LOCAL_SOCKS_PORT
+        socksPort
     }
 
     private var tun2socksProcess: Process? = null
@@ -88,7 +94,7 @@ class SlowDnsEngine(
                     "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.1",
                     "--netif-netmask", "255.255.255.0",
-                    "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
+                    "--socks-server-addr", "127.0.0.1:$socksPort",
                     "--enable-udprelay",
                     "--loglevel", "4"
                 )
@@ -144,7 +150,7 @@ class SlowDnsEngine(
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
             "-pubkey", dns.publicKey.trim(),
             dns.nameserver,
-            "127.0.0.1:$DNSTT_PORT"
+            "127.0.0.1:$dnsttPort"
         )
         KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
 
@@ -178,9 +184,9 @@ class SlowDnsEngine(
     private fun startSsh() {
         // dnstt expose le flux SSH brut sur 127.0.0.1:7000
         // trilead se connecte directement comme si c'etait le vrai serveur SSH
-        KighmuLogger.info(TAG, "Connexion SSH trilead -> dnstt 127.0.0.1:$DNSTT_PORT")
+        KighmuLogger.info(TAG, "Connexion SSH trilead -> dnstt 127.0.0.1:$dnsttPort")
 
-        val conn = Connection("127.0.0.1", DNSTT_PORT)
+        val conn = Connection("127.0.0.1", dnsttPort)
         val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
         KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
 
@@ -189,8 +195,8 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "SSH authentifie!")
 
         // Dynamic SOCKS5 forwarding pour tun2socks
-        conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
-        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $LOCAL_SOCKS_PORT")
+        conn.createDynamicPortForwarder(socksPort)
+        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $socksPort")
 
         sshConnection = conn
     }
