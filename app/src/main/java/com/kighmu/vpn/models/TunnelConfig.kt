@@ -178,6 +178,7 @@ data class KighmuConfig(
     @SerializedName("tunnelMode") var tunnelMode: TunnelMode = TunnelMode.HTTP_PROXY,
     @SerializedName("sshCredentials") var sshCredentials: SshCredentials = SshCredentials(),
     @SerializedName("slowDns") var slowDns: SlowDnsConfig = SlowDnsConfig(),
+    @SerializedName("slowDnsProfiles") var slowDnsProfiles: MutableList<SlowDnsConfig> = mutableListOf(),
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),

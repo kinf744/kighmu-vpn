@@ -52,6 +52,7 @@ class KighmuVpnService : VpnService() {
     private var reconnectAttempts = 0
     private val MAX_RECONNECT = 20
     private var userRequestedStop = false
+    private var currentProfileIndex = 0
     private val RECONNECT_DELAY = 5000L
     private val maxReconnectAttempts = 5
     private var statsJob: Job? = null
@@ -103,6 +104,7 @@ class KighmuVpnService : VpnService() {
 
     private fun startVpn() {
         userRequestedStop = false
+        if (reconnectAttempts == 0) currentProfileIndex = 0
         vpnJob = serviceScope.launch {
             try {
                 updateStatus(ConnectionStatus.CONNECTING, "Loading configuration...")
@@ -156,6 +158,18 @@ class KighmuVpnService : VpnService() {
                     try { tempVpn?.close() } catch (_: Exception) {}
                     if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
+                        // Rotation des profils SlowDNS si disponibles
+                        val profiles = currentConfig.slowDnsProfiles
+                        if (currentConfig.tunnelMode.name.contains("SLOW") && profiles.isNotEmpty()) {
+                            currentProfileIndex = (currentProfileIndex + 1) % (profiles.size + 1)
+                            if (currentProfileIndex > 0) {
+                                currentConfig = currentConfig.copy(slowDns = profiles[currentProfileIndex - 1])
+                                KighmuLogger.info("VpnService", "Profil SlowDNS $currentProfileIndex/${profiles.size}")
+                            } else {
+                                currentConfig = configManager.loadCurrentConfig()
+                                KighmuLogger.info("VpnService", "Profil SlowDNS principal")
+                            }
+                        }
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
                         KighmuLogger.info("VpnService", "Retry $reconnectAttempts/$MAX_RECONNECT dans ${RECONNECT_DELAY}ms")
                         delay(RECONNECT_DELAY)
