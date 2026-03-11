@@ -137,9 +137,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopVpn(context: Context) {
+        // Envoyer ACTION_STOP au service
         val intent = Intent(context, KighmuVpnService::class.java)
             .apply { action = KighmuVpnService.ACTION_STOP }
-        context.startService(intent)
+        try { context.startService(intent) } catch (_: Exception) {}
+        // Forcer l'arrêt direct aussi
+        try { context.stopService(Intent(context, KighmuVpnService::class.java)) } catch (_: Exception) {}
+        _connectionStatus.value = com.kighmu.vpn.models.ConnectionStatus.DISCONNECTED
     }
 
     fun isConnected() = _connectionStatus.value == ConnectionStatus.CONNECTED
