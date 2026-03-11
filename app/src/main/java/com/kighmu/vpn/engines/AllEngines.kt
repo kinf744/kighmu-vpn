@@ -405,7 +405,7 @@ class XraySlowDnsEngine(
     private val xray = XrayEngine(config.copy(
         xray = config.xray.copy(
             serverAddress = "127.0.0.1",
-            serverPort = SlowDnsEngine.LOCAL_SOCKS_PORT
+            serverPort = SlowDnsEngine.BASE_SOCKS_PORT
         )
     ), context)
 
