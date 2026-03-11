@@ -218,6 +218,7 @@ class KighmuVpnService : VpnService() {
             updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
         }
         try { stopForeground(true) } catch (_: Exception) {}
+        try { stopSelf() } catch (_: Exception) {}
     }
 
     private fun reconnect() {
