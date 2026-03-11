@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import com.kighmu.vpn.profiles.ProfileRepository
+import com.kighmu.vpn.models.SshCredentials
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
@@ -151,6 +153,28 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info("VpnService", "Nameserver: '${currentConfig.slowDns.nameserver}'")
 
                 val localPort = try {
+                    // Injecter profil SlowDNS sélectionné si mode SlowDNS
+                    if (currentConfig.tunnelMode.name.contains("SLOW")) {
+                        val repo = ProfileRepository(this@KighmuVpnService)
+                        val selected = repo.getSelected()
+                        if (selected.isNotEmpty()) {
+                            val p = selected[currentProfileIndex % selected.size]
+                            KighmuLogger.info("VpnService", "Profil SlowDNS: ${p.profileName} → ${p.sshHost}")
+                            currentConfig = currentConfig.copy(
+                                sshCredentials = currentConfig.sshCredentials.copy(
+                                    host = p.sshHost,
+                                    port = p.sshPort,
+                                    username = p.sshUser,
+                                    password = p.sshPass
+                                ),
+                                slowDns = currentConfig.slowDns.copy(
+                                    dnsServer = p.dnsServer,
+                                    nameserver = p.nameserver,
+                                    publicKey = p.publicKey
+                                )
+                            )
+                        }
+                    }
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {

@@ -62,8 +62,8 @@ class ConfigFragment : Fragment() {
             view.findViewById<LinearLayout>(R.id.panel_hysteria),
         )
 
-        // SSH not needed for xray(4), v2dns(5), hysteria(6)
-        val noSshTabs = setOf(4, 5, 6, 7, 8)
+        // SSH not needed for SlowDNS(0 - utilise profils), xray(4), v2dns(5), hysteria(6)
+        val noSshTabs = setOf(0, 4, 5, 6, 7, 8)
 
         fun selectTab(index: Int) {
             currentTab = index
