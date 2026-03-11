@@ -86,7 +86,7 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd.sock"
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd_${profileIndex}.sock"
                 File(sockPath).delete()
                 val cmd = listOf(
                     bin.absolutePath,
