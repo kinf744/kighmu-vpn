@@ -48,7 +48,7 @@ class MultiSlowDnsEngine(
         socksBalancer?.stop()
         socksBalancer = null
         // Attendre que les ports soient libérés
-        delay(1500)
+        delay(2500)
 
         KighmuLogger.info(TAG, "=== STEP 1: Lancement ${selected.size} session(s) en parallèle ===")
 
