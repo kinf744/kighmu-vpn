@@ -249,9 +249,23 @@ class HttpProxyEngine(
                 )
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
                 Thread {
-                    tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
-                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
-                    }
+                    try {
+                        val es = tun2socksProcess?.errorStream ?: return@Thread
+                        val sb = StringBuilder()
+                        var b: Int
+                        while (running) {
+                            b = es.read()
+                            if (b == -1) break
+                            if (b == '
+'.code) {
+                                if (sb.isNotEmpty()) KighmuLogger.info(TAG, "tun2socks: $sb")
+                                sb.clear()
+                            } else if (b != ''.code) {
+                                sb.append(b.toChar())
+                            }
+                        }
+                    } catch (_: java.io.InterruptedIOException) {}
+                    catch (_: Exception) {}
                 }.start()
                 delay(500)
                 try {
@@ -267,8 +281,19 @@ class HttpProxyEngine(
                     KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
                 try {
-                    tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
-                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
+                    val is2 = tun2socksProcess?.inputStream ?: return@launch
+                    val sb = StringBuilder()
+                    var b: Int
+                    while (running) {
+                        b = is2.read()
+                        if (b == -1) break
+                        if (b == '
+'.code) {
+                            if (sb.isNotEmpty()) KighmuLogger.info(TAG, "tun2socks: $sb")
+                            sb.clear()
+                        } else if (b != ''.code) {
+                            sb.append(b.toChar())
+                        }
                     }
                 } catch (_: java.io.InterruptedIOException) {}
                 catch (_: Exception) {}
