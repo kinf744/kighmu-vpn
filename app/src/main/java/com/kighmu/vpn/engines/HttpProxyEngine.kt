@@ -1,11 +1,16 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
-import java.io.File
-import com.trilead.ssh2.Connection
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
+import android.os.ParcelFileDescriptor
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
+import com.trilead.ssh2.Connection
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -13,25 +18,25 @@ class HttpProxyEngine(
     private val config: KighmuConfig,
     private val context: Context
 ) : TunnelEngine {
-    private val MTU = 1500
-    private var tun2socksProcess: Process? = null
 
     companion object {
         const val TAG = "HttpProxyEngine"
         const val LOCAL_SOCKS_PORT = 10801
-        val CRLF = "\r\n"
+        const val CRLF = "\r\n"
     }
 
+    private val MTU = 1500
     private var running = false
     private var sshConnection: Connection? = null
     private var proxySocket: Socket? = null
+    private var tun2socksProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val proxy get() = config.httpProxy
     private val ssh get() = config.sshCredentials
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
-        KighmuLogger.info(TAG, "=== Demarrage SSH HTTP Proxy ===")
+        KighmuLogger.info(TAG, "=== Démarrage HTTP Proxy Engine ===")
         KighmuLogger.info(TAG, "Proxy: ${proxy.proxyHost}:${proxy.proxyPort}")
         KighmuLogger.info(TAG, "SSH: ${ssh.host}:${ssh.port} user=${ssh.username}")
 
@@ -39,96 +44,159 @@ class HttpProxyEngine(
         if (ssh.host.isBlank()) throw Exception("SSH Host manquant")
         if (ssh.username.isBlank()) throw Exception("SSH Username manquant")
 
-        try {
-            KighmuLogger.info(TAG, "Connexion au proxy ${proxy.proxyHost}:${proxy.proxyPort}...")
-            val sock = Socket()
-            sock.connect(InetSocketAddress(proxy.proxyHost, proxy.proxyPort), 10000)
-            proxySocket = sock
-            KighmuLogger.info(TAG, "Proxy TCP connecte")
+        // ÉTAPE 1 : Connexion TCP au proxy
+        KighmuLogger.info(TAG, "ÉTAPE 1: Connexion TCP au proxy...")
+        val sock = Socket()
+        sock.connect(InetSocketAddress(proxy.proxyHost, proxy.proxyPort), 15000)
+        sock.soTimeout = 30000
+        proxySocket = sock
+        KighmuLogger.info(TAG, "TCP connecté au proxy ✓")
 
-            val out = sock.getOutputStream()
-            val inp = sock.getInputStream()
+        val out: OutputStream = sock.getOutputStream()
+            ?: throw Exception("OutputStream null")
+        val inp: InputStream = sock.getInputStream()
+            ?: throw Exception("InputStream null")
 
-            val req = if (proxy.customPayload.isNotBlank()) {
-                proxy.customPayload
-                    .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
-                    .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
-                    .replace("\\r\\n", CRLF).replace("\\n", CRLF)
-            } else {
-                "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1${CRLF}Host: ${ssh.host}:${ssh.port}${CRLF}${CRLF}"
-            }
-
-            KighmuLogger.info(TAG, "Envoi CONNECT request...")
-            out.write(req.toByteArray())
-            out.flush()
-
-            val resp = StringBuilder()
-            var last4 = ""
-            while (true) {
-                val curr = inp.read(); if (curr == -1) break
-                resp.append(curr.toChar())
-                last4 = (last4 + curr.toChar()).takeLast(4)
-                if (last4 == "\r\n\r\n") break
-                // Aussi accepter 
-
-
-                if (last4.endsWith("\n\n")) break
-            }
-            val respStr = resp.toString()
-            KighmuLogger.info(TAG, "Reponse proxy: ${respStr.take(80)}")
-            if (!respStr.contains("200")) throw Exception("Proxy refuse: ${respStr.take(80)}")
-
-            KighmuLogger.info(TAG, "Tunnel HTTP etabli, demarrage SSH trilead...")
-
-            // Trilead gere le CONNECT via HTTPProxyData
-            sock.close()
-            val conn = Connection(ssh.host, ssh.port)
-            conn.setProxyData(com.trilead.ssh2.HTTPProxyData(proxy.proxyHost, proxy.proxyPort))
-            conn.connect(null, 30000, 30000)
-
-            val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
-            if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
-
-            // Dynamic SOCKS5 forwarding comme SlowDNS
-            conn.requestRemotePortForwarding("", 0, "127.0.0.1", 0)
-            val dynForward = conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
-            KighmuLogger.info(TAG, "Dynamic SOCKS5 actif sur $LOCAL_SOCKS_PORT")
-            sshConnection = conn
-            KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF sur port $LOCAL_SOCKS_PORT ===")
-            LOCAL_SOCKS_PORT
-        } catch (e: Exception) {
-            KighmuLogger.error(TAG, "ECHEC: ${e.javaClass.simpleName}: ${e.message}")
-            throw e
+        // ÉTAPE 2 : Envoyer CONNECT / Custom Payload
+        KighmuLogger.info(TAG, "ÉTAPE 2: Envoi payload HTTP CONNECT...")
+        val payload = if (proxy.customPayload.isNotBlank()) {
+            proxy.customPayload
+                .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
+                .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
+                .replace("\\r\\n", CRLF).replace("\\n", CRLF)
+        } else {
+            "CONNECT ${ssh.host}:${ssh.port} HTTP/1.1${CRLF}" +
+            "Host: ${ssh.host}:${ssh.port}${CRLF}" +
+            "Proxy-Connection: Keep-Alive${CRLF}${CRLF}"
         }
+
+        out.write(payload.toByteArray(Charsets.ISO_8859_1))
+        out.flush()
+        KighmuLogger.info(TAG, "Payload envoyé ✓")
+
+        // ÉTAPE 3 : Lire la réponse HTTP et consommer TOUS les headers
+        KighmuLogger.info(TAG, "ÉTAPE 3: Lecture réponse proxy...")
+        val firstLine = readLine(inp)
+        KighmuLogger.info(TAG, "Proxy réponse: $firstLine")
+
+        if (!firstLine.contains("200")) {
+            throw Exception("Proxy refusé: $firstLine")
+        }
+
+        // Consommer tous les headers restants jusqu'à ligne vide
+        var headerLine = ""
+        do {
+            headerLine = readLine(inp)
+            if (headerLine.isNotEmpty()) {
+                KighmuLogger.info(TAG, "Header: $headerLine")
+            }
+        } while (headerLine.isNotEmpty())
+        KighmuLogger.info(TAG, "Headers consommés ✓ - tunnel TCP prêt pour SSH")
+
+        // ÉTAPE 4 : Relay local - écouter sur port aléatoire, relayer vers socket proxy
+        KighmuLogger.info(TAG, "ÉTAPE 4: Démarrage relay local pour SSH...")
+        val relayPort = startLocalRelay(sock, inp, out)
+        KighmuLogger.info(TAG, "Relay local prêt sur 127.0.0.1:$relayPort ✓")
+
+        // SSH se connecte au relay local (qui est connecté au proxy)
+        val conn = Connection("127.0.0.1", relayPort)
+        conn.connect(null, 30000, 30000)
+        KighmuLogger.info(TAG, "SSH connecté via relay ✓")
+
+        // ÉTAPE 5 : Authentification
+        KighmuLogger.info(TAG, "ÉTAPE 5: Authentification SSH...")
+        val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
+        if (!authenticated) throw Exception("SSH auth échoué pour ${ssh.username}")
+        KighmuLogger.info(TAG, "SSH authentifié ✓")
+
+        // ÉTAPE 6 : SOCKS5 dynamique local
+        KighmuLogger.info(TAG, "ÉTAPE 6: Création SOCKS5 local port=$LOCAL_SOCKS_PORT...")
+        conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
+        KighmuLogger.info(TAG, "SOCKS5 actif sur 127.0.0.1:$LOCAL_SOCKS_PORT ✓")
+
+        sshConnection = conn
+        KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF port=$LOCAL_SOCKS_PORT ===")
+        LOCAL_SOCKS_PORT
     }
 
-    override suspend fun stop() {
-        running = false
-        try { sshConnection?.close() } catch (_: Exception) {}
-        try { proxySocket?.close() } catch (_: Exception) {}
-        engineScope.cancel()
-        KighmuLogger.info(TAG, "HttpProxy arrete")
+    // Relay TCP local - relaie la socket proxy vers un port local pour trilead
+    private fun startLocalRelay(proxySock: Socket, proxyIn: InputStream, proxyOut: OutputStream): Int {
+        val serverSocket = java.net.ServerSocket(0) // port aléatoire
+        val port = serverSocket.localPort
+        Thread {
+            try {
+                val clientSock = serverSocket.accept()
+                serverSocket.close()
+                val clientIn = clientSock.getInputStream()
+                val clientOut = clientSock.getOutputStream()
+
+                // Thread: client → proxy
+                Thread {
+                    try {
+                        val buf = ByteArray(8192)
+                        var n: Int
+                        while (clientSock.isConnected && !proxySock.isClosed) {
+                            n = clientIn.read(buf)
+                            if (n == -1) break
+                            proxyOut.write(buf, 0, n)
+                            proxyOut.flush()
+                        }
+                    } catch (_: Exception) {}
+                }.start()
+
+                // Thread: proxy → client
+                try {
+                    val buf = ByteArray(8192)
+                    var n: Int
+                    while (!proxySock.isClosed && clientSock.isConnected) {
+                        n = proxyIn.read(buf)
+                        if (n == -1) break
+                        clientOut.write(buf, 0, n)
+                        clientOut.flush()
+                    }
+                } catch (_: Exception) {}
+
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "Relay error: ${e.message}")
+            }
+        }.start()
+        return port
     }
 
-    override suspend fun sendData(data: ByteArray, length: Int) {}
-    override suspend fun receiveData(): ByteArray? = null
-    override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
-
+    // Lire une ligne depuis InputStream byte par byte (safe pour SSH)
+    private fun readLine(inp: InputStream): String {
+        val sb = StringBuilder()
+        var prev = -1
+        while (true) {
+            val b = inp.read()
+            if (b == -1) break
+            if (prev == '\r'.code && b == '\n'.code) {
+                // Supprimer le \r déjà ajouté
+                if (sb.isNotEmpty()) sb.deleteCharAt(sb.length - 1)
+                break
+            }
+            if (b == '\n'.code) break
+            sb.append(b.toChar())
+            prev = b
+        }
+        return sb.toString()
+    }
 
     override fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
+        KighmuLogger.info(TAG, "Démarrage tun2socks fd=$fd")
         engineScope.launch(Dispatchers.IO) {
             try {
                 val nativeDir = context.applicationInfo.nativeLibraryDir
                 val bin = File(nativeDir, "libtun2socks.so")
                 if (!bin.exists()) {
-                    KighmuLogger.error(TAG, "libtun2socks.so introuvable dans $nativeDir")
+                    KighmuLogger.error(TAG, "libtun2socks.so introuvable")
                     return@launch
                 }
                 bin.setExecutable(true)
-                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd.sock"
+                val sockPath = "${context.cacheDir}/tun2socks_http.sock"
                 File(sockPath).delete()
-                val cmd = listOf(
+
+                val cmd = arrayOf(
                     bin.absolutePath,
                     "--sock-path", sockPath,
                     "--tunmtu", MTU.toString(),
@@ -139,37 +207,47 @@ class HttpProxyEngine(
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
-                // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
-                val cmdArray = cmd.toTypedArray()
-                tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
-                // Lire stdout+stderr dans fichier
-                val proc = tun2socksProcess!!
+                tun2socksProcess = Runtime.getRuntime().exec(cmd)
+
                 Thread {
-                    proc.errorStream.bufferedReader().forEachLine { line ->
-                        KighmuLogger.info(TAG, "tun2socks: $line")
-                        KighmuLogger.info(TAG, "tun2socks stderr: $line")
+                    tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
+                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
                     }
                 }.start()
-                // Envoyer le fd via socket Unix a BadVPN
+
                 delay(500)
                 try {
-                    val localSocket = android.net.LocalSocket()
-                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    val localSocket = LocalSocket()
+                    localSocket.connect(LocalSocketAddress(sockPath, LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = ParcelFileDescriptor.fromFd(fd)
                     localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                     localSocket.outputStream.write(1)
                     localSocket.outputStream.flush()
                     localSocket.close()
-                    KighmuLogger.info(TAG, "fd $fd envoye via sock-path")
+                    KighmuLogger.info(TAG, "fd=$fd envoyé à tun2socks ✓")
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
-                tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
-                    KighmuLogger.info(TAG, "tun2socks: $line")
+
+                tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
+                    if (running) KighmuLogger.info(TAG, "tun2socks: $line")
                 }
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
         }
     }
+
+    override suspend fun stop() {
+        running = false
+        try { sshConnection?.close() } catch (_: Exception) {}
+        try { proxySocket?.close() } catch (_: Exception) {}
+        try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
+        engineScope.cancel()
+        KighmuLogger.info(TAG, "HttpProxyEngine arrêté")
+    }
+
+    override suspend fun sendData(data: ByteArray, length: Int) {}
+    override suspend fun receiveData(): ByteArray? = null
+    override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
 }
