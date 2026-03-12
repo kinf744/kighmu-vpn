@@ -128,7 +128,7 @@ class KighmuVpnService : VpnService() {
                 }
 
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
-                startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
+                startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
 
                 val tempVpn = try {
                     Builder()
@@ -201,7 +201,8 @@ class KighmuVpnService : VpnService() {
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
-                updateStatus(ConnectionStatus.CONNECTED, "Connected via ${currentConfig.tunnelMode.label}")
+                updateStatus(ConnectionStatus.CONNECTED, "Connected")
+                updateNotification("Connected")
                 startStatsUpdate()
 
             } catch (e: Exception) {
@@ -292,7 +293,7 @@ class KighmuVpnService : VpnService() {
                         stats.ping = (System.currentTimeMillis() - start).toInt()
                     }
                 } catch (_: Exception) {}
-                updateNotification("↑ ${stats.formatUploadSpeed()} ↓ ${stats.formatDownloadSpeed()} | ${stats.formatElapsed()}")
+                updateNotification("Connected")
             }
         }
     }
@@ -338,13 +339,7 @@ class KighmuVpnService : VpnService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Titre : "KIGHMU VPN • kiaje2.kingom.ggff.net • Maintenant."
-        val server = currentConfig.sshCredentials.host.ifBlank { currentConfig.httpProxy.proxyHost }
-        val serverShort = if (server.length > 20) server.take(20) + "..." else server
-        val title = buildString {
-            append("KIGHMU VPN")
-            if (serverShort.isNotBlank()) append(" • $serverShort")
-        }
+        val title = "KIGHMU VPN"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
