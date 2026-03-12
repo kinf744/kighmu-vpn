@@ -37,6 +37,19 @@ class MultiSlowDnsEngine(
             return engine.start()
         }
 
+        // Nettoyer les engines précédents avant de relancer (évite "address already in use")
+        KighmuLogger.info(TAG, "Nettoyage engines précédents (${engines.size})...")
+        synchronized(engines) {
+            engines.forEach { e ->
+                try { scope.launch { e.stop() } } catch (_: Exception) {}
+            }
+            engines.clear()
+        }
+        socksBalancer?.stop()
+        socksBalancer = null
+        // Attendre que les ports soient libérés
+        delay(1500)
+
         KighmuLogger.info(TAG, "=== STEP 1: Lancement ${selected.size} session(s) en parallèle ===")
 
         // STEP 1 : Lancer toutes les sessions en parallèle
