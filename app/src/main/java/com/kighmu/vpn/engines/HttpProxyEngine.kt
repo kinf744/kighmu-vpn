@@ -199,25 +199,27 @@ class HttpProxyEngine(
                     try {
                         val buf = ByteArray(8192)
                         var n: Int
-                        while (!proxySock.isClosed) {
+                        while (running && !proxySock.isClosed && !clientSock.isClosed) {
                             n = clientIn.read(buf)
                             if (n == -1) break
                             proxyOut.write(buf, 0, n)
                             proxyOut.flush()
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: java.io.InterruptedIOException) {}
+                    catch (_: Exception) {}
                 }.start()
                 // proxy -> client
                 try {
                     val buf = ByteArray(8192)
                     var n: Int
-                    while (!proxySock.isClosed) {
+                    while (running && !proxySock.isClosed && !clientSock.isClosed) {
                         n = proxyIn.read(buf)
                         if (n == -1) break
                         clientOut.write(buf, 0, n)
                         clientOut.flush()
                     }
-                } catch (_: Exception) {}
+                } catch (_: java.io.InterruptedIOException) {}
+                catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "Relay error: ${e.message}")
             }
@@ -264,9 +266,12 @@ class HttpProxyEngine(
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
-                tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
-                    if (running) KighmuLogger.info(TAG, "tun2socks: $line")
-                }
+                try {
+                    tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
+                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
+                    }
+                } catch (_: java.io.InterruptedIOException) {}
+                catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
@@ -278,6 +283,8 @@ class HttpProxyEngine(
         try { sshConnection?.close() } catch (_: Exception) {}
         try { proxySocket?.close() } catch (_: Exception) {}
         try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
+        try { tun2socksProcess?.inputStream?.close() } catch (_: Exception) {}
+        try { tun2socksProcess?.errorStream?.close() } catch (_: Exception) {}
         engineScope.cancel()
         KighmuLogger.info(TAG, "HttpProxyEngine arrete")
     }
