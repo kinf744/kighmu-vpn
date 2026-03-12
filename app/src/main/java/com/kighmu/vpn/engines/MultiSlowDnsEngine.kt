@@ -73,7 +73,17 @@ class MultiSlowDnsEngine(
             throw Exception("Aucune session SlowDNS connectée sur ${selected.size} tentatives")
         }
 
-        // STEP 3 : tun2socks démarré par KighmuVpnService via startTun2Socks()
+        // STEP 3 : Démarrer le balancer sur tous les ports SOCKS connectés
+        val connectedPorts = engines.filter { it.isRunning() }.mapIndexed { idx, _ ->
+            SlowDnsEngine.BASE_SOCKS_PORT + idx
+        }.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
+
+        KighmuLogger.info(TAG, "Ports SOCKS actifs: $connectedPorts")
+        val balancer = SocksBalancer(connectedPorts)
+        balancer.start()
+        socksBalancer = balancer
+
+        // STEP 4 : tun2socks démarré par KighmuVpnService via startTun2Socks()
         // On retourne le port de la première session connectée
         activePort = successPorts.first()
         KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port principal=$activePort, ${successPorts.size} tunnels actifs ===")

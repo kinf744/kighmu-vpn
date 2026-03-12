@@ -75,7 +75,15 @@ class SlowDnsEngine(
 
     private var tun2socksProcess: Process? = null
 
+    fun startTun2SocksOnPort(fd: Int, port: Int) {
+        startTun2SocksInternal(fd, port)
+    }
+
     override fun startTun2Socks(fd: Int) {
+        startTun2SocksInternal(fd, socksPort)
+    }
+
+    private fun startTun2SocksInternal(fd: Int, targetPort: Int) {
         KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
         engineScope.launch(Dispatchers.IO) {
             try {
@@ -94,7 +102,7 @@ class SlowDnsEngine(
                     "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.1",
                     "--netif-netmask", "255.255.255.0",
-                    "--socks-server-addr", "127.0.0.1:$socksPort",
+                    "--socks-server-addr", "127.0.0.1:$targetPort",
                     "--enable-udprelay",
                     "--loglevel", "4"
                 )
