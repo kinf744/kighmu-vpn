@@ -332,12 +332,27 @@ class KighmuVpnService : VpnService() {
             Intent(this, KighmuVpnService::class.java).apply { action = ACTION_STOP },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val reconnectIntent = PendingIntent.getService(
+            this, 2,
+            Intent(this, KighmuVpnService::class.java).apply { action = ACTION_START },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Titre : "KIGHMU VPN • kiaje2.kingom.ggff.net • Maintenant."
+        val server = currentConfig.sshCredentials.host.ifBlank { currentConfig.httpProxy.proxyHost }
+        val serverShort = if (server.length > 20) server.take(20) + "..." else server
+        val title = buildString {
+            append("KIGHMU VPN")
+            if (serverShort.isNotBlank()) append(" • $serverShort")
+        }
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("KIGHMU VPN")
+            .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_vpn_key)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_close, "Disconnect", stopIntent)
+            .addAction(R.drawable.ic_close, "Stop", stopIntent)
+            .addAction(R.drawable.ic_vpn_key, "Reconnect", reconnectIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
