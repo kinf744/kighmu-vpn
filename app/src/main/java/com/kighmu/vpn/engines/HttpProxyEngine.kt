@@ -74,24 +74,56 @@ class HttpProxyEngine(
         out.flush()
         KighmuLogger.info(TAG, "Payload envoyé ✓")
 
-        // ÉTAPE 3 : Lire la réponse HTTP et consommer TOUS les headers
+        // ÉTAPE 3 : Lire et traiter la réponse selon le type de payload
         KighmuLogger.info(TAG, "ÉTAPE 3: Lecture réponse proxy...")
+        val isConnect = payload.trimStart().startsWith("CONNECT", ignoreCase = true)
+        val isUpgrade = payload.contains("Upgrade", ignoreCase = true) ||
+                        payload.contains("websocket", ignoreCase = true)
+
         val firstLine = readLine(inp)
         KighmuLogger.info(TAG, "Proxy réponse: $firstLine")
 
-        if (!firstLine.contains("200")) {
-            throw Exception("Proxy refusé: $firstLine")
-        }
-
-        // Consommer tous les headers restants jusqu'à ligne vide
-        var headerLine = ""
-        do {
-            headerLine = readLine(inp)
-            if (headerLine.isNotEmpty()) {
-                KighmuLogger.info(TAG, "Header: $headerLine")
+        if (isConnect) {
+            // CONNECT : doit retourner 200
+            if (!firstLine.contains("200")) {
+                throw Exception("Proxy CONNECT refusé: $firstLine")
             }
-        } while (headerLine.isNotEmpty())
-        KighmuLogger.info(TAG, "Headers consommés ✓ - tunnel TCP prêt pour SSH")
+            // Consommer tous les headers
+            var h = ""
+            do {
+                h = readLine(inp)
+                if (h.isNotEmpty()) KighmuLogger.info(TAG, "Header: $h")
+            } while (h.isNotEmpty())
+            KighmuLogger.info(TAG, "Tunnel CONNECT établi ✓")
+
+        } else if (isUpgrade) {
+            // WebSocket Upgrade : doit retourner 101 Switching Protocols
+            if (!firstLine.contains("101")) {
+                KighmuLogger.warning(TAG, "Upgrade inattendu: $firstLine - on continue quand même")
+            }
+            // Consommer headers jusqu'à ligne vide
+            var h = ""
+            do {
+                h = readLine(inp)
+                if (h.isNotEmpty()) KighmuLogger.info(TAG, "Header: $h")
+            } while (h.isNotEmpty())
+            KighmuLogger.info(TAG, "Tunnel WebSocket Upgrade établi ✓")
+
+        } else {
+            // GET/POST/autres : le proxy peut répondre 200 ou 101
+            // On consomme tout jusqu'à ligne vide et on tente SSH directement
+            KighmuLogger.info(TAG, "Payload non-CONNECT ($firstLine) - consommation headers...")
+            if (firstLine.contains("400") || firstLine.contains("403") ||
+                firstLine.contains("407") || firstLine.contains("502")) {
+                throw Exception("Proxy erreur: $firstLine")
+            }
+            var h = ""
+            do {
+                h = readLine(inp)
+                if (h.isNotEmpty()) KighmuLogger.info(TAG, "Header: $h")
+            } while (h.isNotEmpty())
+            KighmuLogger.info(TAG, "Headers consommés - tentative SSH directe ✓")
+        }
 
         // ÉTAPE 4 : Relay local - écouter sur port aléatoire, relayer vers socket proxy
         KighmuLogger.info(TAG, "ÉTAPE 4: Démarrage relay local pour SSH...")
