@@ -70,8 +70,8 @@ class HttpProxyEngine(
             "Proxy-Connection: Keep-Alive${CRLF}${CRLF}"
         }
 
-        out.write(payload.toByteArray(Charsets.ISO_8859_1))
-        out.flush()
+        // Technique HTTP Injector : envoyer payload avec méthode optimale
+        sendPayload(out, payload)
         KighmuLogger.info(TAG, "Payload envoyé ✓")
 
         // ÉTAPE 3 : Lire et traiter la réponse selon le type de payload
@@ -149,6 +149,45 @@ class HttpProxyEngine(
         sshConnection = conn
         KighmuLogger.info(TAG, "=== HTTP Proxy Tunnel ACTIF port=$LOCAL_SOCKS_PORT ===")
         LOCAL_SOCKS_PORT
+    }
+
+    // Technique HTTP Injector : envoi payload optimisé
+    private fun sendPayload(out: OutputStream, payload: String) {
+        val bytes = payload.toByteArray(Charsets.ISO_8859_1)
+
+        // Détecter si split est nécessaire (présence de [split] dans payload original)
+        if (proxy.customPayload.contains("[split]", ignoreCase = true)) {
+            // Split au niveau du [split] marker
+            val splitPayload = proxy.customPayload
+                .replace("[host]", ssh.host).replace("[HOST]", ssh.host)
+                .replace("[port]", ssh.port.toString()).replace("[PORT]", ssh.port.toString())
+                .replace("[crlf]", CRLF).replace("[CRLF]", CRLF)
+                .replace("[cr]", "").replace("[lf]", "
+")
+                .replace("\r\n", CRLF).replace("\n", CRLF)
+            val parts = splitPayload.split("[split]", ignoreCase = true)
+            parts.forEachIndexed { idx, part ->
+                out.write(part.toByteArray(Charsets.ISO_8859_1))
+                out.flush()
+                if (idx < parts.size - 1) {
+                    KighmuLogger.info(TAG, "Split fragment ${idx+1}/${parts.size} envoyé")
+                    Thread.sleep(200) // délai entre fragments
+                }
+            }
+        } else if (proxy.customPayload.contains("[delay]", ignoreCase = true)) {
+            // Slow headers - envoyer ligne par ligne avec délai
+            val lines = payload.split(CRLF)
+            lines.forEachIndexed { idx, line ->
+                val lineData = if (idx < lines.size - 1) "$line$CRLF" else line
+                out.write(lineData.toByteArray(Charsets.ISO_8859_1))
+                out.flush()
+                Thread.sleep(100)
+            }
+        } else {
+            // Envoi normal en un seul bloc
+            out.write(bytes)
+            out.flush()
+        }
     }
 
     // Relay TCP local - relaie la socket proxy vers un port local pour trilead
