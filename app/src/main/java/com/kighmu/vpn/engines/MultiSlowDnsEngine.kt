@@ -6,6 +6,7 @@ import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.profiles.ProfileRepository
 import com.kighmu.vpn.profiles.SlowDnsProfile
 import com.kighmu.vpn.utils.KighmuLogger
+import com.kighmu.vpn.engines.SocksBalancer
 import kotlinx.coroutines.*
 
 class MultiSlowDnsEngine(
@@ -23,6 +24,7 @@ class MultiSlowDnsEngine(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var activePort = 10800
     private var tunFd: Int = -1
+    private var socksBalancer: SocksBalancer? = null
 
     override suspend fun start(): Int {
         val repo = ProfileRepository(context)
