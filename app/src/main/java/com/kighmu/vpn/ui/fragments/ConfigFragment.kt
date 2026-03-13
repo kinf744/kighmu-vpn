@@ -31,6 +31,7 @@ class ConfigFragment : Fragment() {
     private var dnsProfileAdapter: DnsProfileAdapter? = null
     private var slowDnsProfileAdapter: SlowDnsProfileAdapter? = null
     private var parsedJsonFromLink: String = ""
+    private var parsedJsonFromV2dnsLink: String = ""
     private lateinit var profileRepo: ProfileRepository
     private val viewModel: MainViewModel by activityViewModels()
     private var currentTab = 0
@@ -145,7 +146,21 @@ class ConfigFragment : Fragment() {
         view.findViewById<Button>(R.id.btn_parse_v2dns_link).setOnClickListener {
             val link = view.findViewById<EditText>(R.id.et_v2dns_link).text.toString()
             val status = view.findViewById<TextView>(R.id.tv_v2dns_link_status)
-            validateLink(link, status)
+            try {
+                val json = parseLinkToJson(link)
+                if (json != null) {
+                    parsedJsonFromV2dnsLink = json
+                    status.text = "✓ Config générée avec succès"
+                    status.setTextColor(0xFF00C853.toInt())
+                    saveConfig(view)
+                } else {
+                    status.text = "❌ Format invalide. Utilisez vmess:// vless:// trojan://"
+                    status.setTextColor(0xFFFF5252.toInt())
+                }
+            } catch (e: Exception) {
+                status.text = "❌ Erreur: ${e.message}"
+                status.setTextColor(0xFFFF5252.toInt())
+            }
         }
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener {
@@ -393,9 +408,12 @@ class ConfigFragment : Fragment() {
             tvXrayWarning.visibility = android.view.View.VISIBLE
             return
         }
-        val xrayJson = when (rgXray.checkedRadioButtonId) {
+        // Mode V2RAY_SLOWDNS: utiliser le JSON parsé depuis le lien V2DNS
+        val isV2dnsMode = currentTab == 5
+        val xrayJson = if (isV2dnsMode && parsedJsonFromV2dnsLink.isNotBlank()) {
+            parsedJsonFromV2dnsLink
+        } else when (rgXray.checkedRadioButtonId) {
             R.id.rb_xray_link -> {
-                // Utiliser le JSON parsé depuis le lien, sinon relire le champ
                 if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink
                 else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
             }
