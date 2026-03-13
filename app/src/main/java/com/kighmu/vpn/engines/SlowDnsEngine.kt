@@ -192,7 +192,6 @@ class SlowDnsEngine(
         throw Exception("dnstt n'a pas démarré dans les temps")
     }
 
-    fun getDnsttPort() = dnsttPort
 
     private fun startDnsttProcess(bin: File) {
         val cmd = listOf(
