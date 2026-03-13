@@ -30,6 +30,7 @@ import com.kighmu.vpn.profiles.SlowDnsProfile
 class ConfigFragment : Fragment() {
     private var dnsProfileAdapter: DnsProfileAdapter? = null
     private var slowDnsProfileAdapter: SlowDnsProfileAdapter? = null
+    private var parsedJsonFromLink: String = ""
     private lateinit var profileRepo: ProfileRepository
     private val viewModel: MainViewModel by activityViewModels()
     private var currentTab = 0
@@ -114,9 +115,6 @@ class ConfigFragment : Fragment() {
         view.findViewById<Button>(R.id.btn_select_all_json).setOnClickListener {
             etJson.selectAll()
         }
-
-        // Variable pour stocker le JSON parsé depuis un lien
-        var parsedJsonFromLink: String = ""
 
         // RadioGroup : afficher/cacher panels Link ou JSON
         val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
