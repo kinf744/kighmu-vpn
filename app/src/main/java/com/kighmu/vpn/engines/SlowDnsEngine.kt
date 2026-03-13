@@ -177,17 +177,20 @@ class SlowDnsEngine(
         startDnsttProcess(dnsttBin)
         // Attendre que dnstt soit prêt
         KighmuLogger.info(TAG, "Attente dnstt pret...")
-        var waited = 0
-        while (waited < 30000) {
-            delay(500)
-            waited += 500
+        delay(5000)
+        var waited = 5000
+        while (waited < 90000) {
             try {
                 java.net.Socket().use { s ->
-                    s.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 200)
-                    KighmuLogger.info(TAG, "dnstt pret en ${waited}ms sur port $dnsttPort")
+                    s.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 1000)
+                    KighmuLogger.info(TAG, "dnstt TCP pret en ${waited}ms sur port $dnsttPort")
                     return dnsttPort
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                KighmuLogger.info(TAG, "dnstt pas encore pret (${waited}ms)...")
+            }
+            delay(2000)
+            waited += 2000
         }
         throw Exception("dnstt n'a pas démarré dans les temps")
     }
