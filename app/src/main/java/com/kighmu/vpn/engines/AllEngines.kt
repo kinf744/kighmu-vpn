@@ -297,14 +297,31 @@ class XrayEngine(
         } else {
             buildXrayConfigFromFields(xrayConfig)
         }
-        // Supprimer toute règle geoip/geosite qui nécessite des fichiers .dat
-        jsonConfig = jsonConfig
-            .replace("""{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}""", "")
-            .replace(""""routing": {"rules":[{"type": "field","ip": ["geoip:private"], "outboundTag":"direct"}]}""",
-                     """"routing": {"rules":[]}""")
-            .replace(""""routing": {"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}""",
-                     """"routing": {"rules":[]}""")
-        // LOG config pour debug
+        // Nettoyer geoip/geosite via JSON parsing
+        try {
+            val obj = org.json.JSONObject(jsonConfig)
+            val routing = obj.optJSONObject("routing")
+            if (routing != null) {
+                val rules = routing.optJSONArray("rules")
+                if (rules != null) {
+                    val cleaned = org.json.JSONArray()
+                    for (i in 0 until rules.length()) {
+                        val rule = rules.getJSONObject(i)
+                        val ip = rule.optJSONArray("ip")?.toString() ?: ""
+                        val domain = rule.optJSONArray("domain")?.toString() ?: ""
+                        if (!ip.contains("geoip:") && !domain.contains("geosite:")) {
+                            cleaned.put(rule)
+                        }
+                    }
+                    routing.put("rules", cleaned)
+                    obj.put("routing", routing)
+                    jsonConfig = obj.toString(2)
+                    KighmuLogger.info(TAG, "Routing nettoyé: ${cleaned.length()} règles")
+                }
+            }
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "JSON cleanup error: ${e.message}")
+        }
         KighmuLogger.info(TAG, "=== XRAY CONFIG ===")
         jsonConfig.lines().forEach { KighmuLogger.info(TAG, "xray.cfg: $it") }
         KighmuLogger.info(TAG, "=== END XRAY CONFIG ===")
@@ -312,7 +329,6 @@ class XrayEngine(
         file.writeText(jsonConfig)
         return file
     }
-
     private fun buildXrayConfigFromFields(xc: com.kighmu.vpn.models.XrayConfig): String {
         val transport = when (xc.transport) {
             "ws" -> """
