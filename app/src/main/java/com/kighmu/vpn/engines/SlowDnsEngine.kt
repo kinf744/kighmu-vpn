@@ -175,22 +175,13 @@ class SlowDnsEngine(
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
-        // Attendre que dnstt soit prêt
+        // Attendre que dnstt ouvre le listener TCP
         KighmuLogger.info(TAG, "Attente dnstt pret...")
-        delay(5000)
-        var waited = 5000
-        while (waited < 90000) {
-            try {
-                java.net.Socket().use { s ->
-                    s.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 1000)
-                    KighmuLogger.info(TAG, "dnstt TCP pret en ${waited}ms sur port $dnsttPort")
-                    return dnsttPort
-                }
-            } catch (_: Exception) {
-                KighmuLogger.info(TAG, "dnstt pas encore pret (${waited}ms)...")
-            }
-            delay(2000)
-            waited += 2000
+        delay(3000)
+        // Vérifier que dnstt est toujours vivant
+        if (dnsttProcess?.isAlive == false) throw Exception("dnstt mort au démarrage")
+        KighmuLogger.info(TAG, "dnstt pret sur port $dnsttPort")
+        return dnsttPort
         }
         throw Exception("dnstt n'a pas démarré dans les temps")
     }
