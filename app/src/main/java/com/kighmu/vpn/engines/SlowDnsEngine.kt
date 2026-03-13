@@ -182,8 +182,6 @@ class SlowDnsEngine(
         if (dnsttProcess?.isAlive == false) throw Exception("dnstt mort au démarrage")
         KighmuLogger.info(TAG, "dnstt pret sur port $dnsttPort")
         return dnsttPort
-        }
-        throw Exception("dnstt n'a pas démarré dans les temps")
     }
 
 
