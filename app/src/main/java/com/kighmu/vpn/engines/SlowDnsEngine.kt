@@ -217,11 +217,6 @@ class SlowDnsEngine(
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
         try {
-            // Tuer via PID SIGKILL pour libérer le port immédiatement
-            val pid = dnsttProcess?.pid()
-            if (pid != null) {
-                Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString()))
-            }
             dnsttProcess?.destroyForcibly()
             dnsttProcess?.destroy()
         } catch (_: Exception) {}
