@@ -345,34 +345,23 @@ class XrayEngine(
                     KighmuLogger.info(TAG, "Routing nettoyé: ${cleaned.length()} règles")
                 }
             }
-            // Ajouter proxySettings si mode V2RAY_SLOWDNS (dnsttProxyPort > 0)
+            // Mode V2RAY_SLOWDNS: remplacer address/port par 127.0.0.1:dnsttPort
             if (dnsttProxyPort > 0) {
                 val outbounds = obj.optJSONArray("outbounds")
                 if (outbounds != null) {
-                    // Ajouter outbound socks vers dnstt
-                    val socksOut = org.json.JSONObject()
-                    socksOut.put("tag", "dnstt-out")
-                    socksOut.put("protocol", "socks")
-                    val socksSettings = org.json.JSONObject()
-                    val servers = org.json.JSONArray()
-                    val server = org.json.JSONObject()
-                    server.put("address", "127.0.0.1")
-                    server.put("port", dnsttProxyPort)
-                    servers.put(server)
-                    socksSettings.put("servers", servers)
-                    socksOut.put("settings", socksSettings)
-                    outbounds.put(socksOut)
-                    // Ajouter proxySettings sur le outbound principal
                     for (i in 0 until outbounds.length()) {
                         val ob = outbounds.getJSONObject(i)
                         val proto = ob.optString("protocol")
                         val tag = ob.optString("tag", "")
-                        if (proto != "freedom" && proto != "blackhole" && proto != "socks" && tag != "direct" && tag != "dnstt-out") {
-                            val proxy = org.json.JSONObject()
-                            proxy.put("tag", "dnstt-out")
-                            proxy.put("transportLayer", true)
-                            ob.put("proxySettings", proxy)
-                            KighmuLogger.info(TAG, "proxySettings -> dnstt:$dnsttProxyPort sur $proto/$tag")
+                        if (proto != "freedom" && proto != "blackhole" && proto != "socks" && tag != "direct") {
+                            val settings = ob.optJSONObject("settings")
+                            val vnext = settings?.optJSONArray("vnext")
+                            if (vnext != null && vnext.length() > 0) {
+                                val server = vnext.getJSONObject(0)
+                                server.put("address", "127.0.0.1")
+                                server.put("port", dnsttProxyPort)
+                                KighmuLogger.info(TAG, "dnstt: address=127.0.0.1 port=$dnsttProxyPort pour $proto")
+                            }
                         }
                     }
                     obj.put("outbounds", outbounds)
