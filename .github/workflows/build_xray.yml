@@ -1,0 +1,48 @@
+name: Build Xray for Android ARM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+
+      - name: Clone Xray-core
+        run: git clone https://github.com/XTLS/Xray-core.git
+
+      - name: Build Xray armeabi-v7a
+        run: |
+          cd Xray-core
+          export CC=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang
+          export CXX=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++
+          CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 \
+          go build \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o ../libxray-arm.so \
+            ./main
+          ls -lh ../libxray-arm.so
+
+      - name: Compress with UPX
+        run: |
+          sudo apt-get install -y upx
+          upx --best --lzma libxray-arm.so || true
+          ls -lh libxray-arm.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libxray-armeabi-v7a
+          path: libxray-arm.so
