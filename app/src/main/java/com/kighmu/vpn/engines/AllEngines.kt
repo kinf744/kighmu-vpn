@@ -465,20 +465,40 @@ class XrayEngine(
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {
-                val tun2socksLib = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-                val cmd = arrayOf(
-                    tun2socksLib.absolutePath,
+                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
+                bin.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_xray.sock"
+                File(sockPath).delete()
+                val cmd = listOf(
+                    bin.absolutePath,
+                    "--sock-path", sockPath,
+                    "--tunmtu", "1500",
                     "--netif-ipaddr", "10.0.0.2",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$socksPort",
-                    "--tunfd", fd.toString(),
-                    "--tunmtu", "1500",
-                    "--loglevel", "3"
+                    "--enable-udprelay",
+                    "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
-                val proc = Runtime.getRuntime().exec(cmd)
-                Thread { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } }.start()
-                Thread { proc.inputStream.bufferedReader().forEachLine { KighmuLogger.info(TAG, "[tun2socks] $it") } }.start()
+                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
+                Thread {
+                    try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {}
+                }.start()
+                delay(500)
+                try {
+                    val localSocket = android.net.LocalSocket()
+                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                    localSocket.outputStream.write(1)
+                    localSocket.outputStream.flush()
+                    localSocket.close()
+                    KighmuLogger.info(TAG, "fd $fd envoye via sock-path")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
+                }
+                try { proc.inputStream.bufferedReader().forEachLine { KighmuLogger.info(TAG, "[tun2socks] $it") } } catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
