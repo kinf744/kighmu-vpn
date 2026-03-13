@@ -180,7 +180,6 @@ data class KighmuConfig(
     @SerializedName("slowDns") var slowDns: SlowDnsConfig = SlowDnsConfig(),
     @SerializedName("slowDnsProfiles") var slowDnsProfiles: MutableList<SlowDnsConfig> = mutableListOf(),
     @SerializedName("exportConfig") var exportConfig: ExportConfig? = null,
-    @SerializedName("xrayConfig") var xrayConfig: XrayConfig = XrayConfig(),
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),

@@ -133,15 +133,113 @@ class ConfigFragment : Fragment() {
     }
 
     private fun validateLink(link: String, statusView: TextView) {
-        val valid = link.startsWith("vmess://") || link.startsWith("vless://") ||
-                    link.startsWith("trojan://") || link.startsWith("socks://")
-        if (valid) {
-            statusView.text = "Valid link"
-            statusView.setTextColor(0xFF00C853.toInt())
-        } else {
-            statusView.text = "Invalid link. Must start with vmess://, vless://, trojan:// or socks://"
+        if (link.isBlank()) return
+        try {
+            val json = parseLinkToJson(link)
+            if (json != null) {
+                view?.findViewById<android.widget.EditText>(R.id.et_xray_json)?.setText(json)
+                statusView.text = "✓ Config générée avec succès"
+                statusView.setTextColor(0xFF00C853.toInt())
+            } else {
+                statusView.text = "❌ Format invalide. Utilisez vmess:// vless:// trojan://"
+                statusView.setTextColor(0xFFFF5252.toInt())
+            }
+        } catch (e: Exception) {
+            statusView.text = "❌ Erreur: ${e.message}"
             statusView.setTextColor(0xFFFF5252.toInt())
         }
+    }
+
+    private fun parseLinkToJson(link: String): String? {
+        return when {
+            link.startsWith("vmess://") -> parseVmess(link)
+            link.startsWith("vless://") -> parseVless(link)
+            link.startsWith("trojan://") -> parseTrojan(link)
+            else -> null
+        }
+    }
+
+    private fun parseVmess(link: String): String {
+        val b64 = link.removePrefix("vmess://")
+        val decoded = String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
+        val obj = org.json.JSONObject(decoded)
+        val add = obj.optString("add", "")
+        val port = obj.optInt("port", 443)
+        val id = obj.optString("id", "")
+        val net = obj.optString("net", "tcp")
+        val path = obj.optString("path", "/")
+        val host = obj.optString("host", "")
+        val tls = obj.optString("tls", "") == "tls"
+        val sni = obj.optString("sni", host)
+        val security = if (tls) "tls" else "none"
+        val wsSettings = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
+        val tlsSettings = if (tls) ""","tlsSettings":{"serverName":"$sni","allowInsecure":false}""" else ""
+        return """{
+  "log":{"loglevel":"warning"},
+  "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
+  "outbounds":[{
+    "protocol":"vmess",
+    "settings":{"vnext":[{"address":"$add","port":$port,"users":[{"id":"$id","alterId":0,"security":"auto"}]}]},
+    "streamSettings":{"network":"$net","security":"$security"$wsSettings$tlsSettings}
+  },{"protocol":"freedom","tag":"direct"}],
+  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
+}"""
+    }
+
+    private fun parseVless(link: String): String {
+        val uri = android.net.Uri.parse(link)
+        val uuid = uri.userInfo ?: ""
+        val address = uri.host ?: ""
+        val port = uri.port.takeIf { it > 0 } ?: 443
+        val flow = uri.getQueryParameter("flow") ?: ""
+        val net = uri.getQueryParameter("type") ?: "tcp"
+        val security = uri.getQueryParameter("security") ?: "none"
+        val sni = uri.getQueryParameter("sni") ?: address
+        val path = uri.getQueryParameter("path") ?: "/"
+        val host = uri.getQueryParameter("host") ?: address
+        val fp = uri.getQueryParameter("fp") ?: "chrome"
+        val pbk = uri.getQueryParameter("pbk") ?: ""
+        val sid = uri.getQueryParameter("sid") ?: ""
+        val tlsBlock = when (security) {
+            "tls" -> ""","tlsSettings":{"serverName":"$sni","allowInsecure":false,"fingerprint":"$fp"}"""
+            "reality" -> ""","realitySettings":{"serverName":"$sni","fingerprint":"$fp","publicKey":"$pbk","shortId":"$sid"}"""
+            else -> ""
+        }
+        val wsBlock = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
+        val grpcBlock = if (net == "grpc") ""","grpcSettings":{"serviceName":"$path"}""" else ""
+        val flowBlock = if (flow.isNotBlank()) """"flow":"$flow",""" else ""
+        return """{
+  "log":{"loglevel":"warning"},
+  "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
+  "outbounds":[{
+    "protocol":"vless",
+    "settings":{"vnext":[{"address":"$address","port":$port,"users":[{${flowBlock}"id":"$uuid","encryption":"none"}]}]},
+    "streamSettings":{"network":"$net","security":"$security"$tlsBlock$wsBlock$grpcBlock}
+  },{"protocol":"freedom","tag":"direct"}],
+  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
+}"""
+    }
+
+    private fun parseTrojan(link: String): String {
+        val uri = android.net.Uri.parse(link)
+        val password = uri.userInfo ?: ""
+        val address = uri.host ?: ""
+        val port = uri.port.takeIf { it > 0 } ?: 443
+        val sni = uri.getQueryParameter("sni") ?: address
+        val net = uri.getQueryParameter("type") ?: "tcp"
+        val path = uri.getQueryParameter("path") ?: "/"
+        val host = uri.getQueryParameter("host") ?: address
+        val wsBlock = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
+        return """{
+  "log":{"loglevel":"warning"},
+  "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
+  "outbounds":[{
+    "protocol":"trojan",
+    "settings":{"servers":[{"address":"$address","port":$port,"password":"$password"}]},
+    "streamSettings":{"network":"$net","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false}$wsBlock}
+  },{"protocol":"freedom","tag":"direct"}],
+  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
+}"""
     }
 
     private fun validateJson(json: String, statusView: TextView) {
@@ -256,6 +354,7 @@ class ConfigFragment : Fragment() {
         )
         viewModel.saveConfig(c.copy(
             sshCredentials = ssh, slowDns = dns, httpProxy = http, hysteria = hys,
+            xray = xray,
             slowDnsProfiles = dnsProfileAdapter?.getProfiles() ?: mutableListOf()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
