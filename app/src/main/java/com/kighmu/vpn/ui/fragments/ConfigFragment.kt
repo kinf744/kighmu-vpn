@@ -115,6 +115,26 @@ class ConfigFragment : Fragment() {
             etJson.selectAll()
         }
 
+        // RadioGroup : afficher/cacher panels Link ou JSON
+        val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+        val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+        val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+        val tvWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
+
+        rgMode.setOnCheckedChangeListener { _, checkedId ->
+            tvWarning.visibility = android.view.View.GONE
+            when (checkedId) {
+                R.id.rb_xray_link -> {
+                    panelLink.visibility = android.view.View.VISIBLE
+                    panelJson.visibility = android.view.View.GONE
+                }
+                R.id.rb_xray_json -> {
+                    panelLink.visibility = android.view.View.GONE
+                    panelJson.visibility = android.view.View.VISIBLE
+                }
+            }
+        }
+
         view.findViewById<Button>(R.id.btn_parse_link).setOnClickListener {
             val link = view.findViewById<EditText>(R.id.et_xray_link).text.toString()
             val status = view.findViewById<TextView>(R.id.tv_link_status)
@@ -301,6 +321,23 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ssl_port).setText(c.sshSsl.sslPort.toString())
         view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
         view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
+        // Restaurer le mode radio sélectionné
+        val savedMode = c.xray.inputMode
+        val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+        val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+        val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+        when (savedMode) {
+            "link" -> {
+                rgRestore.check(R.id.rb_xray_link)
+                pLink.visibility = android.view.View.VISIBLE
+                pJson.visibility = android.view.View.GONE
+            }
+            "json" -> {
+                rgRestore.check(R.id.rb_xray_json)
+                pLink.visibility = android.view.View.GONE
+                pJson.visibility = android.view.View.VISIBLE
+            }
+        }
         view.findViewById<EditText>(R.id.et_v2dns_nameserver).setText(c.slowDns.nameserver)
         view.findViewById<EditText>(R.id.et_v2dns_pubkey).setText(c.slowDns.publicKey)
         view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
@@ -340,8 +377,22 @@ class ConfigFragment : Fragment() {
             sslPort = view.findViewById<EditText>(R.id.et_ssl_port).text.toString().toIntOrNull() ?: 443,
             sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
         )
+        // Vérifier que le mode Xray est sélectionné si on est en mode V2RAY_XRAY
+        val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+        val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
+        if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY &&
+            rgXray.checkedRadioButtonId == -1) {
+            tvXrayWarning.visibility = android.view.View.VISIBLE
+            return
+        }
+        val xrayJson = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
         val xray = c.xray.copy(
-            jsonConfig = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+            jsonConfig = xrayJson,
+            inputMode = when (rgXray.checkedRadioButtonId) {
+                R.id.rb_xray_link -> "link"
+                R.id.rb_xray_json -> "json"
+                else -> c.xray.inputMode
+            }
         )
         val hys = c.hysteria.copy(
             serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),

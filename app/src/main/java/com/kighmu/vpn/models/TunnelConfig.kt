@@ -116,7 +116,8 @@ data class XrayConfig(
     @SerializedName("wsHost") var wsHost: String = "",
     @SerializedName("tls") var tls: Boolean = true,
     @SerializedName("sni") var sni: String = "",
-    @SerializedName("allowInsecure") var allowInsecure: Boolean = false
+    @SerializedName("allowInsecure") var allowInsecure: Boolean = false,
+    @SerializedName("inputMode") var inputMode: String = ""  // "link" | "json" | ""
 ) {
     companion object {
         const val defaultXrayConfig = """{
