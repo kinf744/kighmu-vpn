@@ -257,18 +257,32 @@ class XrayEngine(
         KighmuLogger.info(TAG, "Starting Xray engine")
 
         withContext(Dispatchers.IO) {
-            try {
-                val xrayConfigFile = writeXrayConfig()
-                val xrayBinary = extractXrayBinary()
-                if (xrayBinary != null) {
+            val xrayConfigFile = writeXrayConfig()
+            val xrayBinary = extractXrayBinary()
+            if (xrayBinary != null) {
+                try {
                     startXrayProcess(xrayBinary, xrayConfigFile)
-                } else {
-                    KighmuLogger.error(TAG, "Xray binary not found, using built-in SOCKS proxy")
-                    startFallbackProxy()
+                    // Attendre que Xray soit prêt sur le port
+                    var ready = false
+                    repeat(20) {
+                        if (!ready) {
+                            delay(500)
+                            try {
+                                val s = java.net.Socket()
+                                s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 200)
+                                s.close()
+                                ready = true
+                                KighmuLogger.info(TAG, "Xray SOCKS5 pret sur port $LOCAL_SOCKS_PORT")
+                            } catch (_: Exception) {}
+                        }
+                    }
+                    if (!ready) throw Exception("Xray n'a pas demarre dans les temps")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "Xray start error: ${e.message}")
+                    throw e
                 }
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "Xray start error: ${e.message}")
-                startFallbackProxy()
+            } else {
+                throw Exception("Xray binary introuvable - verifiez libxray.so dans jniLibs")
             }
         }
 
