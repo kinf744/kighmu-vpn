@@ -340,6 +340,8 @@ class ConfigFragment : Fragment() {
                 pJson.visibility = android.view.View.VISIBLE
             }
         }
+        view.findViewById<EditText>(R.id.et_v2dns_dns_server).setText(c.slowDns.dnsServer)
+        view.findViewById<EditText>(R.id.et_v2dns_dns_port).setText(c.slowDns.dnsPort.toString())
         view.findViewById<EditText>(R.id.et_v2dns_nameserver).setText(c.slowDns.nameserver)
         view.findViewById<EditText>(R.id.et_v2dns_pubkey).setText(c.slowDns.publicKey)
         view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
@@ -359,8 +361,12 @@ class ConfigFragment : Fragment() {
             username = view.findViewById<EditText>(R.id.et_ssh_user).text.toString(),
             password = view.findViewById<EditText>(R.id.et_ssh_pass).text.toString()
         )
+        val v2dnsDnsServer = view.findViewById<EditText>(R.id.et_v2dns_dns_server).text.toString().trim()
+        val v2dnsDnsPort = view.findViewById<EditText>(R.id.et_v2dns_dns_port).text.toString().toIntOrNull() ?: 53
         val dns = c.slowDns.copy(
-            dnsServer = profileRepo.getSelected().firstOrNull()?.dnsServer ?: "8.8.8.8",
+            dnsServer = if (c.mode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS && v2dnsDnsServer.isNotBlank()) v2dnsDnsServer
+                        else profileRepo.getSelected().firstOrNull()?.dnsServer ?: "8.8.8.8",
+            dnsPort = if (c.mode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS) v2dnsDnsPort else c.slowDns.dnsPort,
             nameserver = profileRepo.getSelected().firstOrNull()?.nameserver ?: "",
             publicKey = profileRepo.getSelected().firstOrNull()?.publicKey ?: ""
         )
