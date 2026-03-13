@@ -364,8 +364,36 @@ class XrayEngine(
     private fun startXrayProcess(binary: File, configFile: File) {
         val cmd = arrayOf(binary.absolutePath, "run", "-c", configFile.absolutePath)
         xrayProcess = Runtime.getRuntime().exec(cmd)
-        engineScope.launch { xrayProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[xray] $it") } }
-        engineScope.launch { xrayProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[xray err] $it") } }
+        val proc = xrayProcess!!
+        // Thread séparé pour stderr - survit au cancel du scope
+        Thread {
+            try {
+                val sb = StringBuilder()
+                val es = proc.errorStream
+                while (true) {
+                    val b = es.read()
+                    if (b == -1) break
+                    if (b == '\n'.code) {
+                        if (sb.isNotEmpty()) KighmuLogger.error(TAG, "[xray] $sb")
+                        sb.clear()
+                    } else if (b != '\r'.code) sb.append(b.toChar())
+                }
+            } catch (_: Exception) {}
+        }.start()
+        Thread {
+            try {
+                val sb = StringBuilder()
+                val is2 = proc.inputStream
+                while (true) {
+                    val b = is2.read()
+                    if (b == -1) break
+                    if (b == '\n'.code) {
+                        if (sb.isNotEmpty()) KighmuLogger.info(TAG, "[xray] $sb")
+                        sb.clear()
+                    } else if (b != '\r'.code) sb.append(b.toChar())
+                }
+            } catch (_: Exception) {}
+        }.start()
         KighmuLogger.info(TAG, "Xray process started")
     }
 
