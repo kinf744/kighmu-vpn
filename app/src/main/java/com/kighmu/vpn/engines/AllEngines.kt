@@ -291,12 +291,19 @@ class XrayEngine(
 
     private fun writeXrayConfig(): File {
         val xrayConfig = config.xray
-        val jsonConfig = if (xrayConfig.jsonConfig.isNotBlank() &&
+        var jsonConfig = if (xrayConfig.jsonConfig.isNotBlank() &&
             xrayConfig.jsonConfig != XrayConfig.defaultXrayConfig) {
             xrayConfig.jsonConfig
         } else {
             buildXrayConfigFromFields(xrayConfig)
         }
+        // Supprimer toute règle geoip/geosite qui nécessite des fichiers .dat
+        jsonConfig = jsonConfig
+            .replace("""{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}""", "")
+            .replace(""""routing": {"rules":[{"type": "field","ip": ["geoip:private"], "outboundTag":"direct"}]}""",
+                     """"routing": {"rules":[]}""")
+            .replace(""""routing": {"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}""",
+                     """"routing": {"rules":[]}""")
         // LOG config pour debug
         KighmuLogger.info(TAG, "=== XRAY CONFIG ===")
         jsonConfig.lines().forEach { KighmuLogger.info(TAG, "xray.cfg: $it") }
