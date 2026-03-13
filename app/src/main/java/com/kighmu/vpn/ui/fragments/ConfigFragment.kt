@@ -410,8 +410,12 @@ class ConfigFragment : Fragment() {
         }
         // Mode V2RAY_SLOWDNS: utiliser le JSON parsé depuis le lien V2DNS
         val isV2dnsMode = currentTab == 5
-        val xrayJson = if (isV2dnsMode && parsedJsonFromV2dnsLink.isNotBlank()) {
-            parsedJsonFromV2dnsLink
+        val xrayJson = if (isV2dnsMode) {
+            when {
+                parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
+                c.xray.jsonConfig.isNotBlank() && c.xray.jsonConfig != com.kighmu.vpn.models.XrayConfig.defaultXrayConfig -> c.xray.jsonConfig
+                else -> ""
+            }
         } else when (rgXray.checkedRadioButtonId) {
             R.id.rb_xray_link -> {
                 if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink
