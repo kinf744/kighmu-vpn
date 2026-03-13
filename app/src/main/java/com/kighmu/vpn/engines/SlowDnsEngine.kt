@@ -167,6 +167,33 @@ class SlowDnsEngine(
         return binFile
     }
 
+    // Démarrer seulement dnstt sans SSH - pour XraySlowDnsEngine
+    suspend fun startDnsttOnly(): Int {
+        running = true
+        val dns = config.slowDns
+        if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
+        if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
+        val dnsttBin = extractDnsttBinary()
+        startDnsttProcess(dnsttBin)
+        // Attendre que dnstt soit prêt
+        KighmuLogger.info(TAG, "Attente dnstt pret...")
+        var waited = 0
+        while (waited < 30000) {
+            delay(500)
+            waited += 500
+            try {
+                java.net.Socket().use { s ->
+                    s.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 200)
+                    KighmuLogger.info(TAG, "dnstt pret en ${waited}ms sur port $dnsttPort")
+                    return dnsttPort
+                }
+            } catch (_: Exception) {}
+        }
+        throw Exception("dnstt n'a pas démarré dans les temps")
+    }
+
+    fun getDnsttPort() = dnsttPort
+
     private fun startDnsttProcess(bin: File) {
         val cmd = listOf(
             bin.absolutePath,

@@ -549,34 +549,23 @@ class XraySlowDnsEngine(
     private val context: Context
 ) : TunnelEngine {
 
-    private val slowDns = SlowDnsEngine(config, context)
+    private val dnsttEngine = SlowDnsEngine(config, context)
     private val xray = XrayEngine(config, context)
     private val TAG = "XraySlowDns"
 
     override suspend fun start(): Int {
-        KighmuLogger.info(TAG, "Starting SlowDNS...")
-        slowDns.start()
-        // Attendre que SlowDNS SOCKS5 soit prêt
-        var ready = false
-        repeat(20) {
-            if (!ready) try {
-                java.net.Socket().use { s ->
-                    s.connect(java.net.InetSocketAddress("127.0.0.1", SlowDnsEngine.BASE_SOCKS_PORT), 200)
-                    ready = true
-                    KighmuLogger.info(TAG, "SlowDNS SOCKS5 prêt sur ${SlowDnsEngine.BASE_SOCKS_PORT}")
-                }
-            } catch (_: Exception) { kotlinx.coroutines.delay(500) }
-        }
-        if (!ready) throw Exception("SlowDNS n'a pas démarré dans les temps")
-        KighmuLogger.info(TAG, "Starting Xray via SlowDNS proxy...")
+        KighmuLogger.info(TAG, "Démarrage dnstt (sans SSH)...")
+        val dnsttPort = dnsttEngine.startDnsttOnly()
+        KighmuLogger.info(TAG, "dnstt prêt sur port $dnsttPort - démarrage Xray")
+        // Xray démarre normalement, proxySettings ajouté dans writeXrayConfig
         return xray.start()
     }
 
     override fun startTun2Socks(fd: Int) = xray.startTun2Socks(fd)
-    override suspend fun stop() { xray.stop(); slowDns.stop() }
+    override suspend fun stop() { xray.stop(); dnsttEngine.stop() }
     override suspend fun sendData(data: ByteArray, length: Int) = xray.sendData(data, length)
     override suspend fun receiveData(): ByteArray? = xray.receiveData()
-    override fun isRunning() = xray.isRunning() && slowDns.isRunning()
+    override fun isRunning() = xray.isRunning()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
