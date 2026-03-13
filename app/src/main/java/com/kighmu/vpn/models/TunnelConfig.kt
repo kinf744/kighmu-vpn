@@ -180,6 +180,7 @@ data class KighmuConfig(
     @SerializedName("slowDns") var slowDns: SlowDnsConfig = SlowDnsConfig(),
     @SerializedName("slowDnsProfiles") var slowDnsProfiles: MutableList<SlowDnsConfig> = mutableListOf(),
     @SerializedName("exportConfig") var exportConfig: ExportConfig? = null,
+    @SerializedName("xrayConfig") var xrayConfig: XrayConfig = XrayConfig(),
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
@@ -247,6 +248,25 @@ data class LogEntry(
 // ─────────────────────────────────────────────────────────────────────────────
 // Export Config Security Model
 // ─────────────────────────────────────────────────────────────────────────────
+
+data class XrayConfig(
+    @SerializedName("protocol") var protocol: String = "vless",
+    @SerializedName("address") var address: String = "",
+    @SerializedName("port") var port: Int = 443,
+    @SerializedName("uuid") var uuid: String = "",
+    @SerializedName("password") var password: String = "",
+    @SerializedName("flow") var flow: String = "",
+    @SerializedName("network") var network: String = "tcp",
+    @SerializedName("tls") var tls: Boolean = true,
+    @SerializedName("sni") var sni: String = "",
+    @SerializedName("wsPath") var wsPath: String = "/",
+    @SerializedName("wsHost") var wsHost: String = "",
+    @SerializedName("grpcServiceName") var grpcServiceName: String = "",
+    @SerializedName("fingerprint") var fingerprint: String = "chrome",
+    @SerializedName("publicKey") var publicKey: String = "",
+    @SerializedName("shortId") var shortId: String = "",
+    @SerializedName("spiderX") var spiderX: String = ""
+)
 
 data class ExportConfig(
     @SerializedName("fileName") var fileName: String = "kighmu_config",
