@@ -297,6 +297,10 @@ class XrayEngine(
         } else {
             buildXrayConfigFromFields(xrayConfig)
         }
+        // LOG config pour debug
+        KighmuLogger.info(TAG, "=== XRAY CONFIG ===")
+        jsonConfig.lines().forEach { KighmuLogger.info(TAG, "xray.cfg: $it") }
+        KighmuLogger.info(TAG, "=== END XRAY CONFIG ===")
         val file = File(context.filesDir, "xray_config.json")
         file.writeText(jsonConfig)
         return file
