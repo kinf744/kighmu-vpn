@@ -216,17 +216,23 @@ class SlowDnsEngine(
         tun2socksProcess = null
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
-        try { 
+        try {
+            // Tuer via PID SIGKILL pour libérer le port immédiatement
+            val pid = dnsttProcess?.pid()
+            if (pid != null) {
+                Runtime.getRuntime().exec(arrayOf("kill", "-9", pid.toString()))
+            }
             dnsttProcess?.destroyForcibly()
             dnsttProcess?.destroy()
         } catch (_: Exception) {}
-        // Killer aussi par nom de process au cas ou
         try {
             Runtime.getRuntime().exec("killall libdnstt.so")
             Runtime.getRuntime().exec("pkill -f libdnstt")
         } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
+        // Attendre que le port soit libéré
+        kotlinx.coroutines.delay(2500)
         KighmuLogger.info(TAG, "SlowDNS arrete")
     }
 
