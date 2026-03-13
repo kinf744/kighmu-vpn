@@ -220,14 +220,11 @@ class SlowDnsEngine(
             dnsttProcess?.destroyForcibly()
             dnsttProcess?.destroy()
         } catch (_: Exception) {}
-        try {
-            Runtime.getRuntime().exec("killall libdnstt.so")
-            Runtime.getRuntime().exec("pkill -f libdnstt")
-        } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "kill -9 \$(lsof -ti:$dnsttPort) 2>/dev/null")) } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $dnsttPort/tcp 2>/dev/null")) } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
-        // Attendre que le port soit libéré
-        kotlinx.coroutines.delay(2500)
+        kotlinx.coroutines.delay(3000)
         KighmuLogger.info(TAG, "SlowDNS arrete")
     }
 
