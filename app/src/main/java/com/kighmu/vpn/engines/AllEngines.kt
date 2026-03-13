@@ -320,6 +320,15 @@ class XrayEngine(
     }
 
     private fun extractXrayBinary(): File? {
+        // Chercher libxray.so dans nativeLibraryDir (jniLibs)
+        val nativeDir = context.applicationInfo.nativeLibraryDir
+        val libxray = File(nativeDir, "libxray.so")
+        if (libxray.exists()) {
+            libxray.setExecutable(true)
+            KighmuLogger.info(TAG, "Xray binary trouve: ${libxray.absolutePath}")
+            return libxray
+        }
+        // Fallback assets
         val abi = android.os.Build.SUPPORTED_ABIS[0]
         val target = File(context.filesDir, "xray")
         return try {
@@ -329,7 +338,7 @@ class XrayEngine(
             target.setExecutable(true)
             target
         } catch (e: Exception) {
-            KighmuLogger.error(TAG, "Cannot extract xray binary: ${e.message}")
+            KighmuLogger.error(TAG, "Xray binary introuvable: ${e.message}")
             null
         }
     }
