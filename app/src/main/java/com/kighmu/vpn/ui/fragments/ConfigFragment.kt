@@ -115,6 +115,9 @@ class ConfigFragment : Fragment() {
             etJson.selectAll()
         }
 
+        // Variable pour stocker le JSON parsé depuis un lien
+        var parsedJsonFromLink: String = ""
+
         // RadioGroup : afficher/cacher panels Link ou JSON
         val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
@@ -158,6 +161,7 @@ class ConfigFragment : Fragment() {
             val json = parseLinkToJson(link)
             if (json != null) {
                 view?.findViewById<android.widget.EditText>(R.id.et_xray_json)?.setText(json)
+                parsedJsonFromLink = json
                 statusView.text = "✓ Config générée avec succès"
                 statusView.setTextColor(0xFF00C853.toInt())
             } else {
@@ -385,7 +389,19 @@ class ConfigFragment : Fragment() {
             tvXrayWarning.visibility = android.view.View.VISIBLE
             return
         }
-        val xrayJson = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+        val xrayJson = when (rgXray.checkedRadioButtonId) {
+            R.id.rb_xray_link -> {
+                // Utiliser le JSON parsé depuis le lien, sinon relire le champ
+                if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink
+                else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+            }
+            else -> view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+        }
+        if (xrayJson.isBlank() || xrayJson == com.kighmu.vpn.models.XrayConfig.defaultXrayConfig) {
+            tvXrayWarning.text = "⚠️ Config vide - parsez d'abord le lien ou collez un JSON"
+            tvXrayWarning.visibility = android.view.View.VISIBLE
+            return
+        }
         val xray = c.xray.copy(
             jsonConfig = xrayJson,
             inputMode = when (rgXray.checkedRadioButtonId) {
