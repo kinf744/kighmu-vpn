@@ -297,9 +297,34 @@ class XrayEngine(
         } else {
             buildXrayConfigFromFields(xrayConfig)
         }
-        // Nettoyer geoip/geosite via JSON parsing
+        // Normaliser le port SOCKS et nettoyer geoip/geosite via JSON parsing
         try {
             val obj = org.json.JSONObject(jsonConfig)
+            // Forcer le port SOCKS à LOCAL_SOCKS_PORT (10808) et s'assurer qu'il existe
+            val inbounds = obj.optJSONArray("inbounds")
+            var hasSocks = false
+            if (inbounds != null) {
+                for (i in 0 until inbounds.length()) {
+                    val inbound = inbounds.getJSONObject(i)
+                    if (inbound.optString("protocol") == "socks") {
+                        inbound.put("port", LOCAL_SOCKS_PORT)
+                        inbound.put("listen", "127.0.0.1")
+                        hasSocks = true
+                        KighmuLogger.info(TAG, "SOCKS inbound port forcé à $LOCAL_SOCKS_PORT")
+                    }
+                }
+                if (!hasSocks) {
+                    val socksInbound = org.json.JSONObject()
+                    socksInbound.put("listen", "127.0.0.1")
+                    socksInbound.put("port", LOCAL_SOCKS_PORT)
+                    socksInbound.put("protocol", "socks")
+                    socksInbound.put("settings", org.json.JSONObject().put("udp", true))
+                    inbounds.put(socksInbound)
+                    obj.put("inbounds", inbounds)
+                    KighmuLogger.info(TAG, "SOCKS inbound ajouté sur port $LOCAL_SOCKS_PORT")
+                }
+            }
+            jsonConfig = obj.toString()
             val routing = obj.optJSONObject("routing")
             if (routing != null) {
                 val rules = routing.optJSONArray("rules")
