@@ -28,7 +28,22 @@ class SlowDnsEngine(
     }
 
     private val socksPort get() = 10800 + profileIndex
-    private val dnsttPort get() = 7000 + profileIndex
+    private var _dnsttPort: Int = 0
+    private val dnsttPort: Int get() {
+        if (_dnsttPort == 0 || !isPortFree(_dnsttPort)) {
+            _dnsttPort = findFreePort(7000 + profileIndex)
+        }
+        return _dnsttPort
+    }
+    private fun isPortFree(port: Int): Boolean = try {
+        java.net.ServerSocket(port).use { true }
+    } catch (_: Exception) { false }
+    private fun findFreePort(preferred: Int): Int {
+        for (p in preferred..preferred+20) {
+            if (isPortFree(p)) return p
+        }
+        return java.net.ServerSocket(0).use { it.localPort }
+    }
     private var running = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
