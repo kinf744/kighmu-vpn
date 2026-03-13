@@ -364,9 +364,9 @@ class ConfigFragment : Fragment() {
         val v2dnsDnsServer = view.findViewById<EditText>(R.id.et_v2dns_dns_server).text.toString().trim()
         val v2dnsDnsPort = view.findViewById<EditText>(R.id.et_v2dns_dns_port).text.toString().toIntOrNull() ?: 53
         val dns = c.slowDns.copy(
-            dnsServer = if (c.mode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS && v2dnsDnsServer.isNotBlank()) v2dnsDnsServer
+            dnsServer = if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS && v2dnsDnsServer.isNotBlank()) v2dnsDnsServer
                         else profileRepo.getSelected().firstOrNull()?.dnsServer ?: "8.8.8.8",
-            dnsPort = if (c.mode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS) v2dnsDnsPort else c.slowDns.dnsPort,
+            dnsPort = if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS) v2dnsDnsPort else c.slowDns.dnsPort,
             nameserver = profileRepo.getSelected().firstOrNull()?.nameserver ?: "",
             publicKey = profileRepo.getSelected().firstOrNull()?.publicKey ?: ""
         )
