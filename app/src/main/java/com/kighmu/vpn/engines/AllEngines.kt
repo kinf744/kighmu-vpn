@@ -238,7 +238,8 @@ class SshSslEngine(
 
 class XrayEngine(
     private val config: KighmuConfig,
-    private val context: Context
+    private val context: Context,
+    var dnsttProxyPort: Int = 0  // Si > 0, Xray route via dnstt sur ce port
 ) : TunnelEngine {
 
     companion object {
@@ -342,6 +343,41 @@ class XrayEngine(
                     obj.put("routing", routing)
                     jsonConfig = obj.toString(2)
                     KighmuLogger.info(TAG, "Routing nettoyé: ${cleaned.length()} règles")
+                }
+            }
+            // Ajouter proxySettings si mode V2RAY_SLOWDNS (dnsttProxyPort > 0)
+            if (dnsttProxyPort > 0) {
+                val outbounds = obj.optJSONArray("outbounds")
+                if (outbounds != null) {
+                    // Ajouter outbound socks vers dnstt
+                    val socksOut = org.json.JSONObject()
+                    socksOut.put("tag", "dnstt-out")
+                    socksOut.put("protocol", "socks")
+                    val socksSettings = org.json.JSONObject()
+                    val servers = org.json.JSONArray()
+                    val server = org.json.JSONObject()
+                    server.put("address", "127.0.0.1")
+                    server.put("port", dnsttProxyPort)
+                    servers.put(server)
+                    socksSettings.put("servers", servers)
+                    socksOut.put("settings", socksSettings)
+                    outbounds.put(socksOut)
+                    // Ajouter proxySettings sur le outbound principal
+                    for (i in 0 until outbounds.length()) {
+                        val ob = outbounds.getJSONObject(i)
+                        val proto = ob.optString("protocol")
+                        val tag = ob.optString("tag", "")
+                        if (proto != "freedom" && proto != "blackhole" && proto != "socks" && tag != "direct" && tag != "dnstt-out") {
+                            val proxy = org.json.JSONObject()
+                            proxy.put("tag", "dnstt-out")
+                            proxy.put("transportLayer", true)
+                            ob.put("proxySettings", proxy)
+                            KighmuLogger.info(TAG, "proxySettings -> dnstt:$dnsttProxyPort sur $proto/$tag")
+                        }
+                    }
+                    obj.put("outbounds", outbounds)
+                    jsonConfig = obj.toString()
+                    KighmuLogger.info(TAG, "Config Xray+dnstt finalisée")
                 }
             }
         } catch (e: Exception) {
@@ -557,7 +593,7 @@ class XraySlowDnsEngine(
         KighmuLogger.info(TAG, "Démarrage dnstt (sans SSH)...")
         val dnsttPort = dnsttEngine.startDnsttOnly()
         KighmuLogger.info(TAG, "dnstt prêt sur port $dnsttPort - démarrage Xray")
-        // Xray démarre normalement, proxySettings ajouté dans writeXrayConfig
+        xray.dnsttProxyPort = dnsttPort
         return xray.start()
     }
 
