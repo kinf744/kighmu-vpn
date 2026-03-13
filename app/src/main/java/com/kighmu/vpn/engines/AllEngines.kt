@@ -459,6 +459,31 @@ class XrayEngine(
         } catch (_: Exception) { } finally { client.close() }
     }
 
+
+    override fun startTun2Socks(fd: Int) {
+        val socksPort = LOCAL_SOCKS_PORT
+        KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val tun2socksLib = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                val cmd = arrayOf(
+                    tun2socksLib.absolutePath,
+                    "--netif-ipaddr", "10.0.0.2",
+                    "--netif-netmask", "255.255.255.0",
+                    "--socks-server-addr", "127.0.0.1:$socksPort",
+                    "--tunfd", fd.toString(),
+                    "--tunmtu", "1500",
+                    "--loglevel", "3"
+                )
+                KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
+                val proc = Runtime.getRuntime().exec(cmd)
+                Thread { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } }.start()
+                Thread { proc.inputStream.bufferedReader().forEachLine { KighmuLogger.info(TAG, "[tun2socks] $it") } }.start()
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+            }
+        }
+    }
     override suspend fun stop() {
         running = false
         xrayProcess?.destroy()
