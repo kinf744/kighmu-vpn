@@ -89,9 +89,7 @@ class MultiSlowDnsEngine(
         }
 
         // STEP 3 : Démarrer le balancer sur tous les ports SOCKS connectés
-        val connectedPorts = engines.filter { it.isRunning() }.mapIndexed { idx, _ ->
-            SlowDnsEngine.BASE_SOCKS_PORT + idx
-        }.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
+        val connectedPorts = successPorts.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
 
         KighmuLogger.info(TAG, "Ports SOCKS actifs: $connectedPorts")
         val balancer = SocksBalancer(connectedPorts)
