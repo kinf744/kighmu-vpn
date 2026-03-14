@@ -60,7 +60,7 @@ class SlowDnsEngine(
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS: ${dns.dnsServer}:${dns.dnsPort}")
-        KighmuLogger.info(TAG, "SSH: $sshHost:${sshPortVal} / ${sshUserVal}")
+        KighmuLogger.info(TAG, "SSH: $sshHostVal:${sshPortVal} / ${sshUserVal}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
