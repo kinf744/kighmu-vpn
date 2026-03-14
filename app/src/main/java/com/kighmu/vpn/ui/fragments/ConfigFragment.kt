@@ -156,8 +156,8 @@ class ConfigFragment : Fragment() {
             dnsProfiles,
             onSelectionChanged = { _, _ -> },
             onEdit = { p -> showAddProfileDialog(p) },
-            onDelete = { p -> dnsProfiles.remove(p); slowDnsProfileAdapter?.notifyDataSetChanged() },
-            onClone = { p -> dnsProfiles.add(p.copy(id = java.util.UUID.randomUUID().toString())); slowDnsProfileAdapter?.notifyDataSetChanged() }
+            onDelete = { p -> dnsProfiles.remove(p); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) },
+            onClone = { p -> dnsProfiles.add(p.copy(id = java.util.UUID.randomUUID().toString())); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) }
         )
         rv.adapter = slowDnsProfileAdapter
 
@@ -175,6 +175,13 @@ class ConfigFragment : Fragment() {
     }
 
     private fun loadConfig(view: View, c: com.kighmu.vpn.models.KighmuConfig) {
+        // Recharger profils SlowDNS
+        val savedProfiles = profileRepo.getAll()
+        if (savedProfiles.isNotEmpty() || dnsProfiles.isEmpty()) {
+            dnsProfiles.clear()
+            dnsProfiles.addAll(savedProfiles)
+            slowDnsProfileAdapter?.notifyDataSetChanged()
+        }
         // HTTP
         view.findViewById<EditText>(R.id.et_http_ssh_host).setText(c.httpProxy.sshHost)
         view.findViewById<EditText>(R.id.et_http_ssh_port).setText(c.httpProxy.sshPort.toString())
@@ -320,6 +327,8 @@ class ConfigFragment : Fragment() {
             else -> c.tunnelMode
         }
 
+        // Persister les profils SlowDNS
+        profileRepo.save(dnsProfiles)
         viewModel.saveConfig(c.copy(
             tunnelMode = newTunnelMode,
             httpProxy = http,
@@ -478,6 +487,7 @@ class ConfigFragment : Fragment() {
                     if (idx >= 0) dnsProfiles[idx] = profile
                 }
                 slowDnsProfileAdapter?.notifyDataSetChanged()
+                view?.let { saveConfig(it) }
             }
             .setNegativeButton("Annuler", null)
             .show()

@@ -436,9 +436,7 @@ class XrayEngine(
         } catch (e: Exception) {
             KighmuLogger.error(TAG, "JSON cleanup error: ${e.message}")
         }
-        KighmuLogger.info(TAG, "=== XRAY CONFIG ===")
-        jsonConfig.lines().forEach { KighmuLogger.info(TAG, "xray.cfg: $it") }
-        KighmuLogger.info(TAG, "=== END XRAY CONFIG ===")
+        KighmuLogger.info(TAG, "Xray config prête (${jsonConfig.length} chars)")
         val file = File(context.filesDir, "xray_config.json")
         file.writeText(jsonConfig)
         return file
