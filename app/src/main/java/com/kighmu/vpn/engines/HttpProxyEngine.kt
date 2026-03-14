@@ -32,7 +32,12 @@ class HttpProxyEngine(
     private var tun2socksProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val proxy get() = config.httpProxy
-    private val ssh get() = config.sshCredentials
+    private val ssh get() = object {
+        val host get() = config.httpProxy.sshHost
+        val port get() = config.httpProxy.sshPort
+        val username get() = config.httpProxy.sshUser
+        val password get() = config.httpProxy.sshPass
+    }
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true

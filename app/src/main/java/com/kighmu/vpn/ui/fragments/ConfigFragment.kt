@@ -23,6 +23,7 @@ class ConfigFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
     private var slowDnsProfileAdapter: SlowDnsProfileAdapter? = null
     private var parsedJsonFromLink: String = ""
+    private val dnsProfiles: MutableList<com.kighmu.vpn.profiles.SlowDnsProfile> = mutableListOf()
     private var parsedJsonFromV2dnsLink: String = ""
     private var currentTab = 0
     private lateinit var profileRepo: ProfileRepository
@@ -150,8 +151,8 @@ class ConfigFragment : Fragment() {
         // SlowDNS profiles
         val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
         rv.layoutManager = LinearLayoutManager(requireContext())
-        val profiles = profileRepo.getAll().toMutableList()
-        slowDnsProfileAdapter = SlowDnsProfileAdapter(
+        dnsProfiles.clear(); dnsProfiles.addAll(profileRepo.getAll())
+        slowDnsProfileAdapter = SlowDnsProfileAdapter(dnsProfiles,
             profiles,
             onSelectionChanged = { _, _ -> },
             onEdit = { },
@@ -327,7 +328,7 @@ class ConfigFragment : Fragment() {
             slowDns = dns,
             xray = xray,
             hysteria = hys,
-            slowDnsProfiles = slowDnsProfileAdapter?.getSelected()?.map { com.kighmu.vpn.models.SlowDnsConfig(dnsServer = it.dnsServer, nameserver = it.nameserver, publicKey = it.publicKey) }?.toMutableList() ?: mutableListOf()
+            slowDnsProfiles = dnsProfiles.filter { it.isSelected }.map { com.kighmu.vpn.models.SlowDnsConfig(dnsServer = it.dnsServer, nameserver = it.nameserver, publicKey = it.publicKey) }?.toMutableList() ?: mutableListOf()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
@@ -447,7 +448,7 @@ class ConfigFragment : Fragment() {
             layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2).apply { topMargin = 16 }
             layout.addView(this)
         }
-        val etName = et("Nom du profil", existing?.name ?: "")
+        val etName = et("Nom du profil", existing?.profileName ?: "")
         val etHost = et("Host / IP", existing?.sshHost ?: "")
         val etPort = et("Port SSH (22)", existing?.sshPort?.toString() ?: "22")
         val etUser = et("Username", existing?.sshUser ?: "")
@@ -461,7 +462,7 @@ class ConfigFragment : Fragment() {
             .setView(layout)
             .setPositiveButton("Enregistrer") { _, _ ->
                 val profile = (existing ?: com.kighmu.vpn.profiles.SlowDnsProfile()).apply {
-                    name = etName.text.toString()
+                    profileName = etName.text.toString()
                     sshHost = etHost.text.toString()
                     sshPort = etPort.text.toString().toIntOrNull() ?: 22
                     sshUser = etUser.text.toString()
@@ -471,10 +472,10 @@ class ConfigFragment : Fragment() {
                     dnsServer = etDns.text.toString()
                 }
                 if (existing == null) {
-                    profiles.add(profile)
+                    dnsProfiles.add(profile)
                 } else {
-                    val idx = profiles.indexOf(existing)
-                    if (idx >= 0) profiles[idx] = profile
+                    val idx = dnsProfiles.indexOf(existing)
+                    if (idx >= 0) dnsProfiles[idx] = profile
                 }
                 slowDnsProfileAdapter?.notifyDataSetChanged()
             }

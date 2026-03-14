@@ -49,8 +49,14 @@ class SlowDnsEngine(
     private var dnsttProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
-    private val ssh get() = config.sshCredentials
-    // Host SSH sans le port (au cas ou l'utilisateur met host:port dans le champ)
+    // Lire SSH depuis le profil sélectionné (profileIndex)
+    private val currentProfile get() = config.slowDnsProfiles.getOrNull(profileIndex)
+    private val ssh get() = object {
+        val host get() = currentProfile?.sshHost ?: config.sshCredentials.host
+        val port get() = currentProfile?.sshPort ?: config.sshCredentials.port
+        val username get() = currentProfile?.sshUser ?: config.sshCredentials.username
+        val password get() = currentProfile?.sshPass ?: config.sshCredentials.password
+    }
     private val sshHost get() = ssh.host.substringBefore(":")
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
