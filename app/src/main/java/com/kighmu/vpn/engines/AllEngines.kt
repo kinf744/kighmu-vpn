@@ -223,8 +223,8 @@ class SshSslEngine(
                 }.start()
                 val conn = Connection("127.0.0.1", localPort)
                 conn.connect(null, 30000, 30000)
-                val authenticated = conn.authenticateWithPassword(sshConfig.username, sshConfig.password)
-                if (!authenticated) throw Exception("SSH auth echoue pour ${sshConfig.username}")
+                val authenticated = conn.authenticateWithPassword(sslConfig.sshUser, sslConfig.sshPass)
+                if (!authenticated) throw Exception("SSH auth echoue pour ${sslConfig.sshUser}")
                 conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
                 sshConnection = conn
                 KighmuLogger.info(TAG, "SSH SSL/TLS tunnel ready - SOCKS5 sur port $LOCAL_SOCKS_PORT")
