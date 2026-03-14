@@ -179,14 +179,19 @@ class SshSslEngine(
 
         withContext(Dispatchers.IO) {
             try {
+                // SSH via SSL socket - trilead se connecte à travers le tunnel TLS
                 val sslSocket = buildSslSocket()
+                KighmuLogger.info(TAG, "SSL handshake OK: ${sslSocket.session.protocol} ${sslSocket.session.cipherSuite}")
                 val conn = Connection(sshConfig.host, sshConfig.port)
-                conn.connect(null, 15000, 15000)
+                conn.connect(object : com.trilead.ssh2.transport.TransportManager.PacketListener {
+                    override fun read(msg: String?) {}
+                    override fun write(msg: String?) {}
+                }, sslSocket.inputStream, sslSocket.outputStream, 30000)
                 val authenticated = conn.authenticateWithPassword(sshConfig.username, sshConfig.password)
-                if (!authenticated) throw Exception("SSH auth echoue")
-                conn.createLocalPortForwarder(LOCAL_SOCKS_PORT, "127.0.0.1", LOCAL_SOCKS_PORT + 1)
+                if (!authenticated) throw Exception("SSH auth echoue pour ${sshConfig.username}")
+                conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
                 sshConnection = conn
-                KighmuLogger.info(TAG, "SSH SSL/TLS tunnel ready on port $LOCAL_SOCKS_PORT")
+                KighmuLogger.info(TAG, "SSH SSL/TLS tunnel ready - SOCKS5 sur port $LOCAL_SOCKS_PORT")
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "SSH SSL/TLS failed: ${e.message}")
                 throw e
