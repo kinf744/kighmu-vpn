@@ -49,13 +49,11 @@ class SlowDnsEngine(
     private var dnsttProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
-    // Lire SSH depuis le profil sélectionné (profileIndex)
     private val currentProfile get() = config.slowDnsProfiles.getOrNull(profileIndex)
-    private val sshHostVal: String get() = (currentProfile?.sshHost ?: config.sshCredentials.host).substringBefore(":")
-    private val sshPortVal: Int get() = currentProfile?.sshPort ?: config.sshCredentials.port
-    private val sshUserVal: String get() = currentProfile?.sshUser ?: config.sshCredentials.username
-    private val sshPassVal: String get() = currentProfile?.sshPass ?: config.sshCredentials.password
-
+    private val sshHostVal: String get() = (currentProfile?.sshHost ?: config.slowDns.sshHost).substringBefore(":")
+    private val sshPortVal: Int get() = currentProfile?.sshPort ?: config.slowDns.sshPort
+    private val sshUserVal: String get() = currentProfile?.sshUser ?: config.slowDns.sshUser
+    private val sshPassVal: String get() = currentProfile?.sshPass ?: config.slowDns.sshPass
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")

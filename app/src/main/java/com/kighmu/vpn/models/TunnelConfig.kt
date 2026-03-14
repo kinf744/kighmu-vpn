@@ -57,7 +57,11 @@ data class SlowDnsConfig(
     @SerializedName("publicKey") var publicKey: String = "",
     @SerializedName("privateKey") var privateKey: String = "",
     @SerializedName("dnsPayload") var dnsPayload: String = "",
-    @SerializedName("useUdp") var useUdp: Boolean = true
+    @SerializedName("useUdp") var useUdp: Boolean = true,
+    @SerializedName("sshHost") var sshHost: String = "",
+    @SerializedName("sshPort") var sshPort: Int = 22,
+    @SerializedName("sshUser") var sshUser: String = "",
+    @SerializedName("sshPass") var sshPass: String = ""
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
