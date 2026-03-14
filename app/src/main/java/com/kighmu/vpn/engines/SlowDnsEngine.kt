@@ -27,7 +27,13 @@ class SlowDnsEngine(
         const val MTU = 1500
     }
 
-    private val socksPort get() = 10800 + profileIndex
+    private var _socksPort: Int = 0
+    private val socksPort: Int get() {
+        if (_socksPort == 0) {
+            _socksPort = findFreePort(10800 + profileIndex)
+        }
+        return _socksPort
+    }
     private var _dnsttPort: Int = 0
     private val dnsttPort: Int get() {
         if (_dnsttPort == 0) {
