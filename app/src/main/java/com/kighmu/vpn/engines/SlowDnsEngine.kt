@@ -92,7 +92,7 @@ class SlowDnsEngine(
         startSsh()
         KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $socksPort ===")
 
-        socksPort
+        _socksPort
     }
 
     private var tun2socksProcess: Process? = null
@@ -242,8 +242,9 @@ class SlowDnsEngine(
         if (!authenticated) throw Exception("SSH auth echoue pour ${sshUserVal}")
         KighmuLogger.info(TAG, "SSH authentifie!")
 
-        // Dynamic SOCKS5 forwarding pour tun2socks
-        conn.createDynamicPortForwarder(socksPort)
+        // Dynamic SOCKS5 forwarding - nouveau port garanti libre
+        val currentSocksPort = socksPort  // findFreePortRandom() appelé ici
+        _socksPort = 0  // Reset pour forcer nouveau port
         KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $socksPort")
 
         sshConnection = conn
