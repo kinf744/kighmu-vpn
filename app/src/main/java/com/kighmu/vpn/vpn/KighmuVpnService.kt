@@ -85,7 +85,10 @@ class KighmuVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startVpn()
-            ACTION_STOP -> stopVpn()
+            ACTION_STOP -> {
+                stopVpn()
+                return START_NOT_STICKY
+            }
             ACTION_RECONNECT -> reconnect()
         }
         return if (userRequestedStop) START_NOT_STICKY else START_STICKY
@@ -200,7 +203,7 @@ class KighmuVpnService : VpnService() {
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 val eng = tunnelEngine
-                tunnelEngine?.startTun2Socks(vpnInterface!!.detachFd())
+                tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
