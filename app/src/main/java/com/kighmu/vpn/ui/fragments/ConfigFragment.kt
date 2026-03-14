@@ -11,8 +11,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kighmu.vpn.R
 import androidx.lifecycle.Observer
-import com.kighmu.vpn.ui.adapters.DnsProfileAdapter
 import com.kighmu.vpn.ui.adapters.SlowDnsProfileAdapter
+import com.kighmu.vpn.profiles.SlowDnsProfile
 import com.kighmu.vpn.profiles.ProfileRepository
 import com.kighmu.vpn.profiles.SlowDnsProfileAdapter
 import com.kighmu.vpn.ui.MainViewModel
@@ -150,16 +150,24 @@ class ConfigFragment : Fragment() {
         val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
         rv.layoutManager = LinearLayoutManager(requireContext())
         val profiles = profileRepo.getAll().toMutableList()
-        slowDnsProfileAdapter = SlowDnsProfileAdapter(profiles, requireContext())
+        slowDnsProfileAdapter = SlowDnsProfileAdapter(
+            profiles,
+            onSelectionChanged = { _, _ -> },
+            onEdit = { },
+            onDelete = { profiles.remove(it); slowDnsProfileAdapter?.notifyDataSetChanged() },
+            onClone = { profiles.add(it.copy()); slowDnsProfileAdapter?.notifyDataSetChanged() }
+        )
         rv.adapter = slowDnsProfileAdapter
 
         view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
-            slowDnsProfileAdapter?.addProfile()
+            val newProfile = SlowDnsProfile()
+            profiles.add(newProfile)
+            slowDnsProfileAdapter?.notifyDataSetChanged()
         }
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
 
-        viewModel.config.observe(viewLifecycleOwner) { config -> loadConfig(view, config) }
+        viewModel.config.observe(viewLifecycleOwner) { c -> if (c != null) loadConfig(view, c) }
 
         selectTab(currentTab)
     }
@@ -318,7 +326,7 @@ class ConfigFragment : Fragment() {
             slowDns = dns,
             xray = xray,
             hysteria = hys,
-            slowDnsProfiles = slowDnsProfileAdapter?.getProfiles() ?: mutableListOf()
+            slowDnsProfiles = (slowDnsProfileAdapter?.let { profiles } ?: mutableListOf()).toMutableList()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
