@@ -64,7 +64,11 @@ class HomeFragment : Fragment() {
 
             viewLifecycleOwner.lifecycleScope.launch {
                 viewModel.connectionStatus.collect { status ->
-                    tvStatus.text = status.name
+                    tvStatus.text = when (status) {
+                        ConnectionStatus.CONNECTED -> "CONNECTED"
+                        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> "CONNECTING"
+                        else -> "DISCONNECTED"
+                    }
                     btnConnect.text = if (status == ConnectionStatus.CONNECTED) "DISCONNECT" else "CONNECT"
                 }
             }
