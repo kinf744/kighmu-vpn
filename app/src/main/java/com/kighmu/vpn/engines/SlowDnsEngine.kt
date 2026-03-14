@@ -242,11 +242,12 @@ class SlowDnsEngine(
         if (!authenticated) throw Exception("SSH auth echoue pour ${sshUserVal}")
         KighmuLogger.info(TAG, "SSH authentifie!")
 
-        // Dynamic SOCKS5 forwarding - nouveau port garanti libre
-        val currentSocksPort = socksPort  // findFreePortRandom() appelé ici
-        _socksPort = 0  // Reset pour forcer nouveau port
-        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $socksPort")
-
+        // SOCKS5 proxy local avec port choisi par l'OS - garanti libre
+        val socksServer = java.net.ServerSocket(0)
+        _socksPort = socksServer.localPort
+        socksServer.close()
+        conn.createDynamicPortForwarder(_socksPort)
+        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $_socksPort")
         sshConnection = conn
     }
 
