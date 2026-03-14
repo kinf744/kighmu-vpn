@@ -334,8 +334,6 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ws_host).setText(c.sshWebSocket.wsHost)
         view.findViewById<EditText>(R.id.et_ws_port).setText(c.sshWebSocket.wsPort.toString())
         view.findViewById<EditText>(R.id.et_ws_path).setText(c.sshWebSocket.wsPath)
-        view.findViewById<EditText>(R.id.et_ssl_host).setText(c.sshSsl.sslHost)
-        view.findViewById<EditText>(R.id.et_ssl_port).setText(c.sshSsl.sslPort.toString())
         view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
         view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
         // Restaurer le mode radio sélectionné
@@ -396,8 +394,8 @@ class ConfigFragment : Fragment() {
             wsPath = view.findViewById<EditText>(R.id.et_ws_path).text.toString()
         )
         val ssl = c.sshSsl.copy(
-            sslHost = view.findViewById<EditText>(R.id.et_ssl_host).text.toString(),
-            sslPort = view.findViewById<EditText>(R.id.et_ssl_port).text.toString().toIntOrNull() ?: 443,
+            sslHost = view.findViewById<EditText>(R.id.et_ssh_host).text.toString(),
+            sslPort = view.findViewById<EditText>(R.id.et_ssh_port).text.toString().toIntOrNull() ?: 443,
             sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
         )
         // Vérifier que le mode Xray est sélectionné si on est en mode V2RAY_XRAY

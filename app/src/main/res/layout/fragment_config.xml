@@ -70,8 +70,8 @@
             <!-- SSL Panel -->
             <LinearLayout android:id="@+id/panel_ssl" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp" android:visibility="gone">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SSL/TLS SETTINGS" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
-                <EditText android:id="@+id/et_ssl_host" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="SSL Host" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
-                <EditText android:id="@+id/et_ssl_port" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="SSL Port (443)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
+
+
                 <EditText android:id="@+id/et_sni" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="SNI" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
             </LinearLayout>
 
