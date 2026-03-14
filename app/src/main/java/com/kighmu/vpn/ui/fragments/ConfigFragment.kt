@@ -337,7 +337,7 @@ class ConfigFragment : Fragment() {
             slowDns = dns,
             xray = xray,
             hysteria = hys,
-            slowDnsProfiles = dnsProfiles.filter { it.isSelected }.map { com.kighmu.vpn.models.SlowDnsConfig(dnsServer = it.dnsServer, nameserver = it.nameserver, publicKey = it.publicKey) }?.toMutableList() ?: mutableListOf()
+            slowDnsProfiles = dnsProfiles.map { p -> com.kighmu.vpn.models.SlowDnsConfig(dnsServer = p.dnsServer, nameserver = p.nameserver, publicKey = p.publicKey, sshHost = p.sshHost, sshPort = p.sshPort, sshUser = p.sshUser, sshPass = p.sshPass) }.toMutableList()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
