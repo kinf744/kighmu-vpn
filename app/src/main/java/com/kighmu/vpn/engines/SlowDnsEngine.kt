@@ -51,19 +51,16 @@ class SlowDnsEngine(
     private val dns get() = config.slowDns
     // Lire SSH depuis le profil sélectionné (profileIndex)
     private val currentProfile get() = config.slowDnsProfiles.getOrNull(profileIndex)
-    private val ssh get() = object {
-        val host get() = currentProfile?.sshHost ?: config.sshCredentials.host
-        val port get() = currentProfile?.sshPort ?: config.sshCredentials.port
-        val username get() = currentProfile?.sshUser ?: config.sshCredentials.username
-        val password get() = currentProfile?.sshPass ?: config.sshCredentials.password
-    }
-    private val sshHost get() = ssh.host.substringBefore(":")
+    private val sshHostVal: String get() = (currentProfile?.sshHost ?: config.sshCredentials.host).substringBefore(":")
+    private val sshPortVal: Int get() = currentProfile?.sshPort ?: config.sshCredentials.port
+    private val sshUserVal: String get() = currentProfile?.sshUser ?: config.sshCredentials.username
+    private val sshPassVal: String get() = currentProfile?.sshPass ?: config.sshCredentials.password
 
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
         KighmuLogger.info(TAG, "DNS: ${dns.dnsServer}:${dns.dnsPort}")
-        KighmuLogger.info(TAG, "SSH: $sshHost:${ssh.port} / ${ssh.username}")
+        KighmuLogger.info(TAG, "SSH: $sshHost:${sshPortVal} / ${sshUserVal}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
@@ -237,8 +234,8 @@ class SlowDnsEngine(
         val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
         KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
 
-        val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
-        if (!authenticated) throw Exception("SSH auth echoue pour ${ssh.username}")
+        val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
+        if (!authenticated) throw Exception("SSH auth echoue pour ${sshUserVal}")
         KighmuLogger.info(TAG, "SSH authentifie!")
 
         // Dynamic SOCKS5 forwarding pour tun2socks

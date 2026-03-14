@@ -152,12 +152,12 @@ class ConfigFragment : Fragment() {
         val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
         rv.layoutManager = LinearLayoutManager(requireContext())
         dnsProfiles.clear(); dnsProfiles.addAll(profileRepo.getAll())
-        slowDnsProfileAdapter = SlowDnsProfileAdapter(dnsProfiles,
-            profiles,
+        slowDnsProfileAdapter = SlowDnsProfileAdapter(
+            dnsProfiles,
             onSelectionChanged = { _, _ -> },
-            onEdit = { },
-            onDelete = { profiles.remove(it); slowDnsProfileAdapter?.notifyDataSetChanged() },
-            onClone = { profiles.add(it.copy()); slowDnsProfileAdapter?.notifyDataSetChanged() }
+            onEdit = { p -> showAddProfileDialog(p) },
+            onDelete = { p -> dnsProfiles.remove(p); slowDnsProfileAdapter?.notifyDataSetChanged() },
+            onClone = { p -> dnsProfiles.add(p.copy(id = java.util.UUID.randomUUID().toString())); slowDnsProfileAdapter?.notifyDataSetChanged() }
         )
         rv.adapter = slowDnsProfileAdapter
 
