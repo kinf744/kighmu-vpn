@@ -1,40 +1,27 @@
 package com.kighmu.vpn.ui.fragments
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import com.kighmu.vpn.R
-import com.kighmu.vpn.models.*
-import com.kighmu.vpn.ui.MainViewModel
-import org.json.JSONObject
-import android.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.kighmu.vpn.ui.adapters.DnsProfileAdapter
-import com.kighmu.vpn.ui.adapters.SlowDnsProfileAdapter
-import com.kighmu.vpn.ui.dialogs.ProfileEditDialog
+import com.kighmu.vpn.R
 import com.kighmu.vpn.profiles.ProfileRepository
-import com.kighmu.vpn.profiles.SlowDnsProfile
+import com.kighmu.vpn.profiles.SlowDnsProfileAdapter
+import com.kighmu.vpn.ui.MainViewModel
 
 class ConfigFragment : Fragment() {
-    private var dnsProfileAdapter: DnsProfileAdapter? = null
+
+    private val viewModel: MainViewModel by activityViewModels()
     private var slowDnsProfileAdapter: SlowDnsProfileAdapter? = null
     private var parsedJsonFromLink: String = ""
     private var parsedJsonFromV2dnsLink: String = ""
-    private lateinit var profileRepo: ProfileRepository
-    private val viewModel: MainViewModel by activityViewModels()
     private var currentTab = 0
+    private lateinit var profileRepo: ProfileRepository
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.fragment_config, container, false)
@@ -42,6 +29,8 @@ class ConfigFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        profileRepo = ProfileRepository(requireContext())
 
         val tabs = listOf(
             view.findViewById<Button>(R.id.tab_slowdns),
@@ -53,7 +42,6 @@ class ConfigFragment : Fragment() {
             view.findViewById<Button>(R.id.tab_hysteria),
         )
 
-        val sshSection = view.findViewById<LinearLayout>(R.id.section_ssh)
         val panels = listOf(
             view.findViewById<LinearLayout>(R.id.panel_slowdns),
             view.findViewById<LinearLayout>(R.id.panel_http),
@@ -63,9 +51,6 @@ class ConfigFragment : Fragment() {
             view.findViewById<LinearLayout>(R.id.panel_v2dns),
             view.findViewById<LinearLayout>(R.id.panel_hysteria),
         )
-
-        // SSH not needed for SlowDNS(0 - utilise profils), xray(4), v2dns(5), hysteria(6)
-        val noSshTabs = setOf(0, 4, 5, 6, 7, 8)
 
         fun selectTab(index: Int) {
             currentTab = index
@@ -77,72 +62,67 @@ class ConfigFragment : Fragment() {
             panels.forEachIndexed { i, panel ->
                 panel.visibility = if (i == index) View.VISIBLE else View.GONE
             }
-            sshSection.visibility = if (index in noSshTabs) View.GONE else View.VISIBLE
         }
 
         tabs.forEachIndexed { index, btn -> btn.setOnClickListener { selectTab(index) } }
-        loadConfig(view)
-        selectTab(0)
 
-        // JSON buttons
-        val etJson = view.findViewById<EditText>(R.id.et_xray_json)
-        val tvJsonStatus = view.findViewById<TextView>(R.id.tv_json_status)
-
-        view.findViewById<Button>(R.id.btn_paste_json).setOnClickListener {
-            val cb = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val text = cb.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-            etJson.setText(text)
-            validateJson(text, tvJsonStatus)
-        }
-
-        view.findViewById<Button>(R.id.btn_copy_json).setOnClickListener {
-            val cb = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cb.setPrimaryClip(ClipData.newPlainText("xray_config", etJson.text.toString()))
-            Toast.makeText(requireContext(), "Copied!", Toast.LENGTH_SHORT).show()
-        }
-
-        view.findViewById<Button>(R.id.btn_format_json).setOnClickListener {
-            try {
-                val formatted = JSONObject(etJson.text.toString()).toString(2)
-                etJson.setText(formatted)
-                tvJsonStatus.text = "Valid JSON"
-                tvJsonStatus.setTextColor(0xFF00C853.toInt())
-            } catch (e: Exception) {
-                tvJsonStatus.text = "Invalid JSON: ${e.message}"
-                tvJsonStatus.setTextColor(0xFFFF5252.toInt())
-            }
-        }
-
-        view.findViewById<Button>(R.id.btn_select_all_json).setOnClickListener {
-            etJson.selectAll()
-        }
-
-        // RadioGroup : afficher/cacher panels Link ou JSON
+        // RadioGroup Xray
         val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
         val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
         val tvWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
 
-        rgMode.setOnCheckedChangeListener { _, checkedId ->
-            tvWarning.visibility = android.view.View.GONE
-            when (checkedId) {
-                R.id.rb_xray_link -> {
-                    panelLink.visibility = android.view.View.VISIBLE
-                    panelJson.visibility = android.view.View.GONE
-                }
-                R.id.rb_xray_json -> {
-                    panelLink.visibility = android.view.View.GONE
-                    panelJson.visibility = android.view.View.VISIBLE
-                }
+        rgMode.setOnCheckedChangeListener { _, id ->
+            tvWarning.visibility = View.GONE
+            when (id) {
+                R.id.rb_xray_link -> { panelLink.visibility = View.VISIBLE; panelJson.visibility = View.GONE }
+                R.id.rb_xray_json -> { panelJson.visibility = View.VISIBLE; panelLink.visibility = View.GONE }
             }
         }
 
+        // Parse Xray link
         view.findViewById<Button>(R.id.btn_parse_link).setOnClickListener {
             val link = view.findViewById<EditText>(R.id.et_xray_link).text.toString()
-            val status = view.findViewById<TextView>(R.id.tv_link_status)
-            validateLink(link, status)
+            val statusView = view.findViewById<TextView>(R.id.tv_link_status)
+            val json = parseLinkToJson(link)
+            if (json != null) {
+                view.findViewById<EditText>(R.id.et_xray_json).setText(json)
+                parsedJsonFromLink = json
+                statusView.text = "✓ Config générée avec succès"
+                statusView.setTextColor(0xFF00C853.toInt())
+                saveConfig(view)
+            } else {
+                statusView.text = "❌ Format invalide"
+                statusView.setTextColor(0xFFFF5252.toInt())
+            }
         }
 
+        // JSON buttons
+        view.findViewById<Button>(R.id.btn_paste_json).setOnClickListener {
+            val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val text = cm.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+            view.findViewById<EditText>(R.id.et_xray_json).setText(text)
+        }
+        view.findViewById<Button>(R.id.btn_copy_json).setOnClickListener {
+            val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val text = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("json", text))
+            Toast.makeText(requireContext(), "Copié!", Toast.LENGTH_SHORT).show()
+        }
+        view.findViewById<Button>(R.id.btn_format_json).setOnClickListener {
+            try {
+                val text = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+                val formatted = org.json.JSONObject(text).toString(2)
+                view.findViewById<EditText>(R.id.et_xray_json).setText(formatted)
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "JSON invalide", Toast.LENGTH_SHORT).show()
+            }
+        }
+        view.findViewById<Button>(R.id.btn_select_all_json).setOnClickListener {
+            view.findViewById<EditText>(R.id.et_xray_json).selectAll()
+        }
+
+        // Parse V2DNS link
         view.findViewById<Button>(R.id.btn_parse_v2dns_link).setOnClickListener {
             val link = view.findViewById<EditText>(R.id.et_v2dns_link).text.toString()
             val status = view.findViewById<TextView>(R.id.tv_v2dns_link_status)
@@ -154,7 +134,7 @@ class ConfigFragment : Fragment() {
                     status.setTextColor(0xFF00C853.toInt())
                     saveConfig(view)
                 } else {
-                    status.text = "❌ Format invalide. Utilisez vmess:// vless:// trojan://"
+                    status.text = "❌ Format invalide"
                     status.setTextColor(0xFFFF5252.toInt())
                 }
             } catch (e: Exception) {
@@ -163,28 +143,181 @@ class ConfigFragment : Fragment() {
             }
         }
 
-        view.findViewById<Button>(R.id.btn_save_config).setOnClickListener {
-            saveConfig(view)
+        // SlowDNS profiles
+        val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
+        rv.layoutManager = LinearLayoutManager(requireContext())
+        val profiles = profileRepo.getAll().toMutableList()
+        slowDnsProfileAdapter = SlowDnsProfileAdapter(profiles, requireContext())
+        rv.adapter = slowDnsProfileAdapter
+
+        view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
+            slowDnsProfileAdapter?.addProfile()
         }
+
+        view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
+
+        viewModel.config.observe(viewLifecycleOwner) { loadConfig(view, it) }
+
+        selectTab(currentTab)
     }
 
-    private fun validateLink(link: String, statusView: TextView) {
-        if (link.isBlank()) return
-        try {
-            val json = parseLinkToJson(link)
-            if (json != null) {
-                view?.findViewById<android.widget.EditText>(R.id.et_xray_json)?.setText(json)
-                parsedJsonFromLink = json
-                statusView.text = "✓ Config générée avec succès"
-                statusView.setTextColor(0xFF00C853.toInt())
-            } else {
-                statusView.text = "❌ Format invalide. Utilisez vmess:// vless:// trojan://"
-                statusView.setTextColor(0xFFFF5252.toInt())
-            }
-        } catch (e: Exception) {
-            statusView.text = "❌ Erreur: ${e.message}"
-            statusView.setTextColor(0xFFFF5252.toInt())
+    private fun loadConfig(view: View, c: com.kighmu.vpn.models.KighmuConfig) {
+        // HTTP
+        view.findViewById<EditText>(R.id.et_http_ssh_host).setText(c.httpProxy.sshHost)
+        view.findViewById<EditText>(R.id.et_http_ssh_port).setText(c.httpProxy.sshPort.toString())
+        view.findViewById<EditText>(R.id.et_http_ssh_user).setText(c.httpProxy.sshUser)
+        view.findViewById<EditText>(R.id.et_http_ssh_pass).setText(c.httpProxy.sshPass)
+        view.findViewById<EditText>(R.id.et_proxy_host).setText(c.httpProxy.proxyHost)
+        view.findViewById<EditText>(R.id.et_proxy_port).setText(c.httpProxy.proxyPort.toString())
+        view.findViewById<EditText>(R.id.et_payload).setText(c.httpProxy.customPayload)
+        // WS
+        view.findViewById<EditText>(R.id.et_ws_ssh_host).setText(c.sshWebSocket.sshHost)
+        view.findViewById<EditText>(R.id.et_ws_ssh_port).setText(c.sshWebSocket.sshPort.toString())
+        view.findViewById<EditText>(R.id.et_ws_ssh_user).setText(c.sshWebSocket.sshUser)
+        view.findViewById<EditText>(R.id.et_ws_ssh_pass).setText(c.sshWebSocket.sshPass)
+        view.findViewById<EditText>(R.id.et_ws_host).setText(c.sshWebSocket.wsHost)
+        view.findViewById<EditText>(R.id.et_ws_port).setText(c.sshWebSocket.wsPort.toString())
+        view.findViewById<EditText>(R.id.et_ws_path).setText(c.sshWebSocket.wsPath)
+        // SSL
+        view.findViewById<EditText>(R.id.et_ssl_ssh_host).setText(c.sshSsl.sshHost)
+        view.findViewById<EditText>(R.id.et_ssl_ssh_port).setText(c.sshSsl.sshPort.toString())
+        view.findViewById<EditText>(R.id.et_ssl_ssh_user).setText(c.sshSsl.sshUser)
+        view.findViewById<EditText>(R.id.et_ssl_ssh_pass).setText(c.sshSsl.sshPass)
+        view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
+        // Xray
+        view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
+        val savedMode = c.xray.inputMode
+        val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+        val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+        val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+        when (savedMode) {
+            "link" -> { rgRestore.check(R.id.rb_xray_link); pLink.visibility = View.VISIBLE; pJson.visibility = View.GONE }
+            "json" -> { rgRestore.check(R.id.rb_xray_json); pJson.visibility = View.VISIBLE; pLink.visibility = View.GONE }
         }
+        // V2DNS
+        view.findViewById<EditText>(R.id.et_v2dns_dns_server).setText(c.slowDns.dnsServer)
+        view.findViewById<EditText>(R.id.et_v2dns_dns_port).setText(c.slowDns.dnsPort.toString())
+        view.findViewById<EditText>(R.id.et_v2dns_nameserver).setText(c.slowDns.nameserver)
+        view.findViewById<EditText>(R.id.et_v2dns_pubkey).setText(c.slowDns.publicKey)
+        // Hysteria
+        view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
+        view.findViewById<EditText>(R.id.et_hys_port).setText(c.hysteria.serverPort.toString())
+        view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
+        view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
+        view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
+        view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
+        view.findViewById<EditText>(R.id.et_hys_sni).setText(c.hysteria.sni)
+        // Tab
+        val tabIndex = when (c.tunnelMode) {
+            com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
+            com.kighmu.vpn.models.TunnelMode.HTTP_PROXY -> 1
+            com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET -> 2
+            com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 3
+            com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 4
+            com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 5
+            com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 6
+            else -> 0
+        }
+        currentTab = tabIndex
+    }
+
+    private fun saveConfig(view: View) {
+        val c = viewModel.config.value ?: return
+
+        val http = c.httpProxy.copy(
+            sshHost = view.findViewById<EditText>(R.id.et_http_ssh_host).text.toString(),
+            sshPort = view.findViewById<EditText>(R.id.et_http_ssh_port).text.toString().toIntOrNull() ?: 22,
+            sshUser = view.findViewById<EditText>(R.id.et_http_ssh_user).text.toString(),
+            sshPass = view.findViewById<EditText>(R.id.et_http_ssh_pass).text.toString(),
+            proxyHost = view.findViewById<EditText>(R.id.et_proxy_host).text.toString(),
+            proxyPort = view.findViewById<EditText>(R.id.et_proxy_port).text.toString().toIntOrNull() ?: 8080,
+            customPayload = view.findViewById<EditText>(R.id.et_payload).text.toString()
+        )
+
+        val ws = c.sshWebSocket.copy(
+            sshHost = view.findViewById<EditText>(R.id.et_ws_ssh_host).text.toString(),
+            sshPort = view.findViewById<EditText>(R.id.et_ws_ssh_port).text.toString().toIntOrNull() ?: 22,
+            sshUser = view.findViewById<EditText>(R.id.et_ws_ssh_user).text.toString(),
+            sshPass = view.findViewById<EditText>(R.id.et_ws_ssh_pass).text.toString(),
+            wsHost = view.findViewById<EditText>(R.id.et_ws_host).text.toString(),
+            wsPort = view.findViewById<EditText>(R.id.et_ws_port).text.toString().toIntOrNull() ?: 80,
+            wsPath = view.findViewById<EditText>(R.id.et_ws_path).text.toString()
+        )
+
+        val ssl = c.sshSsl.copy(
+            sshHost = view.findViewById<EditText>(R.id.et_ssl_ssh_host).text.toString(),
+            sshPort = view.findViewById<EditText>(R.id.et_ssl_ssh_port).text.toString().toIntOrNull() ?: 22,
+            sshUser = view.findViewById<EditText>(R.id.et_ssl_ssh_user).text.toString(),
+            sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass).text.toString(),
+            sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
+        )
+
+        val dns = c.slowDns.copy(
+            dnsServer = view.findViewById<EditText>(R.id.et_v2dns_dns_server).text.toString().trim(),
+            dnsPort = view.findViewById<EditText>(R.id.et_v2dns_dns_port).text.toString().toIntOrNull() ?: 53,
+            nameserver = view.findViewById<EditText>(R.id.et_v2dns_nameserver).text.toString().trim(),
+            publicKey = view.findViewById<EditText>(R.id.et_v2dns_pubkey).text.toString().trim()
+        )
+
+        val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+        val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
+        if (currentTab == 4 && rgXray.checkedRadioButtonId == -1) {
+            tvXrayWarning.visibility = View.VISIBLE
+            return
+        }
+
+        val xrayJson = if (currentTab == 5) {
+            when {
+                parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
+                c.xray.jsonConfig.isNotBlank() && c.xray.jsonConfig != com.kighmu.vpn.models.XrayConfig.defaultXrayConfig -> c.xray.jsonConfig
+                else -> ""
+            }
+        } else when (rgXray.checkedRadioButtonId) {
+            R.id.rb_xray_link -> if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+            else -> view.findViewById<EditText>(R.id.et_xray_json).text.toString()
+        }
+
+        val xray = c.xray.copy(
+            jsonConfig = xrayJson,
+            inputMode = when (rgXray.checkedRadioButtonId) {
+                R.id.rb_xray_link -> "link"
+                R.id.rb_xray_json -> "json"
+                else -> c.xray.inputMode
+            }
+        )
+
+        val hys = c.hysteria.copy(
+            serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
+            serverPort = view.findViewById<EditText>(R.id.et_hys_port).text.toString().toIntOrNull() ?: 443,
+            authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
+            uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
+            downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
+            obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
+            sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
+        )
+
+        val newTunnelMode = when (currentTab) {
+            0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
+            1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
+            2 -> com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET
+            3 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
+            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
+            5 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
+            6 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+            else -> c.tunnelMode
+        }
+
+        viewModel.saveConfig(c.copy(
+            tunnelMode = newTunnelMode,
+            httpProxy = http,
+            sshWebSocket = ws,
+            sshSsl = ssl,
+            slowDns = dns,
+            xray = xray,
+            hysteria = hys,
+            slowDnsProfiles = slowDnsProfileAdapter?.getProfiles() ?: mutableListOf()
+        ))
+        Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
 
     private fun parseLinkToJson(link: String): String? {
@@ -196,275 +329,97 @@ class ConfigFragment : Fragment() {
         }
     }
 
-    private fun parseVmess(link: String): String {
-        val b64 = link.removePrefix("vmess://")
-        val decoded = String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
-        val obj = org.json.JSONObject(decoded)
-        val add = obj.optString("add", "")
-        val port = obj.optInt("port", 443)
-        val id = obj.optString("id", "")
-        val net = obj.optString("net", "tcp")
-        val path = obj.optString("path", "/")
-        val host = obj.optString("host", "")
-        val tls = obj.optString("tls", "") == "tls"
-        val sni = obj.optString("sni", host)
-        val security = if (tls) "tls" else "none"
-        val wsSettings = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
-        val tlsSettings = if (tls) ""","tlsSettings":{"serverName":"$sni","allowInsecure":false}""" else ""
-        return """{
-  "log":{"loglevel":"warning"},
-  "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
-  "outbounds":[{
-    "protocol":"vmess",
-    "settings":{"vnext":[{"address":"$add","port":$port,"users":[{"id":"$id","alterId":0,"security":"auto"}]}]},
-    "streamSettings":{"network":"$net","security":"$security"$wsSettings$tlsSettings}
-  },{"protocol":"freedom","tag":"direct"}],
-  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
-}"""
-    }
-
     private fun parseVless(link: String): String {
-        val uri = android.net.Uri.parse(link)
+        val uri = java.net.URI(link)
         val uuid = uri.userInfo ?: ""
-        val address = uri.host ?: ""
+        val host = uri.host ?: ""
         val port = uri.port.takeIf { it > 0 } ?: 443
-        val flow = uri.getQueryParameter("flow") ?: ""
-        val net = uri.getQueryParameter("type") ?: "tcp"
-        val security = uri.getQueryParameter("security") ?: "none"
-        val sni = uri.getQueryParameter("sni") ?: address
-        val path = uri.getQueryParameter("path") ?: "/"
-        val host = uri.getQueryParameter("host") ?: address
-        val fp = uri.getQueryParameter("fp") ?: "chrome"
-        val pbk = uri.getQueryParameter("pbk") ?: ""
-        val sid = uri.getQueryParameter("sid") ?: ""
-        val tlsBlock = when (security) {
-            "tls" -> ""","tlsSettings":{"serverName":"$sni","allowInsecure":false,"fingerprint":"$fp"}"""
-            "reality" -> ""","realitySettings":{"serverName":"$sni","fingerprint":"$fp","publicKey":"$pbk","shortId":"$sid"}"""
-            else -> ""
+        val params = uri.query?.split("&")?.associate { it.split("=").let { p -> p[0] to (p.getOrNull(1) ?: "") } } ?: emptyMap()
+        val type = params["type"] ?: "tcp"
+        val security = params["security"] ?: "none"
+        val sni = params["sni"] ?: params["host"] ?: host
+        val wsPath = params["path"] ?: "/"
+        val wsHost = params["host"] ?: host
+        val fp = params["fp"] ?: ""
+        val pbk = params["pbk"] ?: ""
+        val sid = params["sid"] ?: ""
+        val flow = params["flow"] ?: ""
+
+        val streamSettings = when (type) {
+            "ws" -> when (security) {
+                "tls" -> """"streamSettings":{"network":"ws","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false${if (fp.isNotEmpty()) ""","fingerprint":"$fp"""" else ""}},"wsSettings":{"path":"$wsPath","headers":{"Host":"$wsHost"}}}"""
+                else -> """"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"$wsPath","headers":{"Host":"$wsHost"}}}"""
+            }
+            "grpc" -> """"streamSettings":{"network":"grpc","security":"$security","grpcSettings":{"serviceName":"${params["serviceName"] ?: ""}"}}"""
+            "reality" -> """"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"$sni","fingerprint":"$fp","publicKey":"$pbk","shortId":"$sid"}}"""
+            else -> when (security) {
+                "tls" -> """"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false}}"""
+                else -> """"streamSettings":{"network":"tcp","security":"none"}"""
+            }
         }
-        val wsBlock = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
-        val grpcBlock = if (net == "grpc") ""","grpcSettings":{"serviceName":"$path"}""" else ""
-        val flowBlock = if (flow.isNotBlank()) """"flow":"$flow",""" else ""
+
         return """{
   "log":{"loglevel":"warning"},
   "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
   "outbounds":[{
     "protocol":"vless",
-    "settings":{"vnext":[{"address":"$address","port":$port,"users":[{${flowBlock}"id":"$uuid","encryption":"none"}]}]},
-    "streamSettings":{"network":"$net","security":"$security"$tlsBlock$wsBlock$grpcBlock}
+    "settings":{"vnext":[{"address":"$host","port":$port,"users":[{"id":"$uuid","encryption":"none"${if (flow.isNotEmpty()) ""","flow":"$flow"""" else ""}}]}]},
+    $streamSettings
   },{"protocol":"freedom","tag":"direct"}],
-  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
+  "routing":{"rules":[]}
+}"""
+    }
+
+    private fun parseVmess(link: String): String {
+        val b64 = link.removePrefix("vmess://")
+        val json = String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
+        val obj = org.json.JSONObject(json)
+        val host = obj.optString("add", "")
+        val port = obj.optInt("port", 443)
+        val uuid = obj.optString("id", "")
+        val alterId = obj.optInt("aid", 0)
+        val net = obj.optString("net", "tcp")
+        val tls = obj.optString("tls", "")
+        val sni = obj.optString("sni", host)
+        val wsPath = obj.optString("path", "/")
+        val wsHost = obj.optString("host", host)
+
+        val streamSettings = when (net) {
+            "ws" -> if (tls == "tls") """"streamSettings":{"network":"ws","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false},"wsSettings":{"path":"$wsPath","headers":{"Host":"$wsHost"}}}"""
+                    else """"streamSettings":{"network":"ws","security":"none","wsSettings":{"path":"$wsPath","headers":{"Host":"$wsHost"}}}"""
+            else -> if (tls == "tls") """"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false}}"""
+                    else """"streamSettings":{"network":"tcp","security":"none"}"""
+        }
+
+        return """{
+  "log":{"loglevel":"warning"},
+  "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
+  "outbounds":[{
+    "protocol":"vmess",
+    "settings":{"vnext":[{"address":"$host","port":$port,"users":[{"id":"$uuid","alterId":$alterId,"security":"auto"}]}]},
+    $streamSettings
+  },{"protocol":"freedom","tag":"direct"}],
+  "routing":{"rules":[]}
 }"""
     }
 
     private fun parseTrojan(link: String): String {
-        val uri = android.net.Uri.parse(link)
+        val uri = java.net.URI(link)
         val password = uri.userInfo ?: ""
-        val address = uri.host ?: ""
+        val host = uri.host ?: ""
         val port = uri.port.takeIf { it > 0 } ?: 443
-        val sni = uri.getQueryParameter("sni") ?: address
-        val net = uri.getQueryParameter("type") ?: "tcp"
-        val path = uri.getQueryParameter("path") ?: "/"
-        val host = uri.getQueryParameter("host") ?: address
-        val wsBlock = if (net == "ws") ""","wsSettings":{"path":"$path","headers":{"Host":"$host"}}""" else ""
+        val params = uri.query?.split("&")?.associate { it.split("=").let { p -> p[0] to (p.getOrNull(1) ?: "") } } ?: emptyMap()
+        val sni = params["sni"] ?: host
+
         return """{
   "log":{"loglevel":"warning"},
   "inbounds":[{"port":10808,"protocol":"socks","settings":{"udp":true}}],
   "outbounds":[{
     "protocol":"trojan",
-    "settings":{"servers":[{"address":"$address","port":$port,"password":"$password"}]},
-    "streamSettings":{"network":"$net","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false}$wsBlock}
+    "settings":{"servers":[{"address":"$host","port":$port,"password":"$password"}]},
+    "streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"serverName":"$sni","allowInsecure":false}}
   },{"protocol":"freedom","tag":"direct"}],
-  "routing":{"rules":[{"type":"field","ip":["geoip:private"],"outboundTag":"direct"}]}
+  "routing":{"rules":[]}
 }"""
     }
-
-    private fun validateJson(json: String, statusView: TextView) {
-        if (json.isBlank()) return
-        try {
-            JSONObject(json)
-            statusView.text = "Valid JSON"
-            statusView.setTextColor(0xFF00C853.toInt())
-        } catch (e: Exception) {
-            statusView.text = "Invalid JSON"
-            statusView.setTextColor(0xFFFF5252.toInt())
-        }
-    }
-
-    private fun loadConfig(view: View) {
-        val c = viewModel.config.value
-        view.findViewById<EditText>(R.id.et_ssh_host).setText(c.sshCredentials.host)
-        view.findViewById<EditText>(R.id.et_ssh_port).setText(c.sshCredentials.port.toString())
-        view.findViewById<EditText>(R.id.et_ssh_user).setText(c.sshCredentials.username)
-        view.findViewById<EditText>(R.id.et_ssh_pass).setText(c.sshCredentials.password)
-        // Initialiser ProfileRepository et RecyclerView
-        profileRepo = ProfileRepository(requireContext())
-        val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
-        slowDnsProfileAdapter = SlowDnsProfileAdapter(
-            profileRepo.getAll(),
-            onSelectionChanged = { id, selected -> profileRepo.updateSelection(id, selected) },
-            onEdit = { profile ->
-                ProfileEditDialog.show(requireContext(), profile) { updated ->
-                    profileRepo.update(updated)
-                    slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
-                }
-            },
-            onDelete = { profile ->
-                profileRepo.delete(profile.id)
-                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
-            },
-            onClone = { profile ->
-                profileRepo.clone(profile.id)
-                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
-            }
-        )
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        rv.adapter = slowDnsProfileAdapter
-
-        view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
-            ProfileEditDialog.show(requireContext()) { newProfile ->
-                profileRepo.add(newProfile)
-                slowDnsProfileAdapter?.setProfiles(profileRepo.getAll())
-            }
-        }
-
-        view.findViewById<EditText>(R.id.et_proxy_host).setText(c.httpProxy.proxyHost)
-        view.findViewById<EditText>(R.id.et_proxy_port).setText(c.httpProxy.proxyPort.toString())
-        view.findViewById<EditText>(R.id.et_payload).setText(c.httpProxy.customPayload)
-        view.findViewById<EditText>(R.id.et_ws_host).setText(c.sshWebSocket.wsHost)
-        view.findViewById<EditText>(R.id.et_ws_port).setText(c.sshWebSocket.wsPort.toString())
-        view.findViewById<EditText>(R.id.et_ws_path).setText(c.sshWebSocket.wsPath)
-        view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
-        view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
-        // Restaurer le mode radio sélectionné
-        val savedMode = c.xray.inputMode
-        val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
-        val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-        when (savedMode) {
-            "link" -> {
-                rgRestore.check(R.id.rb_xray_link)
-                pLink.visibility = android.view.View.VISIBLE
-                pJson.visibility = android.view.View.GONE
-            }
-            "json" -> {
-                rgRestore.check(R.id.rb_xray_json)
-                pLink.visibility = android.view.View.GONE
-                pJson.visibility = android.view.View.VISIBLE
-            }
-        }
-        view.findViewById<EditText>(R.id.et_v2dns_dns_server).setText(c.slowDns.dnsServer)
-        view.findViewById<EditText>(R.id.et_v2dns_dns_port).setText(c.slowDns.dnsPort.toString())
-        view.findViewById<EditText>(R.id.et_v2dns_nameserver).setText(c.slowDns.nameserver)
-        view.findViewById<EditText>(R.id.et_v2dns_pubkey).setText(c.slowDns.publicKey)
-        view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
-        view.findViewById<EditText>(R.id.et_hys_port).setText(c.hysteria.serverPort.toString())
-        view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
-        view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
-        view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
-        view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
-        view.findViewById<EditText>(R.id.et_hys_sni).setText(c.hysteria.sni)
-    }
-
-    private fun saveConfig(view: View) {
-        val c = viewModel.config.value ?: run {
-            android.util.Log.e("ConfigFragment", "saveConfig: config is null!")
-            Toast.makeText(requireContext(), "Erreur: config null", Toast.LENGTH_SHORT).show()
-            return
-        }
-        android.util.Log.d("ConfigFragment", "saveConfig: currentTab=$currentTab")
-        val ssh = c.sshCredentials.copy(
-            host = view.findViewById<EditText>(R.id.et_ssh_host).text.toString(),
-            port = view.findViewById<EditText>(R.id.et_ssh_port).text.toString().toIntOrNull() ?: 22,
-            username = view.findViewById<EditText>(R.id.et_ssh_user).text.toString(),
-            password = view.findViewById<EditText>(R.id.et_ssh_pass).text.toString()
-        )
-        val v2dnsDnsServer = view.findViewById<EditText>(R.id.et_v2dns_dns_server).text.toString().trim()
-        val v2dnsDnsPort = view.findViewById<EditText>(R.id.et_v2dns_dns_port).text.toString().toIntOrNull() ?: 53
-        val dns = c.slowDns.copy(
-            dnsServer = if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS && v2dnsDnsServer.isNotBlank()) v2dnsDnsServer
-                        else profileRepo.getSelected().firstOrNull()?.dnsServer ?: "8.8.8.8",
-            dnsPort = if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS) v2dnsDnsPort else c.slowDns.dnsPort,
-            nameserver = view.findViewById<EditText>(R.id.et_v2dns_nameserver).text.toString().trim(),
-            publicKey = view.findViewById<EditText>(R.id.et_v2dns_pubkey).text.toString().trim()
-        )
-        val http = c.httpProxy.copy(
-            proxyHost = view.findViewById<EditText>(R.id.et_proxy_host).text.toString(),
-            proxyPort = view.findViewById<EditText>(R.id.et_proxy_port).text.toString().toIntOrNull() ?: 8080,
-            customPayload = view.findViewById<EditText>(R.id.et_payload).text.toString()
-        )
-        val ws = c.sshWebSocket.copy(
-            wsHost = view.findViewById<EditText>(R.id.et_ws_host).text.toString(),
-            wsPort = view.findViewById<EditText>(R.id.et_ws_port).text.toString().toIntOrNull() ?: 80,
-            wsPath = view.findViewById<EditText>(R.id.et_ws_path).text.toString()
-        )
-        val ssl = c.sshSsl.copy(
-            sslHost = view.findViewById<EditText>(R.id.et_ssh_host).text.toString(),
-            sslPort = view.findViewById<EditText>(R.id.et_ssh_port).text.toString().toIntOrNull() ?: 443,
-            sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
-        )
-        // Vérifier que le mode Xray est sélectionné si on est en mode V2RAY_XRAY
-        val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
-        if (currentTab == 4 && rgXray.checkedRadioButtonId == -1) {
-            tvXrayWarning.visibility = android.view.View.VISIBLE
-            return
-        }
-        // Mode V2RAY_SLOWDNS: utiliser le JSON parsé depuis le lien V2DNS
-        val isV2dnsMode = currentTab == 5
-        val xrayJson = if (isV2dnsMode) {
-            when {
-                parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
-                c.xray.jsonConfig.isNotBlank() && c.xray.jsonConfig != com.kighmu.vpn.models.XrayConfig.defaultXrayConfig -> c.xray.jsonConfig
-                else -> ""
-            }
-        } else when (rgXray.checkedRadioButtonId) {
-            R.id.rb_xray_link -> {
-                if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink
-                else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-            }
-            else -> view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-        }
-        if (xrayJson.isBlank() || xrayJson == com.kighmu.vpn.models.XrayConfig.defaultXrayConfig) {
-            tvXrayWarning.text = "⚠️ Config vide - parsez d'abord le lien ou collez un JSON"
-            tvXrayWarning.visibility = android.view.View.VISIBLE
-            return
-        }
-        val xray = c.xray.copy(
-            jsonConfig = xrayJson,
-            inputMode = when (rgXray.checkedRadioButtonId) {
-                R.id.rb_xray_link -> "link"
-                R.id.rb_xray_json -> "json"
-                else -> c.xray.inputMode
-            }
-        )
-        val hys = c.hysteria.copy(
-            serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
-            serverPort = view.findViewById<EditText>(R.id.et_hys_port).text.toString().toIntOrNull() ?: 443,
-            authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
-            uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
-            downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
-            obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
-            sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
-        )
-        val newTunnelMode = when (currentTab) {
-            0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
-            1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
-            2 -> com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET
-            3 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
-            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
-            5 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
-            6 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
-            else -> c.tunnelMode
-        }
-        viewModel.saveConfig(c.copy(
-            tunnelMode = newTunnelMode,
-            sshCredentials = ssh, slowDns = dns, httpProxy = http, hysteria = hys,
-            sshSsl = ssl, sshWebSocket = ws,
-            xray = xray,
-            slowDnsProfiles = dnsProfileAdapter?.getProfiles() ?: mutableListOf()
-        ))
-        Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
-    }
-
 }

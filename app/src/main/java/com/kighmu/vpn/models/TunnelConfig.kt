@@ -65,6 +65,10 @@ data class SlowDnsConfig(
 // ─────────────────────────────────────────────────────────────────────────────
 
 data class HttpProxyConfig(
+    @SerializedName("sshHost") var sshHost: String = "",
+    @SerializedName("sshPort") var sshPort: Int = 22,
+    @SerializedName("sshUser") var sshUser: String = "",
+    @SerializedName("sshPass") var sshPass: String = "",
     @SerializedName("proxyHost") var proxyHost: String = "",
     @SerializedName("proxyPort") var proxyPort: Int = 8080,
     @SerializedName("customPayload") var customPayload: String = defaultPayload,
@@ -81,6 +85,10 @@ data class HttpProxyConfig(
 
 
 data class SshWebSocketConfig(
+    @SerializedName("sshHost") var sshHost: String = "",
+    @SerializedName("sshPort") var sshPort: Int = 22,
+    @SerializedName("sshUser") var sshUser: String = "",
+    @SerializedName("sshPass") var sshPass: String = "",
     @SerializedName("wsHost") var wsHost: String = "",
     @SerializedName("wsPort") var wsPort: Int = 80,
     @SerializedName("wsPath") var wsPath: String = "/",
@@ -93,11 +101,13 @@ data class SshWebSocketConfig(
 // ─────────────────────────────────────────────────────────────────────────────
 
 data class SshSslConfig(
-    @SerializedName("sslHost") var sslHost: String = "",
-    @SerializedName("sslPort") var sslPort: Int = 443,
+    @SerializedName("sshHost") var sshHost: String = "",
+    @SerializedName("sshPort") var sshPort: Int = 22,
+    @SerializedName("sshUser") var sshUser: String = "",
+    @SerializedName("sshPass") var sshPass: String = "",
     @SerializedName("sni") var sni: String = "",
-    @SerializedName("tlsVersion") var tlsVersion: String = "TLSv1.3",
-    @SerializedName("allowInsecure") var allowInsecure: Boolean = false
+    @SerializedName("tlsVersion") var tlsVersion: String = "TLS",
+    @SerializedName("allowInsecure") var allowInsecure: Boolean = true
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
