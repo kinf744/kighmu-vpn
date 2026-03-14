@@ -249,7 +249,9 @@ class SshSslEngine(
         val sslContext = SSLContext.getInstance(tlsVer).also { it.init(null, tm, SecureRandom()) }
 
         val factory = sslContext.socketFactory
-        val socket = factory.createSocket(sslConfig.sslHost, sslConfig.sslPort) as SSLSocket
+        val host = if (sslConfig.sslHost.isNotBlank()) sslConfig.sslHost else sshConfig.host
+        val port = if (sslConfig.sslPort > 0) sslConfig.sslPort else 443
+        val socket = factory.createSocket(host, port) as SSLSocket
 
         if (sslConfig.sni.isNotEmpty()) {
             val params = SSLParameters()
