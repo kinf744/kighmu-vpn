@@ -30,7 +30,7 @@ class SlowDnsEngine(
     private val socksPort get() = 10800 + profileIndex
     private var _dnsttPort: Int = 0
     private val dnsttPort: Int get() {
-        if (_dnsttPort == 0 || !isPortFree(_dnsttPort)) {
+        if (_dnsttPort == 0) {
             _dnsttPort = findFreePort(7000 + profileIndex)
         }
         return _dnsttPort
