@@ -443,8 +443,20 @@ class ConfigFragment : Fragment() {
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
             sni = view.findViewById<EditText>(R.id.et_hys_sni).text.toString()
         )
+        val newTunnelMode = when (currentTab) {
+            0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
+            1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
+            2 -> com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET
+            3 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
+            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
+            5 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
+            6 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+            else -> c.tunnelMode
+        }
         viewModel.saveConfig(c.copy(
+            tunnelMode = newTunnelMode,
             sshCredentials = ssh, slowDns = dns, httpProxy = http, hysteria = hys,
+            sshSsl = ssl, sshWebSocket = ws,
             xray = xray,
             slowDnsProfiles = dnsProfileAdapter?.getProfiles() ?: mutableListOf()
         ))

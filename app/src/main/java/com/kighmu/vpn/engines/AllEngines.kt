@@ -240,16 +240,13 @@ class SshSslEngine(
     private fun findFreeLocalPort(): Int = java.net.ServerSocket(0).use { it.localPort }
 
     private fun buildSslSocket(): SSLSocket {
-        val sslContext = if (sslConfig.allowInsecure) {
-            val tm = arrayOf<TrustManager>(object : X509TrustManager {
-                override fun checkClientTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
-                override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
-                override fun getAcceptedIssuers() = arrayOf<java.security.cert.X509Certificate>()
-            })
-            SSLContext.getInstance(sslConfig.tlsVersion).also { it.init(null, tm, SecureRandom()) }
-        } else {
-            SSLContext.getInstance(sslConfig.tlsVersion)
-        }
+        val tm = arrayOf<TrustManager>(object : X509TrustManager {
+            override fun checkClientTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+            override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+            override fun getAcceptedIssuers() = arrayOf<java.security.cert.X509Certificate>()
+        })
+        val tlsVer = if (sslConfig.tlsVersion.isBlank()) "TLS" else sslConfig.tlsVersion
+        val sslContext = SSLContext.getInstance(tlsVer).also { it.init(null, tm, SecureRandom()) }
 
         val factory = sslContext.socketFactory
         val socket = factory.createSocket(sslConfig.sslHost, sslConfig.sslPort) as SSLSocket
