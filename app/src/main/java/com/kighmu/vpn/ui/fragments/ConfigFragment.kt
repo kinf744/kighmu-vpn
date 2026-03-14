@@ -406,8 +406,7 @@ class ConfigFragment : Fragment() {
         // Vérifier que le mode Xray est sélectionné si on est en mode V2RAY_XRAY
         val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
-        if (c.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY &&
-            rgXray.checkedRadioButtonId == -1) {
+        if (currentTab == 4 && rgXray.checkedRadioButtonId == -1) {
             tvXrayWarning.visibility = android.view.View.VISIBLE
             return
         }
