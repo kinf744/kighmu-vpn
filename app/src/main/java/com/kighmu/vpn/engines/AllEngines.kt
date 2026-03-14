@@ -139,6 +139,28 @@ class SshWebSocketEngine(
         return Socket("127.0.0.1", port)
     }
 
+
+    override fun startTun2Socks(fd: Int) {
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
+                bin.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_ws.sock"
+                File(sockPath).delete()
+                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--enable-udprelay", "--loglevel", "4")
+                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
+                Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
+                delay(500)
+                val localSocket = android.net.LocalSocket()
+                localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
+                KighmuLogger.info(TAG, "SshWsEngine fd $fd envoye via sock-path")
+            } catch (e: Exception) { KighmuLogger.error(TAG, "tun2socks error: ${e.message}") }
+        }
+    }
     override suspend fun stop() {
         running = false
         try { sshConnection?.close() } catch (_: Exception) {}
@@ -242,6 +264,28 @@ class SshSslEngine(
         return socket
     }
 
+
+    override fun startTun2Socks(fd: Int) {
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
+                bin.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_ssl.sock"
+                File(sockPath).delete()
+                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--enable-udprelay", "--loglevel", "4")
+                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
+                Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
+                delay(500)
+                val localSocket = android.net.LocalSocket()
+                localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
+                KighmuLogger.info(TAG, "SshSslEngine fd $fd envoye via sock-path")
+            } catch (e: Exception) { KighmuLogger.error(TAG, "tun2socks error: ${e.message}") }
+        }
+    }
     override suspend fun stop() {
         running = false
         try { sshConnection?.close() } catch (_: Exception) {}
