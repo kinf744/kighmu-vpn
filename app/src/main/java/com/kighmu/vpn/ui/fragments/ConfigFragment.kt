@@ -373,6 +373,7 @@ class ConfigFragment : Fragment() {
             return
         }
         android.util.Log.d("ConfigFragment", "saveConfig: currentTab=$currentTab")
+        val ssh = c.sshCredentials.copy(
             host = view.findViewById<EditText>(R.id.et_ssh_host).text.toString(),
             port = view.findViewById<EditText>(R.id.et_ssh_port).text.toString().toIntOrNull() ?: 22,
             username = view.findViewById<EditText>(R.id.et_ssh_user).text.toString(),
