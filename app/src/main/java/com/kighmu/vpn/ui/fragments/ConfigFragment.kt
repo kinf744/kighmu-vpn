@@ -367,8 +367,12 @@ class ConfigFragment : Fragment() {
     }
 
     private fun saveConfig(view: View) {
-        val c = viewModel.config.value
-        val ssh = c.sshCredentials.copy(
+        val c = viewModel.config.value ?: run {
+            android.util.Log.e("ConfigFragment", "saveConfig: config is null!")
+            Toast.makeText(requireContext(), "Erreur: config null", Toast.LENGTH_SHORT).show()
+            return
+        }
+        android.util.Log.d("ConfigFragment", "saveConfig: currentTab=$currentTab")
             host = view.findViewById<EditText>(R.id.et_ssh_host).text.toString(),
             port = view.findViewById<EditText>(R.id.et_ssh_port).text.toString().toIntOrNull() ?: 22,
             username = view.findViewById<EditText>(R.id.et_ssh_user).text.toString(),
