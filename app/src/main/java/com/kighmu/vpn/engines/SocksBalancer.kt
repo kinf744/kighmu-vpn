@@ -17,7 +17,7 @@ class SocksBalancer(private val ports: List<Int>) {
 
     companion object {
         const val TAG = "SocksBalancer"
-        const val BALANCER_PORT = 10900
+        var BALANCER_PORT = 10900
     }
 
     private var serverSocket: ServerSocket? = null
@@ -26,7 +26,9 @@ class SocksBalancer(private val ports: List<Int>) {
 
     fun start() {
         running = true
-        serverSocket = ServerSocket(BALANCER_PORT)
+        val ss = ServerSocket(0)
+        BALANCER_PORT = ss.localPort
+        serverSocket = ss
         KighmuLogger.info(TAG, "Balancer demarre sur port $BALANCER_PORT -> ports: $ports")
 
         Thread {
