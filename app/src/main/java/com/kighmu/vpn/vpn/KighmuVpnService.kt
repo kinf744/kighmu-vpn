@@ -94,15 +94,18 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
-        try { instance = null } catch (_: Exception) {}
-        try { statsJob?.cancel() } catch (_: Exception) {}
-        try { serviceJob.cancel() } catch (_: Exception) {}
-        try {
-            tunnelEngine = null
-            vpnInterface?.close()
-            vpnInterface = null
-        } catch (_: Exception) {}
-        try { stopForeground(true) } catch (_: Exception) {}
+        instance = null
+        vpnJob?.cancel()
+        statsJob?.cancel()
+        serviceJob.cancel()
+        try { tunnelEngine?.let { e -> CoroutineScope(Dispatchers.IO).launch { withTimeoutOrNull(1000) { e.stop() } } } } catch (_: Exception) {}
+        tunnelEngine = null
+        try { vpnInterface?.close() } catch (_: Exception) {}
+        vpnInterface = null
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
+            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+        }
+        updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
         super.onDestroy()
     }
 
