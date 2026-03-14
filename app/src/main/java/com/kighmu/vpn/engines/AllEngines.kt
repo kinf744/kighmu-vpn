@@ -197,7 +197,7 @@ class SshSslEngine(
 
     override suspend fun start(): Int {
         running = true
-        KighmuLogger.info(TAG, "Starting SSH SSL/TLS engine: ${sslConfig.sslHost}:${sslConfig.sslPort}")
+        KighmuLogger.info(TAG, "Starting SSH SSL/TLS engine: ${sslConfig.sshHost}:${sslConfig.sshPort}")
 
         withContext(Dispatchers.IO) {
             try {
@@ -249,8 +249,8 @@ class SshSslEngine(
         val sslContext = SSLContext.getInstance(tlsVer).also { it.init(null, tm, SecureRandom()) }
 
         val factory = sslContext.socketFactory
-        val host = if (sslConfig.sslHost.isNotBlank()) sslConfig.sslHost else sshConfig.host
-        val port = if (sslConfig.sslPort > 0) sslConfig.sslPort else 443
+        val host = if (sslConfig.sshHost.isNotBlank()) sslConfig.sshHost else sshConfig.host
+        val port = if (sslConfig.sshPort > 0) sslConfig.sshPort else 443
         val socket = factory.createSocket(host, port) as SSLSocket
 
         if (sslConfig.sni.isNotEmpty()) {

@@ -10,6 +10,9 @@ import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kighmu.vpn.R
+import androidx.lifecycle.Observer
+import com.kighmu.vpn.profiles.DnsProfileAdapter
+import com.kighmu.vpn.profiles.SlowDnsProfileAdapter
 import com.kighmu.vpn.profiles.ProfileRepository
 import com.kighmu.vpn.profiles.SlowDnsProfileAdapter
 import com.kighmu.vpn.ui.MainViewModel
@@ -156,7 +159,7 @@ class ConfigFragment : Fragment() {
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
 
-        viewModel.config.observe(viewLifecycleOwner) { loadConfig(view, it) }
+        viewModel.config.observe(viewLifecycleOwner, Observer { loadConfig(view, it) })
 
         selectTab(currentTab)
     }
