@@ -179,14 +179,28 @@ class SshSslEngine(
 
         withContext(Dispatchers.IO) {
             try {
-                // SSH via SSL socket - trilead se connecte à travers le tunnel TLS
+                // SSH via SSL socket - utiliser ProxyData pour passer par le tunnel TLS
                 val sslSocket = buildSslSocket()
                 KighmuLogger.info(TAG, "SSL handshake OK: ${sslSocket.session.protocol} ${sslSocket.session.cipherSuite}")
-                val conn = Connection(sshConfig.host, sshConfig.port)
-                conn.connect(object : com.trilead.ssh2.transport.TransportManager.PacketListener {
-                    override fun read(msg: String?) {}
-                    override fun write(msg: String?) {}
-                }, sslSocket.inputStream, sslSocket.outputStream, 30000)
+                // Créer un ServerSocket local qui forward vers le SSL socket
+                val localPort = findFreeLocalPort()
+                val bridge = java.net.ServerSocket(localPort)
+                Thread {
+                    try {
+                        val client = bridge.accept()
+                        bridge.close()
+                        val buf = ByteArray(8192)
+                        val t1 = Thread {
+                            try { val i = client.getInputStream(); val o = sslSocket.outputStream; var n: Int; while (i.read(buf).also { n = it } > 0) { o.write(buf, 0, n); o.flush() } } catch (_: Exception) {}
+                        }
+                        val t2 = Thread {
+                            try { val i = sslSocket.inputStream; val o = client.getOutputStream(); var n: Int; while (i.read(buf).also { n = it } > 0) { o.write(buf, 0, n); o.flush() } } catch (_: Exception) {}
+                        }
+                        t1.start(); t2.start(); t1.join()
+                    } catch (_: Exception) {}
+                }.start()
+                val conn = Connection("127.0.0.1", localPort)
+                conn.connect(null, 30000, 30000)
                 val authenticated = conn.authenticateWithPassword(sshConfig.username, sshConfig.password)
                 if (!authenticated) throw Exception("SSH auth echoue pour ${sshConfig.username}")
                 conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
@@ -200,6 +214,8 @@ class SshSslEngine(
 
         return LOCAL_SOCKS_PORT
     }
+
+    private fun findFreeLocalPort(): Int = java.net.ServerSocket(0).use { it.localPort }
 
     private fun buildSslSocket(): SSLSocket {
         val sslContext = if (sslConfig.allowInsecure) {
