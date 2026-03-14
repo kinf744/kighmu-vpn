@@ -215,26 +215,26 @@ class KighmuVpnService : VpnService() {
     private fun stopVpn() {
         userRequestedStop = true
         reconnectAttempts = 0
-        // Annuler le job VPN
         vpnJob?.cancel()
         statsJob?.cancel()
-        // Mettre à jour le statut immédiatement
-        updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
-        // Fermer interface VPN immédiatement - clé disparaît
-        try { vpnInterface?.close() } catch (_: Exception) {}
-        vpnInterface = null
-        try { stopForeground(true) } catch (_: Exception) {}
-        // Arrêter l'engine dans un scope indépendant
         val engineRef = tunnelEngine
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
+        // 1. Fermer interface TUN - clé VPN disparaît immédiatement
+        try { vpnInterface?.close() } catch (_: Exception) {}
+        vpnInterface = null
+        // 2. Retirer notification foreground
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
+            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+        }
+        // 3. Arrêter le service immédiatement
+        updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
+        stopSelf()
+        // 4. Arrêter l'engine en background
         CoroutineScope(Dispatchers.IO).launch {
-            withTimeoutOrNull(3000) {
+            withTimeoutOrNull(2000) {
                 try { engineRef?.stop() } catch (_: Exception) {}
-            }
-            withContext(Dispatchers.Main) {
-                try { stopSelf() } catch (_: Exception) {}
             }
         }
     }
