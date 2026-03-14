@@ -10,7 +10,9 @@ import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.kighmu.vpn.R
-import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import com.kighmu.vpn.ui.adapters.SlowDnsProfileAdapter
 import com.kighmu.vpn.profiles.SlowDnsProfile
 import com.kighmu.vpn.profiles.ProfileRepository
@@ -166,7 +168,9 @@ class ConfigFragment : Fragment() {
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
 
-        viewModel.config.observe(viewLifecycleOwner, androidx.lifecycle.Observer { c -> if (c != null) loadConfig(view, c) })
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.config.collect { c -> loadConfig(view, c) }
+        }
 
         selectTab(currentTab)
     }
@@ -325,7 +329,7 @@ class ConfigFragment : Fragment() {
             slowDns = dns,
             xray = xray,
             hysteria = hys,
-            slowDnsProfiles = profileRepo.getAll().toMutableList()
+            slowDnsProfiles = slowDnsProfileAdapter?.getSelected()?.map { com.kighmu.vpn.models.SlowDnsConfig(dnsServer = it.dnsServer, nameserver = it.nameserver, publicKey = it.publicKey) }?.toMutableList() ?: mutableListOf()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
