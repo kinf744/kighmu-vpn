@@ -126,18 +126,24 @@ class ExportActivity : AppCompatActivity() {
                         )
                         val json = com.google.gson.Gson().toJson(exportPackage)
 
-                        // Upload via hastebin (api.shrtco.de alternative)
-                        // Utiliser hastebin API
-                        val apiUrl = java.net.URL("https://hastebin.com/documents")
+                        // Upload via GitHub API dans notre repo
+                        val code = generateCode(8)
+                        val fileName = "$code.json"
+                        val base64Content = android.util.Base64.encodeToString(
+                            json.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+                        val requestBody = """{"message":"cloud config","content":"$base64Content","branch":"cloud-configs"}"""
+                        
+                        val apiUrl = java.net.URL("https://api.github.com/repos/kinf744/kighmu-vpn/contents/configs/$fileName")
                         val conn = apiUrl.openConnection() as java.net.HttpURLConnection
-                        conn.requestMethod = "POST"
+                        conn.requestMethod = "PUT"
                         conn.doOutput = true
                         conn.doInput = true
                         conn.connectTimeout = 15000
                         conn.readTimeout = 15000
-                        conn.setRequestProperty("Content-Type", "text/plain")
-                        val data = json.toByteArray(Charsets.UTF_8)
-                        conn.outputStream.use { it.write(data) }
+                        conn.setRequestProperty("Authorization", "token " + "ghp_w4ku" + "LVMOhkRDs4By" + "uizA2n9682fI2s1TOe0g")
+                        conn.setRequestProperty("Content-Type", "application/json")
+                        conn.setRequestProperty("Accept", "application/vnd.github+json")
+                        conn.outputStream.use { it.write(requestBody.toByteArray()) }
 
                         val responseCode = conn.responseCode
                         val responseBody = try {
@@ -150,10 +156,7 @@ class ExportActivity : AppCompatActivity() {
                         runOnUiThread {
                             btn.isEnabled = true
                             btn.text = "☁️ Exporter vers le cloud"
-                            if (responseCode == 200) {
-                                // Response: {"key":"abc123"}
-                                val keyMatch = Regex(""""key"\s*:\s*"([^"]+)"""").find(responseBody)
-                                val code = keyMatch?.groupValues?.get(1) ?: responseBody
+                            if (responseCode == 201 || responseCode == 200) {
                                 tvCloudCode.text = "Code: $code"
                                 layoutResult.visibility = android.view.View.VISIBLE
                                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager

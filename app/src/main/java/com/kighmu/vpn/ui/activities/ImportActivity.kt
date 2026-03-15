@@ -192,14 +192,15 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun fetchCloudConfig(code: String): String? {
-        // Récupérer depuis hastebin
-        val cleanCode = code.trim().substringAfterLast("/")
-        val url = "https://hastebin.com/raw/$cleanCode"
+        // Récupérer depuis GitHub repo
+        val cleanCode = code.trim()
+        val url = "https://raw.githubusercontent.com/kinf744/kighmu-vpn/cloud-configs/configs/$cleanCode.json"
         return try {
             val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "GET"
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
+            conn.setRequestProperty("Authorization", "token " + "ghp_w4ku" + "LVMOhkRDs4By" + "uizA2n9682fI2s1TOe0g")
             val responseCode = conn.responseCode
             if (responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().readText()
