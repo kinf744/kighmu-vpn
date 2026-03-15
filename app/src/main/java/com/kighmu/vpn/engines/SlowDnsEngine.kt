@@ -55,6 +55,12 @@ class SlowDnsEngine(
     private var dnsttProcess: Process? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
+    private val cleanPublicKey get() = config.slowDns.publicKey
+        .trim()
+        .replace(" ", "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace("\t", "")
     private val currentProfile get() = config.slowDnsProfiles.getOrNull(profileIndex)
     private val sshHostVal: String get() = (currentProfile?.sshHost ?: config.slowDns.sshHost).substringBefore(":")
     private val sshPortVal: Int get() = currentProfile?.sshPort ?: config.slowDns.sshPort
@@ -67,7 +73,7 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "SSH: $sshHostVal:${sshPortVal} / ${sshUserVal}")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
-        if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
+        if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
 
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
@@ -179,7 +185,7 @@ class SlowDnsEngine(
         running = true
         val dns = config.slowDns
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
-        if (dns.publicKey.isBlank()) throw Exception("Public Key manquante")
+        if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
         // Attendre que dnstt ouvre le listener TCP
@@ -196,7 +202,7 @@ class SlowDnsEngine(
         val cmd = listOf(
             bin.absolutePath,
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
-            "-pubkey", dns.publicKey.trim().replace(" ", "").replace("\n", "").replace("\r", ""),
+            "-pubkey", cleanPublicKey,
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
