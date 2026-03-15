@@ -34,6 +34,7 @@ class ExportActivity : AppCompatActivity() {
         setupAccessCode()
         setupExpiryDate()
         setupExportButtons()
+        setupCloudExport()
     }
 
     private fun setupAccessCode() {
@@ -80,6 +81,99 @@ class ExportActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupCloudExport() {
+        val rgCloud = findViewById<android.widget.RadioGroup>(R.id.rg_cloud_type)
+        val layoutDuration = findViewById<android.view.View>(R.id.layout_cloud_duration)
+        val layoutResult = findViewById<android.view.View>(R.id.layout_cloud_result)
+        val tvCloudCode = findViewById<android.widget.TextView>(R.id.tv_cloud_code)
+        val btnCopyCode = findViewById<android.widget.Button>(R.id.btn_copy_cloud_code)
+
+        rgCloud.setOnCheckedChangeListener { _, id ->
+            layoutDuration.visibility = if (id == R.id.rb_cloud_limited) 
+                android.view.View.VISIBLE else android.view.View.GONE
+        }
+
+        findViewById<android.widget.Button>(R.id.btn_export_cloud).setOnClickListener {
+            val isLimited = rgCloud.checkedRadioButtonId == R.id.rb_cloud_limited
+            val durationMinutes = if (isLimited) {
+                findViewById<android.widget.EditText>(R.id.et_cloud_duration)
+                    .text.toString().toLongOrNull() ?: 60L
+            } else 0L
+
+            val btn = it as android.widget.Button
+            btn.isEnabled = false
+            btn.text = "Envoi en cours..."
+
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Thread {
+                    try {
+                        // Préparer le JSON avec expiration si limitée
+                        val expiresAt = if (durationMinutes > 0) 
+                            System.currentTimeMillis() + durationMinutes * 60 * 1000L else 0L
+                        
+                        val config = viewModel.config.value
+                        val exportPackage = mapOf(
+                            "config" to config,
+                            "security" to mapOf(
+                                "expiresAt" to expiresAt,
+                                "exportType" to if (isLimited) "expiry" else "normal",
+                                "appId" to packageName,
+                                "userMessage" to findViewById<android.widget.EditText>(R.id.et_user_message).text.toString(),
+                                "lockAllConfig" to findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
+                                "accessCode" to findViewById<android.widget.EditText>(R.id.et_access_code).text.toString()
+                            ),
+                            "exportedAt" to System.currentTimeMillis()
+                        )
+                        val json = com.google.gson.Gson().toJson(exportPackage)
+
+                        // Upload vers paste.rs
+                        val url = java.net.URL("https://paste.rs")
+                        val conn = url.openConnection() as java.net.HttpURLConnection
+                        conn.requestMethod = "POST"
+                        conn.doOutput = true
+                        conn.setRequestProperty("Content-Type", "text/plain")
+                        conn.outputStream.write(json.toByteArray())
+                        conn.outputStream.flush()
+
+                        val responseCode = conn.responseCode
+                        val pasteUrl = conn.inputStream.bufferedReader().readText().trim()
+                        conn.disconnect()
+
+                        runOnUiThread {
+                            btn.isEnabled = true
+                            btn.text = "☁️ Exporter vers le cloud"
+                            if (responseCode == 201 || responseCode == 200) {
+                                // Extraire le code (dernière partie de l'URL)
+                                val code = pasteUrl.substringAfterLast("/")
+                                tvCloudCode.text = "Code: $code"
+                                layoutResult.visibility = android.view.View.VISIBLE
+                                // Copier dans le presse-papiers
+                                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
+                                android.widget.Toast.makeText(this, "✓ Code copié: $code", android.widget.Toast.LENGTH_LONG).show()
+                            } else {
+                                android.widget.Toast.makeText(this, "Erreur upload: $responseCode", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            btn.isEnabled = true
+                            btn.text = "☁️ Exporter vers le cloud"
+                            android.widget.Toast.makeText(this, "Erreur: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }.start()
+            }
+        }
+
+        btnCopyCode.setOnClickListener {
+            val code = tvCloudCode.text.toString().removePrefix("Code: ")
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
+            android.widget.Toast.makeText(this, "Code copié!", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun setupExportButtons() {
         findViewById<Button>(R.id.btn_export_save).setOnClickListener {
             showExportTypeDialog(share = false)
@@ -87,13 +181,8 @@ class ExportActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_export_locked_unlocked).setOnClickListener {
             showExportTypeDialog(share = false, locked = true)
         }
-        findViewById<Button>(R.id.btn_export_share).setOnClickListener {
-            exportConfig(locked = false, share = true)
+        
         }
-        findViewById<Button>(R.id.btn_export_share2).setOnClickListener {
-            exportConfig(locked = false, share = true)
-        }
-    }
 
     private fun exportConfig(locked: Boolean, share: Boolean) {
         val fileName = findViewById<EditText>(R.id.et_export_filename).text.toString()

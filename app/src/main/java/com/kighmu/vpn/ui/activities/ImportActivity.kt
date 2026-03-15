@@ -21,6 +21,7 @@ class ImportActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val configManager by lazy { com.kighmu.vpn.config.ConfigManager(this) }
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { importFromFile(it) }
@@ -176,17 +177,31 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun applyImport(config: KighmuConfig) {
+        // Sauvegarder via ConfigManager pour persister
+        configManager.saveCurrentConfig(config)
+        // Aussi via viewModel pour mettre à jour l'UI
         viewModel.saveConfig(config)
         Toast.makeText(this, "✓ Configuration importée avec succès!", Toast.LENGTH_LONG).show()
         setResult(RESULT_OK)
+        // Relancer MainActivity pour recharger la config
+        val intent = android.content.Intent(this, MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(intent)
         finish()
     }
 
     private fun fetchCloudConfig(code: String): String? {
-        // Cloud storage via pastebin/similar service
-        val url = "https://api.kighmu.cloud/config/$code"
+        // Récupérer depuis paste.rs
+        val url = "https://paste.rs/$code"
         return try {
-            java.net.URL(url).readText()
+            val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
+            val response = conn.inputStream.bufferedReader().readText()
+            conn.disconnect()
+            if (response.contains("config") && response.contains("security")) response else null
         } catch (_: Exception) { null }
     }
 
