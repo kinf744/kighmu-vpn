@@ -152,13 +152,6 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info("VpnService", "Interface temp etablie: ${tempVpn != null}")
                 KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
                 KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
-                KighmuLogger.info("VpnService", "Config: ${currentConfig.configName}")
-                KighmuLogger.info("VpnService", "SSH host: '${currentConfig.sshCredentials.host}'")
-                KighmuLogger.info("VpnService", "SSH port: ${currentConfig.sshCredentials.port}")
-                KighmuLogger.info("VpnService", "SSH user: '${currentConfig.sshCredentials.username}'")
-                KighmuLogger.info("VpnService", "SSH pass empty: ${currentConfig.sshCredentials.password.isEmpty()}")
-                KighmuLogger.info("VpnService", "DNS server: '${currentConfig.slowDns.dnsServer}'")
-                KighmuLogger.info("VpnService", "Nameserver: '${currentConfig.slowDns.nameserver}'")
 
                 val localPort = try {
                     // MultiSlowDnsEngine gère automatiquement tous les profils cochés

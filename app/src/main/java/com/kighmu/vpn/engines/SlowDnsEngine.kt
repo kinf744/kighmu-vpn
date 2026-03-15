@@ -213,7 +213,7 @@ class SlowDnsEngine(
         Thread {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
-                    if (running) KighmuLogger.info(TAG, "dnstt: $line")
+                    if (running && !line.contains("begin stream") && !line.contains("end stream") && !line.contains("accepted")) KighmuLogger.info(TAG, "dnstt: $line")
                 }
             } catch (e: Exception) {
                 if (running) KighmuLogger.error(TAG, "dnstt stdout: ${e.message}")

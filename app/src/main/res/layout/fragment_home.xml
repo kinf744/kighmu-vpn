@@ -43,6 +43,20 @@
         android:textSize="12sp"
         android:gravity="center"/>
 
+    <TextView
+        android:id="@+id/tv_user_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#4FC3F7"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:padding="8dp"
+        android:visibility="gone"
+        android:background="#1A2744"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"/>
+
     <ProgressBar
         android:id="@+id/progress_connecting"
         android:layout_width="wrap_content"

@@ -175,6 +175,9 @@ class ConfigFragment : Fragment() {
     }
 
     private fun loadConfig(view: View, c: com.kighmu.vpn.models.KighmuConfig) {
+        // Verrouiller config si lockAllConfig = true
+        val isLocked = c.exportConfig?.lockAllConfig == true
+        applyConfigLock(view, isLocked)
         // Recharger profils SlowDNS
         val savedProfiles = profileRepo.getAll()
         if (savedProfiles.isNotEmpty() || dnsProfiles.isEmpty()) {
@@ -443,6 +446,25 @@ class ConfigFragment : Fragment() {
   },{"protocol":"freedom","tag":"direct"}],
   "routing":{"rules":[]}
 }"""
+    }
+
+    private fun applyConfigLock(view: View, locked: Boolean) {
+        // Désactiver tous les EditText, CheckBox, RadioButton, Button sauf Save
+        fun lockView(v: android.view.View) {
+            v.isEnabled = !locked
+            if (v is android.view.ViewGroup) {
+                for (i in 0 until v.childCount) lockView(v.getChildAt(i))
+            }
+        }
+        val content = view.findViewById<android.view.ViewGroup>(R.id.config_content)
+        lockView(content)
+        // Garder le bouton save visible mais désactivé
+        val btnSave = view.findViewById<android.widget.Button>(R.id.btn_save_config)
+        btnSave.isEnabled = !locked
+        if (locked) {
+            btnSave.text = "🔒 CONFIG VERROUILLÉE"
+            btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+        }
     }
 
     private fun showAddProfileDialog(existing: com.kighmu.vpn.profiles.SlowDnsProfile? = null) {

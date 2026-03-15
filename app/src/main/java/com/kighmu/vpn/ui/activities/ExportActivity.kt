@@ -131,7 +131,7 @@ class ExportActivity : AppCompatActivity() {
             exportType        = exportType,
             burnAfterImport   = isBurn,
             burnToken         = if (isBurn) UUID.randomUUID().toString() else "",
-            lockAllConfig     = locked,
+            lockAllConfig     = locked || findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
             appId             = packageName,
             securitySignature = buildSignature(config.toString(), androidId, expiresAt, operatorName)
         )

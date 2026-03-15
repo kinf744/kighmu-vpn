@@ -34,6 +34,19 @@ class HomeFragment : Fragment() {
         try {
             btnConnect = view.findViewById(R.id.btn_connect)
             tvStatus = view.findViewById(R.id.tv_connection_status)
+            val tvUserMessage = view.findViewById<android.widget.TextView>(R.id.tv_user_message)
+            // Afficher message de la config exportée
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewModel.config.collect { cfg ->
+                    val msg = cfg.exportConfig?.userMessage ?: ""
+                    if (msg.isNotBlank()) {
+                        tvUserMessage.text = msg
+                        tvUserMessage.visibility = android.view.View.VISIBLE
+                    } else {
+                        tvUserMessage.visibility = android.view.View.GONE
+                    }
+                }
+            }
             tvMode = view.findViewById(R.id.tv_current_mode)
             spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 

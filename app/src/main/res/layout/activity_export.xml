@@ -109,7 +109,12 @@
                 android:layout_width="match_parent" android:layout_height="48dp"
                 android:text="Désactiver l'écrasement utilisateur du type de tunnel et du serveur"
                 android:textColor="#333333" android:paddingStart="8dp"/>
-            <CheckBox android:id="@+id/cb_block_torrent"
+            <CheckBox android:id="@+id/cb_lock_all_config"
+            android:layout_width="match_parent" android:layout_height="48dp"
+            android:text="🔒 Verrouiller toute la configuration (lecture seule)"
+            android:textColor="#E53935" android:paddingStart="8dp"
+            android:textStyle="bold"/>
+        <CheckBox android:id="@+id/cb_block_torrent"
                 android:layout_width="match_parent" android:layout_height="48dp"
                 android:text="Interdire le torrent"
                 android:textColor="#333333" android:paddingStart="8dp"/>
@@ -140,7 +145,82 @@
                 android:textSize="16sp" android:padding="0dp"/>
         </LinearLayout>
 
-        <!-- Boutons Export -->
+    
+    <!-- Tunnels à inclure -->
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="  Tunnels à inclure" android:textColor="#009688" android:textSize="13sp"
+        android:background="#E0F2F1" android:padding="12dp" android:layout_marginTop="8dp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="#FFFFFF" android:orientation="vertical" android:padding="8dp">
+        <CheckBox android:id="@+id/cb_tunnel_slowdns" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="SlowDNS"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_http" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="HTTP Proxy + Payload"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_ws" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="SSH WebSocket"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_ssl" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="SSH SSL/TLS"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_xray" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="V2Ray / Xray"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_v2dns" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="V2Ray + SlowDNS"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+        <CheckBox android:id="@+id/cb_tunnel_hysteria" android:layout_width="match_parent"
+            android:layout_height="48dp" android:text="Hysteria UDP"
+            android:textColor="#333333" android:paddingStart="8dp" android:checked="true"/>
+    </LinearLayout>
+
+    <!-- Cloud Config -->
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="  Export Cloud" android:textColor="#009688" android:textSize="13sp"
+        android:background="#E0F2F1" android:padding="12dp" android:layout_marginTop="8dp"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="#FFFFFF" android:orientation="vertical" android:padding="16dp">
+        <RadioGroup android:id="@+id/rg_cloud_type" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical">
+            <RadioButton android:id="@+id/rb_cloud_normal" android:layout_width="match_parent"
+                android:layout_height="48dp" android:text="Config normale (pas d'expiration)"
+                android:textColor="#333333" android:checked="true"/>
+            <RadioButton android:id="@+id/rb_cloud_limited" android:layout_width="match_parent"
+                android:layout_height="48dp" android:text="Config limitée (durée en minutes)"
+                android:textColor="#333333"/>
+        </RadioGroup>
+        <LinearLayout android:id="@+id/layout_cloud_duration"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:visibility="gone" android:layout_marginTop="8dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Durée (minutes): " android:textColor="#333333"/>
+            <EditText android:id="@+id/et_cloud_duration"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:hint="Ex: 60"
+                android:inputType="number" android:textColor="#000000"
+                android:textColorHint="#AAAAAA" android:background="@null" android:padding="8dp"/>
+        </LinearLayout>
+        <Button android:id="@+id/btn_export_cloud"
+            android:layout_width="match_parent" android:layout_height="48dp"
+            android:text="☁️ Exporter vers le cloud" android:backgroundTint="#00796B"
+            android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginTop="8dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="8dp" android:visibility="gone"
+            android:id="@+id/layout_cloud_result">
+            <TextView android:id="@+id/tv_cloud_code"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:textColor="#009688" android:textSize="16sp"
+                android:textStyle="bold"/>
+            <Button android:id="@+id/btn_copy_cloud_code"
+                android:layout_width="36dp" android:layout_height="36dp"
+                android:text="📋" android:backgroundTint="#EEEEEE" android:textSize="14sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Boutons Export -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:padding="16dp"
             android:layout_marginTop="8dp">

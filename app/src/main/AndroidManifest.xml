@@ -41,6 +41,16 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.activities.ImportActivity"
+            android:theme="@style/Theme.KighmuVPN"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/octet-stream"/>
+                <data android:pathPattern=".*\.kighmu"/>
+            </intent-filter>
+        </activity>
         <activity android:name=".ui.activities.ExportActivity" android:exported="false"/>
 
         <activity

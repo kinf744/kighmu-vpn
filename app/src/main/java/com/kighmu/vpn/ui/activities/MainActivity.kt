@@ -63,7 +63,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_import -> { importLauncher.launch("*/*"); true }
+            R.id.action_import -> { startActivity(Intent(this, ImportActivity::class.java)); true }
             R.id.action_export -> {
                 startActivity(Intent(this, ExportActivity::class.java))
                 true
