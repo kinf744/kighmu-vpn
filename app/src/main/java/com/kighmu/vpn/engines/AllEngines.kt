@@ -634,6 +634,8 @@ class XrayEngine(
     }
     override suspend fun stop() {
         running = false
+        _socksPort = 0
+        dnsttProxyPort = 0
         _socksPort = 0  // Reset port pour prochain démarrage
         xrayProcess?.destroy()
         engineScope.cancel()
@@ -666,7 +668,7 @@ class XraySlowDnsEngine(
     }
 
     override fun startTun2Socks(fd: Int) = xray.startTun2Socks(fd)
-    override suspend fun stop() { xray.stop(); dnsttEngine.stop() }
+    override suspend fun stop() { xray.dnsttProxyPort = 0; xray.stop(); dnsttEngine.stop() }
     override suspend fun sendData(data: ByteArray, length: Int) = xray.sendData(data, length)
     override suspend fun receiveData(): ByteArray? = xray.receiveData()
     override fun isRunning() = xray.isRunning()
