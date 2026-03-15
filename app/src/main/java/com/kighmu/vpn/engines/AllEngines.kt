@@ -525,7 +525,10 @@ class XrayEngine(
                     val b = es.read()
                     if (b == -1) break
                     if (b == '\n'.code) {
-                        if (sb.isNotEmpty()) KighmuLogger.error(TAG, "[xray] $sb")
+                        if (sb.isNotEmpty()) {
+                            val skip = sb.contains("accepted") || sb.contains("begin stream") || sb.contains("end stream") || sb.contains(" from ")
+                            if (!skip) KighmuLogger.error(TAG, "[xray] $sb")
+                        }
                         sb.clear()
                     } else if (b != '\r'.code) sb.append(b.toChar())
                 }
@@ -540,7 +543,10 @@ class XrayEngine(
                     if (b == -1) break
                     if (b == '\n'.code) {
                         if (sb.isNotEmpty()) KighmuLogger.info(TAG, "[xray] $sb")
-                        sb.clear()
+                        if (sb.isNotEmpty()) {
+                            val skip = sb.contains("accepted") || sb.contains("begin stream") || sb.contains("end stream") || sb.contains(" from ")
+                            if (!skip) KighmuLogger.info(TAG, "[xray] $sb")
+                        }
                     } else if (b != '\r'.code) sb.append(b.toChar())
                 }
             } catch (_: Exception) {}

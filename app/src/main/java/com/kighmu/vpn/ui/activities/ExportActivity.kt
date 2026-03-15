@@ -126,33 +126,40 @@ class ExportActivity : AppCompatActivity() {
                         )
                         val json = com.google.gson.Gson().toJson(exportPackage)
 
-                        // Upload vers paste.rs
-                        val url = java.net.URL("https://paste.rs")
+                        // Upload vers paste.rs - POST raw data
+                        val url = java.net.URL("https://paste.rs/")
                         val conn = url.openConnection() as java.net.HttpURLConnection
                         conn.requestMethod = "POST"
                         conn.doOutput = true
-                        conn.setRequestProperty("Content-Type", "text/plain")
-                        conn.outputStream.write(json.toByteArray())
-                        conn.outputStream.flush()
+                        conn.doInput = true
+                        conn.connectTimeout = 15000
+                        conn.readTimeout = 15000
+                        conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+                        val data = json.toByteArray(Charsets.UTF_8)
+                        conn.setRequestProperty("Content-Length", data.size.toString())
+                        conn.outputStream.use { it.write(data) }
 
                         val responseCode = conn.responseCode
-                        val pasteUrl = conn.inputStream.bufferedReader().readText().trim()
+                        val responseBody = try {
+                            conn.inputStream.bufferedReader().readText().trim()
+                        } catch (_: Exception) {
+                            conn.errorStream?.bufferedReader()?.readText()?.trim() ?: "Unknown error"
+                        }
                         conn.disconnect()
 
                         runOnUiThread {
                             btn.isEnabled = true
                             btn.text = "☁️ Exporter vers le cloud"
-                            if (responseCode == 201 || responseCode == 200) {
-                                // Extraire le code (dernière partie de l'URL)
-                                val code = pasteUrl.substringAfterLast("/")
+                            if (responseCode == 201) {
+                                // responseBody contient l'URL complète ex: https://paste.rs/abc
+                                val code = responseBody.substringAfterLast("/").trim()
                                 tvCloudCode.text = "Code: $code"
                                 layoutResult.visibility = android.view.View.VISIBLE
-                                // Copier dans le presse-papiers
                                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
                                 android.widget.Toast.makeText(this, "✓ Code copié: $code", android.widget.Toast.LENGTH_LONG).show()
                             } else {
-                                android.widget.Toast.makeText(this, "Erreur upload: $responseCode", android.widget.Toast.LENGTH_LONG).show()
+                                android.widget.Toast.makeText(this, "Erreur $responseCode: $responseBody", android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
                     } catch (e: Exception) {

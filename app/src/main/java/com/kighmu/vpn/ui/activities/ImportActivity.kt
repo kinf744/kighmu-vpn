@@ -192,16 +192,24 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun fetchCloudConfig(code: String): String? {
-        // Récupérer depuis paste.rs
-        val url = "https://paste.rs/$code"
+        // Récupérer depuis paste.rs - GET /code
+        val cleanCode = code.trim().substringAfterLast("/")
+        val url = "https://paste.rs/$cleanCode"
         return try {
             val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 10000
-            conn.readTimeout = 10000
-            val response = conn.inputStream.bufferedReader().readText()
-            conn.disconnect()
-            if (response.contains("config") && response.contains("security")) response else null
+            conn.connectTimeout = 15000
+            conn.readTimeout = 15000
+            conn.setRequestProperty("Accept", "text/plain")
+            val responseCode = conn.responseCode
+            if (responseCode == 200) {
+                val response = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                if (response.contains("config") && response.contains("security")) response else null
+            } else {
+                conn.disconnect()
+                null
+            }
         } catch (_: Exception) { null }
     }
 
