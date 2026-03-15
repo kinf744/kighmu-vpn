@@ -192,15 +192,14 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun fetchCloudConfig(code: String): String? {
-        // Récupérer depuis paste.rs - GET /code
+        // Récupérer depuis hastebin
         val cleanCode = code.trim().substringAfterLast("/")
-        val url = "https://paste.rs/$cleanCode"
+        val url = "https://hastebin.com/raw/$cleanCode"
         return try {
             val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "GET"
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
-            conn.setRequestProperty("Accept", "text/plain")
             val responseCode = conn.responseCode
             if (responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().readText()

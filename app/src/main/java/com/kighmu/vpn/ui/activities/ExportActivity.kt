@@ -126,17 +126,17 @@ class ExportActivity : AppCompatActivity() {
                         )
                         val json = com.google.gson.Gson().toJson(exportPackage)
 
-                        // Upload vers paste.rs - POST raw data
-                        val url = java.net.URL("https://paste.rs/")
-                        val conn = url.openConnection() as java.net.HttpURLConnection
+                        // Upload via hastebin (api.shrtco.de alternative)
+                        // Utiliser hastebin API
+                        val apiUrl = java.net.URL("https://hastebin.com/documents")
+                        val conn = apiUrl.openConnection() as java.net.HttpURLConnection
                         conn.requestMethod = "POST"
                         conn.doOutput = true
                         conn.doInput = true
                         conn.connectTimeout = 15000
                         conn.readTimeout = 15000
-                        conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+                        conn.setRequestProperty("Content-Type", "text/plain")
                         val data = json.toByteArray(Charsets.UTF_8)
-                        conn.setRequestProperty("Content-Length", data.size.toString())
                         conn.outputStream.use { it.write(data) }
 
                         val responseCode = conn.responseCode
@@ -150,9 +150,10 @@ class ExportActivity : AppCompatActivity() {
                         runOnUiThread {
                             btn.isEnabled = true
                             btn.text = "☁️ Exporter vers le cloud"
-                            if (responseCode == 201) {
-                                // responseBody contient l'URL complète ex: https://paste.rs/abc
-                                val code = responseBody.substringAfterLast("/").trim()
+                            if (responseCode == 200) {
+                                // Response: {"key":"abc123"}
+                                val keyMatch = Regex(""""key"\s*:\s*"([^"]+)"""").find(responseBody)
+                                val code = keyMatch?.groupValues?.get(1) ?: responseBody
                                 tvCloudCode.text = "Code: $code"
                                 layoutResult.visibility = android.view.View.VISIBLE
                                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
