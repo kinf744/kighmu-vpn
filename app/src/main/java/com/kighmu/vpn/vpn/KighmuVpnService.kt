@@ -25,6 +25,7 @@ import com.kighmu.vpn.models.*
 import com.kighmu.vpn.ui.activities.MainActivity
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
+import kotlinx.coroutines.runBlocking
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.InetAddress
@@ -47,6 +48,7 @@ class KighmuVpnService : VpnService() {
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
+    private var tunParcel: ParcelFileDescriptor? = null
     private var tunnelEngine: TunnelEngine? = null
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -203,8 +205,9 @@ class KighmuVpnService : VpnService() {
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 val eng = tunnelEngine
+                tunParcel = vpnInterface
                 val tunFd = vpnInterface!!.detachFd()
-                vpnInterface = null  // FD detaché - fermer maintenant ne sert à rien
+                vpnInterface = null
                 tunnelEngine?.startTun2Socks(tunFd)
 
                 reconnectAttempts = 0
@@ -229,7 +232,11 @@ class KighmuVpnService : VpnService() {
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
-        // 1. Fermer interface TUN - clé VPN disparaît immédiatement
+        // 1. Arrêter engine et tun2socks pour libérer le FD
+        try { engineRef?.let { runBlocking { withTimeoutOrNull(1500) { it.stop() } } } } catch (_: Exception) {}
+        // 2. Fermer tunParcel - clé VPN disparaît
+        try { tunParcel?.close() } catch (_: Exception) {}
+        tunParcel = null
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
         // 2. Retirer notification foreground
@@ -239,12 +246,7 @@ class KighmuVpnService : VpnService() {
         // 3. Arrêter le service immédiatement
         updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
         stopSelf()
-        // 4. Arrêter l'engine en background
-        CoroutineScope(Dispatchers.IO).launch {
-            withTimeoutOrNull(2000) {
-                try { engineRef?.stop() } catch (_: Exception) {}
-            }
-        }
+
     }
 
     private fun reconnect() {
