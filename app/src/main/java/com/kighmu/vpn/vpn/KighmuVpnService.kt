@@ -98,9 +98,7 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
-    override fun onDestroy() {
-        android.util.Log.e(TAG, "=== onDestroy called ===")
-        try { val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt"); f.appendText("\nonDestroy called: ${java.util.Date()}\nvpnInterface null: ${vpnInterface == null}\n") } catch (_: Exception) {}
+        try { val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt"); f.appendText("\nonDestroy: ${java.util.Date()} vpnInterface=${vpnInterface != null}\n") } catch (_: Exception) {}
         vpnJob?.cancel()
         statsJob?.cancel()
         serviceJob.cancel()
