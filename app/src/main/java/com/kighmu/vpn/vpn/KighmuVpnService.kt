@@ -239,8 +239,12 @@ class KighmuVpnService : VpnService() {
             runBlocking { withTimeoutOrNull(1500) { engineRef?.stop() } }
             log.appendLine("engine stop: OK")
         } catch (e: Exception) { log.appendLine("engine stop error: ${e.message}") }
-        // 2. Fermer tunParcel - clé VPN disparaît
-        try { vpnInterface?.close() } catch (_: Exception) {}
+        // 2. Fermer interface TUN - clé VPN disparaît
+        try {
+            vpnInterface?.close()
+            log.appendLine("vpnInterface close: OK")
+        } catch (e: Exception) { log.appendLine("vpnInterface close error: ${e.message}") }
+        log.appendLine("vpnInterface after close null: ${vpnInterface == null}")
         vpnInterface = null
         // 3. Retirer notification foreground
         try { 
