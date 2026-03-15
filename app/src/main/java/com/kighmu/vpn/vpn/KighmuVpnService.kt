@@ -203,7 +203,9 @@ class KighmuVpnService : VpnService() {
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 val eng = tunnelEngine
-                tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
+                val tunFd = vpnInterface!!.detachFd()
+                vpnInterface = null  // FD detaché - fermer maintenant ne sert à rien
+                tunnelEngine?.startTun2Socks(tunFd)
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
