@@ -48,7 +48,6 @@ class KighmuVpnService : VpnService() {
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
-    private var tunParcel: ParcelFileDescriptor? = null
     private var tunnelEngine: TunnelEngine? = null
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -205,10 +204,8 @@ class KighmuVpnService : VpnService() {
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 val eng = tunnelEngine
-                tunParcel = vpnInterface
-                val tunFd = vpnInterface!!.detachFd()
-                vpnInterface = null
-                tunnelEngine?.startTun2Socks(tunFd)
+                // Garder vpnInterface ouvert - le fermer au stop libère la clé VPN
+                tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
@@ -232,11 +229,9 @@ class KighmuVpnService : VpnService() {
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
-        // 1. Arrêter engine et tun2socks pour libérer le FD
-        try { engineRef?.let { runBlocking { withTimeoutOrNull(1500) { it.stop() } } } } catch (_: Exception) {}
+        // 1. Arrêter engine et tun2socks - libère le FD natif
+        try { runBlocking { withTimeoutOrNull(1500) { engineRef?.stop() } } } catch (_: Exception) {}
         // 2. Fermer tunParcel - clé VPN disparaît
-        try { tunParcel?.close() } catch (_: Exception) {}
-        tunParcel = null
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
         // 2. Retirer notification foreground
