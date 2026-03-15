@@ -98,7 +98,9 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
-        instance = null
+    override fun onDestroy() {
+        android.util.Log.e(TAG, "=== onDestroy called ===")
+        try { val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt"); f.appendText("\nonDestroy called: ${java.util.Date()}\nvpnInterface null: ${vpnInterface == null}\n") } catch (_: Exception) {}
         vpnJob?.cancel()
         statsJob?.cancel()
         serviceJob.cancel()
@@ -270,7 +272,7 @@ class KighmuVpnService : VpnService() {
         serviceScope.launch {
             try { tunnelEngine?.stop() } catch (_: Exception) {}
             try { vpnInterface?.close() } catch (_: Exception) {}
-            delay(2000)
+            try { vpnInterface?.close(); vpnInterface = null } catch (_: Exception) {}
             startVpn()
         }
     }
