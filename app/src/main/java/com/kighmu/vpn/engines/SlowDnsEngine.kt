@@ -196,7 +196,7 @@ class SlowDnsEngine(
         val cmd = listOf(
             bin.absolutePath,
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
-            "-pubkey", dns.publicKey.trim(),
+            "-pubkey", dns.publicKey.trim().replace(" ", "").replace("\n", "").replace("\r", ""),
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
