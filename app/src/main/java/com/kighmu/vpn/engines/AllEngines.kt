@@ -25,9 +25,14 @@ class SshWebSocketEngine(
 
     companion object {
         const val TAG = "SshWebSocketEngine"
-        const val LOCAL_SOCKS_PORT = 10802
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10802 }
     }
 
+    private var _socksPort: Int = 0
+    private val LOCAL_SOCKS_PORT: Int get() {
+        if (_socksPort == 0) _socksPort = Companion.getFreePort()
+        return _socksPort
+    }
     private var running = false
     private var sshConnection: Connection? = null
     private var wsSocket: WebSocket? = null
@@ -184,9 +189,14 @@ class SshSslEngine(
 
     companion object {
         const val TAG = "SshSslEngine"
-        const val LOCAL_SOCKS_PORT = 10804
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10804 }
     }
 
+    private var _socksPort: Int = 0
+    private val LOCAL_SOCKS_PORT: Int get() {
+        if (_socksPort == 0) _socksPort = Companion.getFreePort()
+        return _socksPort
+    }
     private var running = false
     private var sshConnection: Connection? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -305,11 +315,17 @@ class XrayEngine(
     private val context: Context,
     var dnsttProxyPort: Int = 0  // Si > 0, Xray route via dnstt sur ce port
 ) : TunnelEngine {
+    private var _socksPort: Int = 0
+    private val LOCAL_SOCKS_PORT: Int get() {
+        if (_socksPort == 0) _socksPort = Companion.getFreePort()
+        return _socksPort
+    }
 
     companion object {
         const val TAG = "XrayEngine"
-        const val LOCAL_SOCKS_PORT = 10808
         const val LOCAL_HTTP_PORT = 10809
+        // Port dynamique choisi par l'OS
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10808 }
     }
 
     private var running = false
@@ -618,6 +634,7 @@ class XrayEngine(
     }
     override suspend fun stop() {
         running = false
+        _socksPort = 0  // Reset port pour prochain démarrage
         xrayProcess?.destroy()
         engineScope.cancel()
     }
@@ -666,8 +683,14 @@ class HysteriaEngine(
 
     companion object {
         const val TAG = "HysteriaEngine"
-        const val LOCAL_SOCKS_PORT = 10820
         const val LOCAL_HTTP_PORT = 10821
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10820 }
+    }
+
+    private var _socksPort: Int = 0
+    private val LOCAL_SOCKS_PORT: Int get() {
+        if (_socksPort == 0) _socksPort = Companion.getFreePort()
+        return _socksPort
     }
 
     private var running = false

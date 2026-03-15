@@ -21,8 +21,13 @@ class HttpProxyEngine(
 
     companion object {
         const val TAG = "HttpProxyEngine"
-        const val LOCAL_SOCKS_PORT = 10801
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10801 }
         const val CRLF = "\r\n"
+    }
+    private var _socksPort: Int = 0
+    private val LOCAL_SOCKS_PORT: Int get() {
+        if (_socksPort == 0) _socksPort = Companion.getFreePort()
+        return _socksPort
     }
 
     private val MTU = 1500
