@@ -229,17 +229,35 @@ class KighmuVpnService : VpnService() {
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
+        val log = StringBuilder()
+        log.appendLine("=== STOP VPN DEBUG ===")
+        log.appendLine("vpnInterface null: ${vpnInterface == null}")
+        log.appendLine("engineRef null: ${engineRef == null}")
+        log.appendLine("time: ${java.util.Date()}")
         // 1. Arrêter engine et tun2socks - libère le FD natif
-        try { runBlocking { withTimeoutOrNull(1500) { engineRef?.stop() } } } catch (_: Exception) {}
+        try { 
+            runBlocking { withTimeoutOrNull(1500) { engineRef?.stop() } }
+            log.appendLine("engine stop: OK")
+        } catch (e: Exception) { log.appendLine("engine stop error: ${e.message}") }
         // 2. Fermer tunParcel - clé VPN disparaît
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
-        // 2. Retirer notification foreground
-        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
-            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+        // 3. Retirer notification foreground
+        try { 
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            log.appendLine("stopForeground REMOVE: OK")
+        } catch (e: Exception) { 
+            log.appendLine("stopForeground REMOVE error: ${e.message}")
+            try { @Suppress("DEPRECATION") stopForeground(true); log.appendLine("stopForeground(true): OK") } catch (e2: Exception) { log.appendLine("stopForeground(true) error: ${e2.message}") }
         }
-        // 3. Arrêter le service immédiatement
+        // 4. Arrêter le service
         updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
+        log.appendLine("stopSelf called")
+        // Écrire log avant stopSelf
+        try {
+            val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt")
+            f.writeText(log.toString())
+        } catch (_: Exception) {}
         stopSelf()
 
     }
