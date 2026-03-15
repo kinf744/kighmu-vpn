@@ -98,12 +98,11 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
-        try { val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt"); f.appendText("\nonDestroy: ${java.util.Date()} vpnInterface=${vpnInterface != null}\n") } catch (_: Exception) {}
         vpnJob?.cancel()
         statsJob?.cancel()
         serviceJob.cancel()
-        try { tunnelEngine?.let { e -> CoroutineScope(Dispatchers.IO).launch { withTimeoutOrNull(1000) { e.stop() } } } } catch (_: Exception) {}
         tunnelEngine = null
+        // Fermer interface TUN - clé VPN disparaît ICI
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
         try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
@@ -229,39 +228,19 @@ class KighmuVpnService : VpnService() {
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
-        val log = StringBuilder()
-        log.appendLine("=== STOP VPN DEBUG ===")
-        log.appendLine("vpnInterface null: ${vpnInterface == null}")
-        log.appendLine("engineRef null: ${engineRef == null}")
-        log.appendLine("time: ${java.util.Date()}")
-        // 1. Arrêter engine et tun2socks - libère le FD natif
-        try { 
-            runBlocking { withTimeoutOrNull(1500) { engineRef?.stop() } }
-            log.appendLine("engine stop: OK")
-        } catch (e: Exception) { log.appendLine("engine stop error: ${e.message}") }
-        // 2. Fermer interface TUN - clé VPN disparaît
-        try {
-            vpnInterface?.close()
-            log.appendLine("vpnInterface close: OK")
-        } catch (e: Exception) { log.appendLine("vpnInterface close error: ${e.message}") }
-        log.appendLine("vpnInterface after close null: ${vpnInterface == null}")
-        vpnInterface = null
-        // 3. Retirer notification foreground
-        try { 
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            log.appendLine("stopForeground REMOVE: OK")
-        } catch (e: Exception) { 
-            log.appendLine("stopForeground REMOVE error: ${e.message}")
-            try { @Suppress("DEPRECATION") stopForeground(true); log.appendLine("stopForeground(true): OK") } catch (e2: Exception) { log.appendLine("stopForeground(true) error: ${e2.message}") }
+        // 1. Arrêter engine en background
+        CoroutineScope(Dispatchers.IO).launch {
+            withTimeoutOrNull(2000) { try { engineRef?.stop() } catch (_: Exception) {} }
         }
-        // 4. Arrêter le service
+        // 2. Fermer interface TUN immédiatement
+        try { vpnInterface?.close() } catch (_: Exception) {}
+        vpnInterface = null
+        // 3. Retirer notification
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
+            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+        }
+        // 4. Arrêter service - onDestroy sera appelé
         updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
-        log.appendLine("stopSelf called")
-        // Écrire log avant stopSelf
-        try {
-            val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_deconnect.txt")
-            f.writeText(log.toString())
-        } catch (_: Exception) {}
         stopSelf()
 
     }
