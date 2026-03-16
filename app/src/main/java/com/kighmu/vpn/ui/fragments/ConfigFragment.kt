@@ -312,7 +312,6 @@ class ConfigFragment : Fragment() {
             uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
             downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
-            sni = c.hysteria.sni,
         )
 
         val newTunnelMode = when (currentTab) {
