@@ -741,7 +741,9 @@ class HysteriaEngine(
   "socks5": {
     "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
   },
-  "insecure": true
+  "insecure": true,
+  "recv_window_conn": 0,
+  "recv_window": 0
 }"""
         KighmuLogger.info(TAG, "Hysteria config ecrite")
         file.writeText(config)
