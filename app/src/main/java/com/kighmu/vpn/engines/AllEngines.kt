@@ -723,7 +723,7 @@ class HysteriaEngine(
         val file = File(context.filesDir, "hysteria_config.json")
         // Format exact Hysteria v1
         val config = """{
-  "server": "${hConfig.serverAddress}:${hConfig.serverPort}",
+  "server": "${hConfig.serverAddress}",
   "obfs": "${hConfig.obfsPassword}",
   "auth_str": "${hConfig.authPassword}",
   "up_mbps": ${hConfig.uploadMbps},

@@ -270,7 +270,6 @@ class ConfigFragment : Fragment() {
             sshPort = view.findViewById<EditText>(R.id.et_ssl_ssh_port).text.toString().toIntOrNull() ?: 22,
             sshUser = view.findViewById<EditText>(R.id.et_ssl_ssh_user).text.toString(),
             sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass).text.toString(),
-            sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
         )
 
         val dns = c.slowDns.copy(
@@ -309,7 +308,6 @@ class ConfigFragment : Fragment() {
 
         val hys = c.hysteria.copy(
             serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
-            serverPort = c.hysteria.serverPort,
             authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
             uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
             downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,

@@ -167,14 +167,10 @@ data class XrayConfig(
 
 data class HysteriaConfig(
     @SerializedName("serverAddress") var serverAddress: String = "",
-    @SerializedName("serverPort") var serverPort: Int = 443,
     @SerializedName("authPassword") var authPassword: String = "",
     @SerializedName("uploadMbps") var uploadMbps: Int = 10,
     @SerializedName("downloadMbps") var downloadMbps: Int = 50,
-    @SerializedName("obfsPassword") var obfsPassword: String = "",
-    @SerializedName("sni") var sni: String = "",
-    @SerializedName("allowInsecure") var allowInsecure: Boolean = false,
-    @SerializedName("version") var version: Int = 2
+    @SerializedName("obfsPassword") var obfsPassword: String = ""
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
