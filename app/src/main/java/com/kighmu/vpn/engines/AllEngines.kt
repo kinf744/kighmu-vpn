@@ -727,30 +727,65 @@ class HysteriaEngine(
     }
 
     private fun extractHysteriaBinary(): File? {
-        val abi = android.os.Build.SUPPORTED_ABIS[0]
-        val target = File(context.filesDir, "hysteria2")
-        return try {
-            context.assets.open("hysteria/$abi/hysteria2").use { inp ->
-                target.outputStream().use { out -> inp.copyTo(out) }
-            }
-            target.setExecutable(true)
-            target
-        } catch (e: Exception) {
-            KighmuLogger.error(TAG, "Cannot extract hysteria binary: ${e.message}")
-            null
+        // Chercher libhysteria.so dans nativeLibraryDir
+        val bin = File(context.applicationInfo.nativeLibraryDir, "libhysteria.so")
+        if (bin.exists()) {
+            bin.setExecutable(true)
+            KighmuLogger.info(TAG, "Hysteria binary: ${bin.absolutePath}")
+            return bin
         }
+        KighmuLogger.error(TAG, "libhysteria.so introuvable dans ${context.applicationInfo.nativeLibraryDir}")
+        return null
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
-        val cmd = arrayOf(binary.absolutePath, "client", "-c", configFile.absolutePath)
+        val cmd = arrayOf(binary.absolutePath, "-c", configFile.absolutePath, "client")
         hysteriaProcess = Runtime.getRuntime().exec(cmd)
         engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
         engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
         KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
+        // Attendre que Hysteria soit prêt
+        var ready = false
+        repeat(20) {
+            if (!ready) try {
+                java.net.Socket().use { s ->
+                    s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 200)
+                    ready = true
+                    KighmuLogger.info(TAG, "Hysteria SOCKS5 pret sur port $LOCAL_SOCKS_PORT")
+                }
+            } catch (_: Exception) { Thread.sleep(500) }
+        }
+        if (!ready) throw Exception("Hysteria n'a pas démarré dans les temps")
+    }
+
+    override fun startTun2Socks(fd: Int) {
+        val socksPort = LOCAL_SOCKS_PORT
+        engineScope.launch(Dispatchers.IO) {
+            try {
+                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
+                bin.setExecutable(true)
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_hysteria.sock"
+                File(sockPath).delete()
+                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500",
+                    "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0",
+                    "--socks-server-addr", "127.0.0.1:$socksPort", "--enable-udprelay", "--loglevel", "4")
+                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
+                Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
+                delay(500)
+                val localSocket = android.net.LocalSocket()
+                localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
+                KighmuLogger.info(TAG, "Hysteria fd $fd envoye via sock-path")
+            } catch (e: Exception) { KighmuLogger.error(TAG, "tun2socks error: ${e.message}") }
+        }
     }
 
     override suspend fun stop() {
         running = false
+        _socksPort = 0
         hysteriaProcess?.destroy()
         engineScope.cancel()
     }
