@@ -768,16 +768,21 @@ class HysteriaEngine(
         engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
         engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
         KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
-        // Attendre que Hysteria soit prêt
+        KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
+        // Attendre que Hysteria soit prêt - max 60 secondes
         var ready = false
-        repeat(20) {
-            if (!ready) try {
-                java.net.Socket().use { s ->
-                    s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 200)
-                    ready = true
-                    KighmuLogger.info(TAG, "Hysteria SOCKS5 pret sur port $LOCAL_SOCKS_PORT")
-                }
-            } catch (_: Exception) { Thread.sleep(500) }
+        repeat(60) {
+            if (!ready) {
+                // Vérifier si le processus est encore vivant
+                try { hysteriaProcess?.exitValue(); return@repeat } catch (_: Exception) {}
+                try {
+                    java.net.Socket().use { s ->
+                        s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 300)
+                        ready = true
+                        KighmuLogger.info(TAG, "Hysteria SOCKS5 pret sur port $LOCAL_SOCKS_PORT")
+                    }
+                } catch (_: Exception) { Thread.sleep(1000) }
+            }
         }
         if (!ready) throw Exception("Hysteria n'a pas démarré dans les temps")
     }
