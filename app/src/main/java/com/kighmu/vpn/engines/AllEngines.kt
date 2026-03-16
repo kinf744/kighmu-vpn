@@ -709,7 +709,7 @@ class HysteriaEngine(
 
     override suspend fun start(): Int {
         running = true
-        KighmuLogger.info(TAG, "Starting Hysteria: ${hConfig.serverAddress}:${hConfig.serverPort}")
+        KighmuLogger.info(TAG, "Starting Hysteria: ${hConfig.serverAddress}")
         withContext(Dispatchers.IO) {
             val configFile = writeHysteriaConfig()
             val binary = extractHysteriaBinary()
