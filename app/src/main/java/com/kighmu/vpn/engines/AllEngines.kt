@@ -725,13 +725,10 @@ class HysteriaEngine(
         val obfs = if (hConfig.obfsPassword.isNotEmpty()) """"obfs": "${hConfig.obfsPassword}",""" else ""
         val auth = if (hConfig.authPassword.isNotEmpty()) """"auth_str": "${hConfig.authPassword}",""" else ""
         val config = """{
-  "server": "${hConfig.serverAddress}:${hConfig.serverPort}",
+  "server": "${hConfig.serverAddress}",
   $auth
   $obfs
-  "tls": {
-    "sni": "${hConfig.sni}",
-    "insecure": ${hConfig.allowInsecure}
-  },
+  "insecure": true,
   "up_mbps": ${hConfig.uploadMbps},
   "down_mbps": ${hConfig.downloadMbps},
   "socks5": {
