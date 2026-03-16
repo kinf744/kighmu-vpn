@@ -712,81 +712,45 @@ class HysteriaEngine(
     override suspend fun start(): Int {
         running = true
         withContext(Dispatchers.IO) {
-            // Résoudre hostname en IP + range de port fixe 1-65000
-            val resolvedServer = try {
-                val ip = java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
-                "$ip:1-65000"
-            } catch (_: Exception) {
-                "${hConfig.serverAddress}:1-65000"
+            // Résoudre hostname en IP
+            val ip = try {
+                java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
+            } catch (_: Exception) { hConfig.serverAddress }
+
+            // Essayer plusieurs ports aléatoires dans la plage 1-65000
+            var connected = false
+            val ports = (1..10).map { (1..65000).random() }
+            for (port in ports) {
+                if (connected) break
+                val server = "$ip:$port"
+                KighmuLogger.info(TAG, "Hysteria essai port $port")
+                val configFile = writeHysteriaConfig(server)
+                val binary = extractHysteriaBinary() ?: break
+                // Tuer processus précédent
+                try { hysteriaProcess?.destroy() } catch (_: Exception) {}
+                hysteriaProcess = null
+                _socksPort = 0
+                startHysteriaProcess(binary, configFile)
+                // Attendre réponse - 8 secondes par port
+                repeat(16) {
+                    if (!connected) try {
+                        hysteriaProcess?.exitValue()
+                        return@repeat
+                    } catch (_: Exception) {
+                        try {
+                            java.net.Socket().use { s ->
+                                s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 300)
+                                connected = true
+                                KighmuLogger.info(TAG, "Hysteria connecté sur port $port")
+                            }
+                        } catch (_: Exception) { Thread.sleep(500) }
+                    }
+                }
             }
-            KighmuLogger.info(TAG, "Starting Hysteria: $resolvedServer")
-            val configFile = writeHysteriaConfig(resolvedServer)
-            val binary = extractHysteriaBinary()
-            if (binary != null) startHysteriaProcess(binary, configFile)
-            else KighmuLogger.error(TAG, "Hysteria binary not available")
+            if (!connected) throw Exception("Hysteria: aucun port disponible après 10 essais")
         }
         return LOCAL_SOCKS_PORT
     }
-
-    private fun writeHysteriaConfig(server: String): File {
-        val file = File(context.filesDir, "hysteria_config.json")
-        val config = """{
-  "server": "$server",
-  "obfs": "${hConfig.obfsPassword}",
-  "auth_str": "${hConfig.authPassword}",
-  "up_mbps": ${hConfig.uploadMbps},
-  "down_mbps": ${hConfig.downloadMbps},
-  "retry": 3,
-  "retry_interval": 1,
-  "socks5": {
-    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
-  },
-  "insecure": true,
-  "recv_window_conn": 0,
-  "recv_window": 0
-}"""
-        KighmuLogger.info(TAG, "Hysteria config ecrite")
-        file.writeText(config)
-        return file
-    }
-
-    private fun extractHysteriaBinary(): File? {
-        // Chercher libhysteria.so dans nativeLibraryDir
-        val bin = File(context.applicationInfo.nativeLibraryDir, "libhysteria.so")
-        if (bin.exists()) {
-            bin.setExecutable(true)
-            KighmuLogger.info(TAG, "Hysteria binary: ${bin.absolutePath}")
-            return bin
-        }
-        KighmuLogger.error(TAG, "libhysteria.so introuvable dans ${context.applicationInfo.nativeLibraryDir}")
-        return null
-    }
-
-    private fun startHysteriaProcess(binary: File, configFile: File) {
-        val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
-        hysteriaProcess = Runtime.getRuntime().exec(cmd)
-        engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
-        engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
-        KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
-        KighmuLogger.info(TAG, "Hysteria started, SOCKS5 on $LOCAL_SOCKS_PORT")
-        // Attendre que Hysteria soit prêt - max 60 secondes
-        var ready = false
-        repeat(60) {
-            if (!ready) {
-                // Vérifier si le processus est encore vivant
-                try { hysteriaProcess?.exitValue(); return@repeat } catch (_: Exception) {}
-                try {
-                    java.net.Socket().use { s ->
-                        s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 300)
-                        ready = true
-                        KighmuLogger.info(TAG, "Hysteria SOCKS5 pret sur port $LOCAL_SOCKS_PORT")
-                    }
-                } catch (_: Exception) { Thread.sleep(1000) }
-            }
-        }
-        if (!ready) throw Exception("Hysteria n'a pas démarré dans les temps")
-    }
-
     override fun startTun2Socks(fd: Int) {
         val socksPort = LOCAL_SOCKS_PORT
         engineScope.launch(Dispatchers.IO) {
