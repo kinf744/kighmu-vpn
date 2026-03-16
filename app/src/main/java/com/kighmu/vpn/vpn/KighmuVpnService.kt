@@ -155,6 +155,10 @@ class KighmuVpnService : VpnService() {
 
                 val localPort = try {
                     // MultiSlowDnsEngine gère automatiquement tous les profils cochés
+                // Hysteria: fermer tempVpn avant start() pour éviter boucle UDP
+                if (currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP) {
+                    try { tempVpn?.close() } catch (_: Exception) {}
+                }
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
