@@ -159,6 +159,7 @@ class KighmuVpnService : VpnService() {
                 if (currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP) {
                     try { tempVpn?.close() } catch (_: Exception) {}
                 }
+                KighmuLogger.info("VpnService", "TempVPN avant engine: ${tempVpn?.fileDescriptor}")
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
