@@ -721,24 +721,21 @@ class HysteriaEngine(
 
     private fun writeHysteriaConfig(): File {
         val file = File(context.filesDir, "hysteria_config.json")
-        // Hysteria v1 config format
-        val obfs = if (hConfig.obfsPassword.isNotEmpty()) """"obfs": "${hConfig.obfsPassword}",""" else ""
-        val auth = if (hConfig.authPassword.isNotEmpty()) """"auth_str": "${hConfig.authPassword}",""" else ""
+        // Format exact Hysteria v1
         val config = """{
-  "server": "${if (hConfig.serverAddress.contains(':')) hConfig.serverAddress else "${hConfig.serverAddress}:${hConfig.serverPort}"}",
-  $auth
-  $obfs
-  "insecure": true,
+  "server": "${hConfig.serverAddress}:${hConfig.serverPort}",
+  "obfs": "${hConfig.obfsPassword}",
+  "auth_str": "${hConfig.authPassword}",
   "up_mbps": ${hConfig.uploadMbps},
   "down_mbps": ${hConfig.downloadMbps},
+  "retry": 3,
+  "retry_interval": 1,
   "socks5": {
     "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
   },
-  "http": {
-    "listen": "127.0.0.1:$LOCAL_HTTP_PORT"
-  }
+  "insecure": true
 }"""
-        KighmuLogger.info(TAG, "Hysteria config: $config")
+        KighmuLogger.info(TAG, "Hysteria config ecrite")
         file.writeText(config)
         return file
     }
