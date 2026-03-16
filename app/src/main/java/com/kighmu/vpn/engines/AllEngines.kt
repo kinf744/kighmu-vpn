@@ -742,7 +742,6 @@ class HysteriaEngine(
     "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
   },
   "insecure": true,
-  "hop_interval": 10,
   "recv_window_conn": 0,
   "recv_window": 0
 }"""
