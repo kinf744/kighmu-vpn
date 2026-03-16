@@ -163,7 +163,8 @@ class MultiSlowDnsEngine(
             slowDns = baseConfig.slowDns.copy(
                 dnsServer = p.dnsServer,
                 nameserver = p.nameserver,
-                publicKey = p.publicKey
+                publicKey = p.publicKey.trim().replace(" ", "").replace("
+", "").replace("", "").replace("	", "")
             )
         )
     }
