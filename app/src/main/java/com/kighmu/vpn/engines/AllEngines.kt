@@ -713,16 +713,16 @@ class HysteriaEngine(
         running = true
         withContext(Dispatchers.IO) {
             // Résoudre hostname en IP + range de port fixe 1-65000
-            try {
+            val resolvedServer = try {
                 val ip = java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
-                _resolvedServer = "$ip:1-65000"
+                "$ip:1-65000"
             } catch (_: Exception) {
-                _resolvedServer = "${hConfig.serverAddress}:1-65000"
+                "${hConfig.serverAddress}:1-65000"
             }
-            KighmuLogger.info(TAG, "Starting Hysteria: $_resolvedServer")
-            val resolvedServer = _resolvedServer
             KighmuLogger.info(TAG, "Starting Hysteria: $resolvedServer")
             val configFile = writeHysteriaConfig(resolvedServer)
+            val binary = extractHysteriaBinary()
+            if (binary != null) startHysteriaProcess(binary, configFile)
             else KighmuLogger.error(TAG, "Hysteria binary not available")
         }
         return LOCAL_SOCKS_PORT
