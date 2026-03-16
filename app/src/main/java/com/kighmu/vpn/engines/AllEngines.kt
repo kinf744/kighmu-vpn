@@ -721,8 +721,28 @@ class HysteriaEngine(
 
     private fun writeHysteriaConfig(): File {
         val file = File(context.filesDir, "hysteria_config.json")
-        val obfs = if (hConfig.obfsPassword.isNotEmpty()) """"obfs": { "type": "salamander", "salamander": { "password": "${hConfig.obfsPassword}" } },""" else ""
-        file.writeText("""{ "server": "${hConfig.serverAddress}:${hConfig.serverPort}", "auth": "${hConfig.authPassword}", $obfs "tls": { "sni": "${hConfig.sni}", "insecure": ${hConfig.allowInsecure} }, "bandwidth": { "up": "${hConfig.uploadMbps} mbps", "down": "${hConfig.downloadMbps} mbps" }, "socks5": { "listen": "127.0.0.1:$LOCAL_SOCKS_PORT" }, "http": { "listen": "127.0.0.1:$LOCAL_HTTP_PORT" } }""")
+        // Hysteria v1 config format
+        val obfs = if (hConfig.obfsPassword.isNotEmpty()) """"obfs": "${hConfig.obfsPassword}",""" else ""
+        val auth = if (hConfig.authPassword.isNotEmpty()) """"auth_str": "${hConfig.authPassword}",""" else ""
+        val config = """{
+  "server": "${hConfig.serverAddress}:${hConfig.serverPort}",
+  $auth
+  $obfs
+  "tls": {
+    "sni": "${hConfig.sni}",
+    "insecure": ${hConfig.allowInsecure}
+  },
+  "up_mbps": ${hConfig.uploadMbps},
+  "down_mbps": ${hConfig.downloadMbps},
+  "socks5": {
+    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
+  },
+  "http": {
+    "listen": "127.0.0.1:$LOCAL_HTTP_PORT"
+  }
+}"""
+        KighmuLogger.info(TAG, "Hysteria config: $config")
+        file.writeText(config)
         return file
     }
 
@@ -739,7 +759,7 @@ class HysteriaEngine(
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
-        val cmd = arrayOf(binary.absolutePath, "-c", configFile.absolutePath, "client")
+        val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
         hysteriaProcess = Runtime.getRuntime().exec(cmd)
         engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
         engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
