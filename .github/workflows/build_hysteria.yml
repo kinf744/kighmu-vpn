@@ -31,16 +31,11 @@ jobs:
           CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 \
           go build \
             -trimpath \
-            -ldflags="-s -w" \
+            -buildmode=pie \
+            -ldflags="-s -w -extldflags=-pie" \
             -o ../libhysteria.so \
             ./app/cmd
           ls -lh ../libhysteria.so
-
-      - name: Compress with UPX
-        run: |
-          sudo apt-get install -y upx
-          upx --best --lzma libhysteria.so || echo "UPX skip"
-          ls -lh libhysteria.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
