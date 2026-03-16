@@ -707,23 +707,31 @@ class HysteriaEngine(
     private val receiveQueue = LinkedBlockingQueue<ByteArray>(1000)
     private val hConfig get() = config.hysteria
 
+    private var _resolvedServer: String = ""
+
     override suspend fun start(): Int {
         running = true
-        KighmuLogger.info(TAG, "Starting Hysteria: ${hConfig.serverAddress}")
         withContext(Dispatchers.IO) {
-            val configFile = writeHysteriaConfig()
-            val binary = extractHysteriaBinary()
-            if (binary != null) startHysteriaProcess(binary, configFile)
+            // Résoudre hostname en IP + range de port fixe 1-65000
+            try {
+                val ip = java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
+                _resolvedServer = "$ip:1-65000"
+            } catch (_: Exception) {
+                _resolvedServer = "${hConfig.serverAddress}:1-65000"
+            }
+            KighmuLogger.info(TAG, "Starting Hysteria: $_resolvedServer")
+            val resolvedServer = _resolvedServer
+            KighmuLogger.info(TAG, "Starting Hysteria: $resolvedServer")
+            val configFile = writeHysteriaConfig(resolvedServer)
             else KighmuLogger.error(TAG, "Hysteria binary not available")
         }
         return LOCAL_SOCKS_PORT
     }
 
-    private fun writeHysteriaConfig(): File {
+    private fun writeHysteriaConfig(server: String): File {
         val file = File(context.filesDir, "hysteria_config.json")
-        // Format exact Hysteria v1
         val config = """{
-  "server": "${hConfig.serverAddress}",
+  "server": "$server",
   "obfs": "${hConfig.obfsPassword}",
   "auth_str": "${hConfig.authPassword}",
   "up_mbps": ${hConfig.uploadMbps},
