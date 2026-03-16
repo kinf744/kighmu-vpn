@@ -207,6 +207,20 @@ class SlowDnsEngine(
             "127.0.0.1:$dnsttPort"
         )
         KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
+        // Log détaillé pour debug
+        try {
+            val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_key.txt")
+            f.writeText(buildString {
+                appendLine("=== DNSTT DEBUG ===")
+                appendLine("time: ${java.util.Date()}")
+                appendLine("pubkey raw: '${dns.publicKey}'")
+                appendLine("pubkey clean: '${cleanPublicKey}'")
+                appendLine("pubkey length: ${cleanPublicKey.length}")
+                appendLine("nameserver: '${dns.nameserver}'")
+                appendLine("dnsServer: '${dns.dnsServer}:${dns.dnsPort}'")
+                appendLine("cmd: ${cmd.joinToString(" ")}")
+            })
+        } catch (_: Exception) {}
 
         val pb = ProcessBuilder(cmd).redirectErrorStream(true)
         pb.environment()["HOME"]   = context.filesDir.absolutePath
