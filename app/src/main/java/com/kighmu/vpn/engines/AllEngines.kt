@@ -777,8 +777,31 @@ class HysteriaEngine(
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
         val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
-        hysteriaProcess = Runtime.getRuntime().exec(cmd)
+        val pb = ProcessBuilder(*cmd)
+        pb.environment()["HOME"] = context.filesDir.absolutePath
+        pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
+        hysteriaProcess = pb.start()
         val proc = hysteriaProcess!!
+        // Protéger tous les sockets du processus Hysteria via VpnService
+        Thread {
+            try {
+                Thread.sleep(200)
+                val pid = proc.pid()
+                val fdDir = java.io.File("/proc/$pid/fd")
+                if (fdDir.exists()) {
+                    fdDir.listFiles()?.forEach { fdFile ->
+                        try {
+                            val target = fdFile.canonicalPath
+                            if (target.contains("socket")) {
+                                val fd = fdFile.name.toIntOrNull() ?: return@forEach
+                                (context as? android.net.VpnService)?.protect(fd)
+                            }
+                        } catch (_: Exception) {}
+                    }
+                    KighmuLogger.info(TAG, "Hysteria sockets protégés pid=$pid")
+                }
+            } catch (_: Exception) {}
+        }.start()
         Thread { try { proc.inputStream.bufferedReader().forEachLine { if (running) KighmuLogger.info(TAG, "[hysteria] $it") } } catch (_: Exception) {} }.start()
         Thread { try { proc.errorStream.bufferedReader().forEachLine { if (running) KighmuLogger.error(TAG, "[hysteria err] $it") } } catch (_: Exception) {} }.start()
     }
