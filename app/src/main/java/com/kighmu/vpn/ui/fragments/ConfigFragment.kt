@@ -313,7 +313,6 @@ class ConfigFragment : Fragment() {
                 parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
                 c.xray.v2dnsJsonConfig.isNotBlank() -> c.xray.v2dnsJsonConfig
                 else -> ""
-                else -> ""
             }
         } else when (rgXray.checkedRadioButtonId) {
             R.id.rb_xray_link -> if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
