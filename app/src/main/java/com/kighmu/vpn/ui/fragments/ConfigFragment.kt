@@ -58,17 +58,9 @@ class ConfigFragment : Fragment() {
         )
 
         fun selectTab(index: Int) {
-            // Sauvegarder le JSON du tab précédent avant de changer
             val etJson = view.findViewById<EditText>(R.id.et_xray_json)
-            if (currentTab == 4) {
-                // Quitter tab Xray - sauvegarder dans parsedJsonFromLink
-                parsedJsonFromLink = etJson.text.toString()
-            } else if (currentTab == 5) {
-                // Quitter tab V2DNS - sauvegarder dans parsedJsonFromV2dnsLink
-                parsedJsonFromV2dnsLink = etJson.text.toString()
-            }
+            // Restaurer le JSON du nouveau tab SEULEMENT depuis les variables dédiées
             currentTab = index
-            // Restaurer le JSON du nouveau tab
             if (index == 4) {
                 etJson.setText(parsedJsonFromLink)
             } else if (index == 5) {
@@ -470,9 +462,14 @@ class ConfigFragment : Fragment() {
     }
 
     private fun applyConfigLock(view: View, locked: Boolean) {
-        // Désactiver tous les EditText, CheckBox, RadioButton, Button sauf Save
+        // Désactiver et masquer les valeurs si verrouillé
         fun lockView(v: android.view.View) {
             v.isEnabled = !locked
+            if (locked && v is android.widget.EditText) {
+                // Masquer la valeur avec des points
+                v.setText("••••••••")
+                v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
             if (v is android.view.ViewGroup) {
                 for (i in 0 until v.childCount) lockView(v.getChildAt(i))
             }
