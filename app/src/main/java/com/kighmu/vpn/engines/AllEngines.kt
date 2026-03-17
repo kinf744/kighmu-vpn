@@ -787,8 +787,17 @@ class HysteriaEngine(
     private fun startHysteriaProcess(binary: File, configFile: File) {
         val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
         hysteriaProcess = Runtime.getRuntime().exec(cmd)
-        engineScope.launch { hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { KighmuLogger.info(TAG, "[hysteria] $it") } }
-        engineScope.launch { hysteriaProcess?.errorStream?.bufferedReader()?.forEachLine { KighmuLogger.error(TAG, "[hysteria err] $it") } }
+        val proc = hysteriaProcess!!
+        Thread {
+            try { proc.inputStream.bufferedReader().forEachLine { 
+                if (running) KighmuLogger.info(TAG, "[hysteria] $it") 
+            }} catch (_: Exception) {}
+        }.start()
+        Thread {
+            try { proc.errorStream.bufferedReader().forEachLine { 
+                if (running) KighmuLogger.error(TAG, "[hysteria err] $it") 
+            }} catch (_: Exception) {}
+        }.start()
     }
     override fun startTun2Socks(fd: Int) {
         val socksPort = LOCAL_SOCKS_PORT
