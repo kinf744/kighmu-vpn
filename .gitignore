@@ -47,3 +47,9 @@ libxray_artifact.zip
 libxray_extracted/
 libhysteria_artifact.zip
 libhysteria_extracted/
+*.zip
+hysteria_new/
+libuz.so
+*.000
+*.upx
+-H
