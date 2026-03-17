@@ -746,6 +746,43 @@ class HysteriaEngine(
         }
         return LOCAL_SOCKS_PORT
     }
+
+    private fun writeHysteriaConfig(server: String): File {
+        val file = File(context.filesDir, "hysteria_config.json")
+        val config = """{
+  "server": "$server",
+  "obfs": "${hConfig.obfsPassword}",
+  "auth_str": "${hConfig.authPassword}",
+  "up_mbps": ${hConfig.uploadMbps},
+  "down_mbps": ${hConfig.downloadMbps},
+  "retry": 3,
+  "retry_interval": 1,
+  "socks5": {
+    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
+  },
+  "insecure": true,
+  "recv_window_conn": 0,
+  "recv_window": 0
+}"""
+        file.writeText(config)
+        return file
+    }
+
+    private fun extractHysteriaBinary(): File? {
+        val bin = File(context.applicationInfo.nativeLibraryDir, "libhysteria.so")
+        if (bin.exists()) { bin.setExecutable(true); return bin }
+        KighmuLogger.error(TAG, "libhysteria.so introuvable")
+        return null
+    }
+
+    private fun startHysteriaProcess(binary: File, configFile: File) {
+        val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
+        hysteriaProcess = Runtime.getRuntime().exec(cmd)
+        val proc = hysteriaProcess!!
+        Thread { try { proc.inputStream.bufferedReader().forEachLine { if (running) KighmuLogger.info(TAG, "[hysteria] $it") } } catch (_: Exception) {} }.start()
+        Thread { try { proc.errorStream.bufferedReader().forEachLine { if (running) KighmuLogger.error(TAG, "[hysteria err] $it") } } catch (_: Exception) {} }.start()
+    }
+
     override fun startTun2Socks(fd: Int) {
         val socksPort = LOCAL_SOCKS_PORT
         engineScope.launch(Dispatchers.IO) {
