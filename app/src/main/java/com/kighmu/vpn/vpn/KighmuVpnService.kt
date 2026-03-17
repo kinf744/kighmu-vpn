@@ -110,6 +110,19 @@ class KighmuVpnService : VpnService() {
 
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
+    override fun onRevoke() {
+        // Android révoque le VPN - on reconnecte immédiatement
+        KighmuLogger.info(TAG, "VPN révoqué par Android - reconnexion...")
+        try { vpnInterface?.close() } catch (_: Exception) {}
+        vpnInterface = null
+        if (!userRequestedStop) {
+            serviceScope.launch {
+                delay(1000)
+                startVpn()
+            }
+        }
+    }
+
     override fun onDestroy() {
         vpnJob?.cancel()
         statsJob?.cancel()
@@ -179,6 +192,27 @@ class KighmuVpnService : VpnService() {
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
                 startEngineWatchdog()
                     tunnelEngine!!.start()
+
+        // === WATCHDOG HYSTERIA ===
+        if (currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP) {
+            serviceScope.launch {
+                while (isActive) {
+                    try {
+                        val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+                        while (interfaces.hasMoreElements()) {
+                            val iface = interfaces.nextElement()
+                            if (iface.name.startsWith("tun") || iface.name.startsWith("vpn")) {
+                                KighmuLogger.info(TAG, "Watchdog: Interface VPN active: ${iface.name}")
+                            }
+                        }
+                        delay(5000L) // Vérifie toutes les 5 secondes
+                    } catch (e: Exception) {
+                        KighmuLogger.warning(TAG, "Watchdog error: ${e.message}")
+                    }
+                }
+            }
+        }
+
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
@@ -311,9 +345,10 @@ class KighmuVpnService : VpnService() {
                 lastDown = stats.downloadBytes
                 try {
                     val start = System.currentTimeMillis()
-                    if (InetAddress.getByName("8.8.8.8").isReachable(2000)) {
-                        stats.ping = (System.currentTimeMillis() - start).toInt()
-                    }
+                    val socket = java.net.Socket()
+                    socket.connect(java.net.InetSocketAddress("8.8.8.8", 53), 2000)
+                    socket.close()
+                    stats.ping = (System.currentTimeMillis() - start).toInt()
                 } catch (_: Exception) {}
                 updateNotification("Connected")
             }
