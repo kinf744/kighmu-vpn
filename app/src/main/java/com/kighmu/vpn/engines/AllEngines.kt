@@ -786,7 +786,12 @@ class HysteriaEngine(
         Thread {
             try {
                 Thread.sleep(200)
-                val pid = proc.pid()
+                val pid = try {
+                    val pidField = proc.javaClass.getDeclaredField("pid")
+                    pidField.isAccessible = true
+                    pidField.getInt(proc)
+                } catch (_: Exception) { -1 }
+                if (pid == -1) return@Thread
                 val fdDir = java.io.File("/proc/$pid/fd")
                 if (fdDir.exists()) {
                     fdDir.listFiles()?.forEach { fdFile ->
