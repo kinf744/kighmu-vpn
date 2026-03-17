@@ -58,7 +58,22 @@ class ConfigFragment : Fragment() {
         )
 
         fun selectTab(index: Int) {
+            // Sauvegarder le JSON du tab précédent avant de changer
+            val etJson = view.findViewById<EditText>(R.id.et_xray_json)
+            if (currentTab == 4) {
+                // Quitter tab Xray - sauvegarder dans parsedJsonFromLink
+                parsedJsonFromLink = etJson.text.toString()
+            } else if (currentTab == 5) {
+                // Quitter tab V2DNS - sauvegarder dans parsedJsonFromV2dnsLink
+                parsedJsonFromV2dnsLink = etJson.text.toString()
+            }
             currentTab = index
+            // Restaurer le JSON du nouveau tab
+            if (index == 4) {
+                etJson.setText(parsedJsonFromLink)
+            } else if (index == 5) {
+                etJson.setText(parsedJsonFromV2dnsLink)
+            }
             tabs.forEachIndexed { i, btn ->
                 btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
                     if (i == index) 0xFF2196F3.toInt() else 0xFF333344.toInt()
@@ -207,8 +222,15 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ssl_ssh_user).setText(c.sshSsl.sshUser)
         view.findViewById<EditText>(R.id.et_ssl_ssh_pass).setText(c.sshSsl.sshPass)
         view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
-        // Xray
-        view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
+        // Xray - initialiser les variables mémoire depuis la config sauvegardée
+        if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.jsonConfig
+        if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
+        // Charger la config JSON selon le tab actif
+        if (currentTab == 5) {
+            view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.v2dnsJsonConfig)
+        } else {
+            view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
+        }
         val savedMode = c.xray.inputMode
         val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
@@ -289,7 +311,8 @@ class ConfigFragment : Fragment() {
         val xrayJson = if (currentTab == 5) {
             when {
                 parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
-                c.xray.jsonConfig.isNotBlank() && c.xray.jsonConfig != com.kighmu.vpn.models.XrayConfig.defaultXrayConfig -> c.xray.jsonConfig
+                c.xray.v2dnsJsonConfig.isNotBlank() -> c.xray.v2dnsJsonConfig
+                else -> ""
                 else -> ""
             }
         } else when (rgXray.checkedRadioButtonId) {
@@ -297,14 +320,18 @@ class ConfigFragment : Fragment() {
             else -> view.findViewById<EditText>(R.id.et_xray_json).text.toString()
         }
 
-        val xray = c.xray.copy(
-            jsonConfig = xrayJson,
-            inputMode = when (rgXray.checkedRadioButtonId) {
-                R.id.rb_xray_link -> "link"
-                R.id.rb_xray_json -> "json"
-                else -> c.xray.inputMode
-            }
-        )
+        val xray = if (currentTab == 5) {
+            c.xray.copy(v2dnsJsonConfig = xrayJson)
+        } else {
+            c.xray.copy(
+                jsonConfig = xrayJson,
+                inputMode = when (rgXray.checkedRadioButtonId) {
+                    R.id.rb_xray_link -> "link"
+                    R.id.rb_xray_json -> "json"
+                    else -> c.xray.inputMode
+                }
+            )
+        }
 
         val hys = c.hysteria.copy(
             serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),

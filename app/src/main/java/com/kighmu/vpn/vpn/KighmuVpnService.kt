@@ -45,19 +45,6 @@ class KighmuVpnService : VpnService() {
         var instance: KighmuVpnService? = null
         var currentStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED
         var stats = VpnStats()
-
-    private fun startEngineWatchdog() {
-        serviceScope.launch {
-            while (isActive) {
-                delay(5000)
-                if (tunnelEngine == null || !tunnelEngine!!.isRunning()) {
-                    KighmuLogger.error(TAG, "Watchdog: Engine arrêté, redémarrage VPN")
-                    try { vpnInterface?.close() } catch (_: Exception) {}
-                    startVpn()
-                }
-            }
-        }
-    }
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -181,59 +168,24 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
                 KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
 
-                val localPort = try {
-                    // MultiSlowDnsEngine gère automatiquement tous les profils cochés
-                // Hysteria: fermer tempVpn avant start() pour éviter boucle UDP
-                if (currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP) {
-                    try { tempVpn?.close() } catch (_: Exception) {}
-                }
+                val isHys = currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+                if (isHys) { try { tempVpn?.close() } catch (_: Exception) {} }
                 KighmuLogger.info("VpnService", "TempVPN avant engine: ${tempVpn?.fileDescriptor}")
-                startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
-                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
-                startEngineWatchdog()
+
+                val localPort = try {
+                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService)
                     tunnelEngine!!.start()
-
-        // === WATCHDOG HYSTERIA ===
-        if (currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP) {
-            serviceScope.launch {
-                while (isActive) {
-                    try {
-                        val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-                        while (interfaces.hasMoreElements()) {
-                            val iface = interfaces.nextElement()
-                            if (iface.name.startsWith("tun") || iface.name.startsWith("vpn")) {
-                                KighmuLogger.info(TAG, "Watchdog: Interface VPN active: ${iface.name}")
-                            }
-                        }
-                        delay(5000L) // Vérifie toutes les 5 secondes
-                    } catch (e: Exception) {
-                        KighmuLogger.warning(TAG, "Watchdog error: ${e.message}")
-                    }
-                }
-            }
-        }
-
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
                     if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
-                        // Rotation des profils SlowDNS si disponibles
-                        if (currentConfig.tunnelMode.name.contains("SLOW")) {
-                            val repo = ProfileRepository(this@KighmuVpnService)
-                            val selected = repo.getSelected()
-                            if (selected.isNotEmpty()) {
-                                currentProfileIndex = (currentProfileIndex + 1) % selected.size
-                                KighmuLogger.info("VpnService", "Failover → profil ${currentProfileIndex+1}/${selected.size}")
-                            }
-                        }
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
-                        KighmuLogger.info("VpnService", "Retry $reconnectAttempts/$MAX_RECONNECT dans ${RECONNECT_DELAY}ms")
                         delay(RECONNECT_DELAY)
                         startVpn()
                     } else {
                         reconnectAttempts = 0
-                        updateStatus(ConnectionStatus.ERROR, "Echec apres $MAX_RECONNECT tentatives: ${e.message}")
+                        updateStatus(ConnectionStatus.ERROR, "Echec apres $MAX_RECONNECT tentatives")
                     }
                     return@launch
                 }
