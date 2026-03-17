@@ -45,6 +45,19 @@ class KighmuVpnService : VpnService() {
         var instance: KighmuVpnService? = null
         var currentStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED
         var stats = VpnStats()
+
+    private fun startEngineWatchdog() {
+        serviceScope.launch {
+            while (isActive) {
+                delay(5000)
+                if (tunnelEngine == null || !tunnelEngine!!.isRunning()) {
+                    KighmuLogger.error(TAG, "Watchdog: Engine arrêté, redémarrage VPN")
+                    try { vpnInterface?.close() } catch (_: Exception) {}
+                    startVpn()
+                }
+            }
+        }
+    }
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -88,7 +101,7 @@ class KighmuVpnService : VpnService() {
             ACTION_START -> startVpn()
             ACTION_STOP -> {
                 stopVpn()
-                return START_NOT_STICKY
+        return START_STICKY  // <- force Android à relancer le service si tué
             }
             ACTION_RECONNECT -> reconnect()
         }
@@ -162,7 +175,9 @@ class KighmuVpnService : VpnService() {
                     try { tempVpn?.close() } catch (_: Exception) {}
                 }
                 KighmuLogger.info("VpnService", "TempVPN avant engine: ${tempVpn?.fileDescriptor}")
+                startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
+                startEngineWatchdog()
                     tunnelEngine!!.start()
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
