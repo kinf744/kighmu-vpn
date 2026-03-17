@@ -136,7 +136,9 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
                 startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
 
-                val tempVpn = try {
+                // Pour Hysteria: pas de tempVPN car il bloquerait la connexion UDP
+                val isHysteria = currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+                val tempVpn = if (isHysteria) null else try {
                     Builder()
                         .setSession("KIGHMU VPN")
                         .addAddress("10.0.0.2", 24)
