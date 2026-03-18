@@ -99,6 +99,8 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onRevoke() {
+        logToFile("=== VPN REVOKED BY ANDROID ===")
+        logToFile("userRequestedStop=$userRequestedStop")
         // Android révoque le VPN - on reconnecte immédiatement
         KighmuLogger.info(TAG, "VPN révoqué par Android - reconnexion...")
         try { vpnInterface?.close() } catch (_: Exception) {}
@@ -112,6 +114,10 @@ class KighmuVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        logToFile("=== SERVICE DESTROYED ===")
+        logToFile("userRequestedStop=$userRequestedStop")
+        logToFile("reconnectAttempts=$reconnectAttempts")
+        logToFile("currentStatus=$currentStatus")
         vpnJob?.cancel()
         statsJob?.cancel()
         serviceJob.cancel()
@@ -224,6 +230,8 @@ class KighmuVpnService : VpnService() {
                 startStatsUpdate()
 
             } catch (e: Exception) {
+                logToFile("=== VPN START ERROR ===")
+                logToFile("Exception: ${e.javaClass.simpleName}: ${e.message}")
                 Log.e(TAG, "VPN start error", e)
                 updateStatus(ConnectionStatus.ERROR, e.message ?: "Connection failed")
             }
@@ -332,6 +340,16 @@ class KighmuVpnService : VpnService() {
                 putExtra(EXTRA_STATUS, status.name)
                 putExtra(EXTRA_MESSAGE, message)
             })
+        } catch (_: Exception) {}
+    }
+
+    private fun logToFile(msg: String) {
+        try {
+            val file = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            file.appendText("[$timestamp] $msg
+")
         } catch (_: Exception) {}
     }
 
