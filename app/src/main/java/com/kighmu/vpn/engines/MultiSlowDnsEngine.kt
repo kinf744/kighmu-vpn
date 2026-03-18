@@ -97,8 +97,8 @@ class MultiSlowDnsEngine(
         socksBalancer = balancer
 
         // STEP 4 : tun2socks démarré par KighmuVpnService via startTun2Socks()
-        // On retourne le port de la première session connectée
-        activePort = successPorts.first()
+        // On retourne le port du BALANCER pour agréger le trafic sur tous les tunnels
+        activePort = SocksBalancer.BALANCER_PORT
         KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port principal=$activePort, ${successPorts.size} tunnels actifs ===")
 
         // Surveiller les sessions en background
@@ -126,11 +126,13 @@ class MultiSlowDnsEngine(
 
     override fun startTun2Socks(fd: Int) {
         tunFd = fd
-        // Déléguer au premier engine connecté
+        // Utiliser le premier engine mais avec le port du balancer
+        // Le balancer distribue le trafic sur tous les tunnels actifs
         val firstConnected = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
         if (firstConnected != null) {
-            KighmuLogger.info(TAG, "tun2socks démarré sur session principale port=$activePort")
-            firstConnected.startTun2Socks(fd)
+            KighmuLogger.info(TAG, "tun2socks → Balancer:${SocksBalancer.BALANCER_PORT} (${engines.count { it.isRunning() }} tunnels)")
+            // Passer le port du balancer à tun2socks via le premier engine
+            firstConnected.startTun2SocksOnPort(fd, SocksBalancer.BALANCER_PORT)
         } else {
             KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
         }
