@@ -228,11 +228,16 @@ class ConfigFragment : Fragment() {
         // Xray - initialiser les variables mémoire depuis la config sauvegardée
         if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.jsonConfig
         if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
-        // Charger la config JSON selon le tab actif
+        // Charger la config JSON selon le tab et le mode
         if (currentTab == 5) {
             view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.v2dnsJsonConfig)
-        } else {
+        } else if (c.xray.inputMode == "json") {
+            // Mode JSON : charger seulement jsonConfig dans et_xray_json
             view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
+        } else {
+            // Mode Lien : et_xray_json reste vide, et_xray_link contient le lien
+            view.findViewById<EditText>(R.id.et_xray_json).setText("")
+            view.findViewById<EditText>(R.id.et_xray_link).setText(c.xray.xrayLink)
         }
         val savedMode = c.xray.inputMode
         val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
