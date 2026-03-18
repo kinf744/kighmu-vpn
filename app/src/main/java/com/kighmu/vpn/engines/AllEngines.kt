@@ -519,38 +519,27 @@ class XrayEngine(
         val cmd = arrayOf(binary.absolutePath, "run", "-c", configFile.absolutePath)
         xrayProcess = Runtime.getRuntime().exec(cmd)
         val proc = xrayProcess!!
-        // Thread séparé pour stderr - survit au cancel du scope
+        // Thread stderr Xray - filtré
         Thread {
             try {
-                val sb = StringBuilder()
-                val es = proc.errorStream
-                while (true) {
-                    val b = es.read()
-                    if (b == -1) break
-                    if (b == '\n'.code) {
-                        if (sb.isNotEmpty()) {
-                            val skip = sb.contains("accepted") || sb.contains("begin stream") || sb.contains("end stream") || sb.contains(" from ")
-                            if (!skip) KighmuLogger.error(TAG, "[xray] $sb")
-                        }
-                        sb.clear()
-                    } else if (b != '\r'.code) sb.append(b.toChar())
+                proc.errorStream.bufferedReader().forEachLine { line ->
+                    if (line.length > 500) return@forEachLine
+                    val skip = line.contains("accepted") || line.contains("begin stream")
+                        || line.contains("Reading config") || line.contains("from tcp")
+                        || line.contains("from udp")
+                    if (!skip) KighmuLogger.error(TAG, "[xray] ${line.take(200)}")
                 }
             } catch (_: Exception) {}
         }.start()
+        // Thread stdout Xray - filtré
         Thread {
             try {
-                val sb = StringBuilder()
-                val is2 = proc.inputStream
-                while (true) {
-                    val b = is2.read()
-                    if (b == -1) break
-                    if (b == '\n'.code) {
-                        if (sb.isNotEmpty()) KighmuLogger.info(TAG, "[xray] $sb")
-                        if (sb.isNotEmpty()) {
-                            val skip = sb.contains("accepted") || sb.contains("begin stream") || sb.contains("end stream") || sb.contains(" from ")
-                            if (!skip) KighmuLogger.info(TAG, "[xray] $sb")
-                        }
-                    } else if (b != '\r'.code) sb.append(b.toChar())
+                proc.inputStream.bufferedReader().forEachLine { line ->
+                    if (line.length > 500) return@forEachLine
+                    val skip = line.contains("accepted") || line.contains("begin stream")
+                        || line.contains("Reading config") || line.contains("from tcp")
+                        || line.contains("from udp")
+                    if (!skip) KighmuLogger.info(TAG, "[xray] ${line.take(200)}")
                 }
             } catch (_: Exception) {}
         }.start()
