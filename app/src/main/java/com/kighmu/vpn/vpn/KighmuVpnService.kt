@@ -88,11 +88,9 @@ class KighmuVpnService : VpnService() {
         startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
         when (intent?.action) {
             ACTION_START -> startVpn()
-            ACTION_STOP -> {
-                stopVpn()
-        return START_STICKY  // <- force Android à relancer le service si tué
-            }
+            ACTION_STOP -> stopVpn()
             ACTION_RECONNECT -> reconnect()
+            null -> if (!userRequestedStop) startVpn()
         }
         return if (userRequestedStop) START_NOT_STICKY else START_STICKY
     }
