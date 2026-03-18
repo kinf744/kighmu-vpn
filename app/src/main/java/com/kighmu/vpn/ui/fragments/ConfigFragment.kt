@@ -59,10 +59,21 @@ class ConfigFragment : Fragment() {
 
         fun selectTab(index: Int) {
             val etJson = view.findViewById<EditText>(R.id.et_xray_json)
-            // Restaurer le JSON du nouveau tab SEULEMENT depuis les variables dédiées
+            val etLink = view.findViewById<EditText>(R.id.et_xray_link)
             currentTab = index
             if (index == 4) {
-                etJson.setText(parsedJsonFromLink)
+                val xray = viewModel.config.value?.xray
+                val mode = xray?.inputMode ?: "json"
+                if (mode == "link") {
+                    // Mode lien : restaurer le lien brut, vider JSON
+                    val savedLink = xray?.xrayLink ?: ""
+                    etLink.setText(savedLink)
+                    etJson.setText("")
+                } else {
+                    // Mode JSON : restaurer le JSON, vider lien
+                    etJson.setText(xray?.jsonConfig ?: "")
+                    etLink.setText("")
+                }
             } else if (index == 5) {
                 etJson.setText(parsedJsonFromV2dnsLink)
             }
