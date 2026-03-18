@@ -314,14 +314,26 @@ class ConfigFragment : Fragment() {
         val xray = if (currentTab == 5) {
             c.xray.copy(v2dnsJsonConfig = xrayJson)
         } else {
-            c.xray.copy(
-                jsonConfig = xrayJson,
-                inputMode = when (rgXray.checkedRadioButtonId) {
-                    R.id.rb_xray_link -> "link"
-                    R.id.rb_xray_json -> "json"
-                    else -> c.xray.inputMode
-                }
-            )
+            val mode = when (rgXray.checkedRadioButtonId) {
+                R.id.rb_xray_link -> "link"
+                R.id.rb_xray_json -> "json"
+                else -> c.xray.inputMode
+            }
+            if (mode == "link") {
+                // Mode lien : sauvegarder le lien brut et le JSON parsé séparément
+                val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
+                c.xray.copy(
+                    xrayLink = rawLink,
+                    jsonConfig = parsedJsonFromLink,
+                    inputMode = "link"
+                )
+            } else {
+                // Mode JSON : sauvegarder seulement le JSON
+                c.xray.copy(
+                    jsonConfig = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString(),
+                    inputMode = "json"
+                )
+            }
         }
 
         val hys = c.hysteria.copy(
