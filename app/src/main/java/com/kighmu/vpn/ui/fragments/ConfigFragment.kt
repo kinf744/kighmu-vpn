@@ -101,8 +101,6 @@ class ConfigFragment : Fragment() {
                     view.findViewById<android.widget.EditText>(R.id.et_xray_link).setText("")
                 }
             }
-                R.id.rb_xray_json -> { panelJson.visibility = View.VISIBLE; panelLink.visibility = View.GONE }
-            }
         }
 
         // Parse Xray link
