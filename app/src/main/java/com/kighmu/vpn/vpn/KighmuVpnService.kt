@@ -363,7 +363,8 @@ class KighmuVpnService : VpnService() {
 
         val title = "KIGHMU VPN"
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val isConnected = text == "Connected"
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_vpn_key)
@@ -372,7 +373,14 @@ class KighmuVpnService : VpnService() {
             .addAction(R.drawable.ic_vpn_key, "Reconnect", reconnectIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        if (isConnected && stats.connectedAt > 0) {
+            builder.setUsesChronometer(true)
+            builder.setWhen(stats.connectedAt)
+            builder.setChronometerCountDown(false)
+        }
+
+        return builder.build()
     }
 
     private fun updateNotification(text: String) {
