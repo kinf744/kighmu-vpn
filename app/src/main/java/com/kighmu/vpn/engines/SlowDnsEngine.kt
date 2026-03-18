@@ -242,7 +242,15 @@ class SlowDnsEngine(
         Thread {
             try {
                 process.inputStream.bufferedReader().forEachLine { line ->
-                    if (running && !line.contains("begin stream") && !line.contains("end stream") && !line.contains("accepted")) KighmuLogger.info(TAG, "dnstt: $line")
+                    val skipDnstt = line.contains("begin stream") ||
+                            line.contains("end stream") ||
+                            line.contains("accepted") ||
+                            line.contains("connection reset") ||
+                            line.contains("broken pipe") ||
+                            line.contains("copy stream") ||
+                            line.contains("copy local") ||
+                            line.contains("EOF")
+                    if (running && !skipDnstt) KighmuLogger.info(TAG, "dnstt: $line")
                 }
             } catch (e: Exception) {
                 if (running) KighmuLogger.error(TAG, "dnstt stdout: ${e.message}")
