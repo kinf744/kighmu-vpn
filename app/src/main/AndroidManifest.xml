@@ -60,6 +60,9 @@
 
         <service
             android:name=".vpn.KighmuVpnService"
+            android:stopWithTask="false"
+            android:persistent="true"
+            android:foregroundServiceType="connectedDevice"
             android:exported="false"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>

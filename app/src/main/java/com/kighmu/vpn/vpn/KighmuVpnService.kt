@@ -63,6 +63,7 @@ class KighmuVpnService : VpnService() {
     private var statsJob: Job? = null
     private var vpnJob: Job? = null
     private var tun2socksRelay: Tun2SocksRelay? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -127,6 +128,15 @@ class KighmuVpnService : VpnService() {
 
     private fun startVpn() {
         userRequestedStop = false
+        // Acquérir WakeLock pour empêcher Android de tuer le service
+        if (wakeLock == null || wakeLock?.isHeld == false) {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            wakeLock = pm.newWakeLock(
+                android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                "KighmuVPN::WakeLock"
+            )
+            wakeLock?.acquire(8 * 60 * 60 * 1000L) // Max 8 heures
+        }
         if (reconnectAttempts == 0) currentProfileIndex = 0
         vpnJob = serviceScope.launch {
             try {
@@ -222,6 +232,9 @@ class KighmuVpnService : VpnService() {
 
     private fun stopVpn() {
         userRequestedStop = true
+        // Libérer WakeLock
+        try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
+        wakeLock = null
         reconnectAttempts = 0
         vpnJob?.cancel()
         statsJob?.cancel()
