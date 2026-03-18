@@ -64,7 +64,7 @@ class SlowDnsEngine(
         .replace("(", "")
         .replace(")", "")
         .replace("'", "")
-        .replace(""", "")
+        .replace("\"", "")
         .replace("`", "")
         .replace(";", "")
         .replace("&", "")
