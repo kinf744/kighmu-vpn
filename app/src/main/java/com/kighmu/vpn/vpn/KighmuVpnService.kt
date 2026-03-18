@@ -133,7 +133,10 @@ class KighmuVpnService : VpnService() {
         super.onDestroy()
     }
 
+    private var isStartingVpn = false
     private fun startVpn() {
+        if (isStartingVpn) { logToFile("startVpn() ignoré - déjà en cours"); return }
+        isStartingVpn = true
         userRequestedStop = false
         // Acquérir WakeLock pour empêcher Android de tuer le service
         if (wakeLock == null || wakeLock?.isHeld == false) {
@@ -204,6 +207,7 @@ class KighmuVpnService : VpnService() {
                         reconnectAttempts = 0
                         updateStatus(ConnectionStatus.ERROR, "Echec apres $MAX_RECONNECT tentatives")
                     }
+                    isStartingVpn = false
                     return@launch
                 }
                 KighmuLogger.info("VpnService", "Engine démarré sur port $localPort")
@@ -226,6 +230,7 @@ class KighmuVpnService : VpnService() {
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
+                isStartingVpn = false
                 updateStatus(ConnectionStatus.CONNECTED, "Connected")
                 updateNotification("Connected")
                 startStatsUpdate()
