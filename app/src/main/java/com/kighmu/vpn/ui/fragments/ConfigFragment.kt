@@ -98,9 +98,9 @@ class ConfigFragment : Fragment() {
             val statusView = view.findViewById<TextView>(R.id.tv_link_status)
             val json = parseLinkToJson(link)
             if (json != null) {
-                view.findViewById<EditText>(R.id.et_xray_json).setText(json)
+                // Stocker le lien parsé sans toucher le champ JSON
                 parsedJsonFromLink = json
-                statusView.text = "✓ Config générée avec succès"
+                statusView.text = "✓ Lien valide - config prête"
                 statusView.setTextColor(0xFF00C853.toInt())
                 saveConfig(view)
             } else {

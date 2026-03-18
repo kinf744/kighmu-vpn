@@ -121,6 +121,7 @@ data class SshSslConfig(
 data class XrayConfig(
     @SerializedName("jsonConfig") var jsonConfig: String = defaultXrayConfig,
     @SerializedName("v2dnsJsonConfig") var v2dnsJsonConfig: String = "",
+    @SerializedName("xrayLink") var xrayLink: String = "",
     @SerializedName("protocol") var protocol: String = "vmess",
     @SerializedName("serverAddress") var serverAddress: String = "",
     @SerializedName("serverPort") var serverPort: Int = 443,
