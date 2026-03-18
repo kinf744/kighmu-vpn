@@ -485,11 +485,11 @@ class ConfigFragment : Fragment() {
     }
 
     private fun applyConfigLock(view: View, locked: Boolean) {
-        // Désactiver et masquer les valeurs si verrouillé
+        if (!locked) return
+        // Désactiver seulement les EditText - pas les boutons de navigation
         fun lockView(v: android.view.View) {
-            v.isEnabled = !locked
-            if (locked && v is android.widget.EditText) {
-                // Masquer la valeur avec des points
+            if (v is android.widget.EditText) {
+                v.isEnabled = false
                 v.setText("••••••••")
                 v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             }
