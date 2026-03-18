@@ -275,8 +275,12 @@ class KighmuVpnService : VpnService() {
     private fun reconnect() {
         serviceScope.launch {
             try { tunnelEngine?.stop() } catch (_: Exception) {}
+            tunnelEngine = null
             try { vpnInterface?.close() } catch (_: Exception) {}
-            try { vpnInterface?.close(); vpnInterface = null } catch (_: Exception) {}
+            vpnInterface = null
+            isStartingVpn = false // Reset guard pour permettre reconnexion
+            userRequestedStop = false
+            delay(500)
             startVpn()
         }
     }
