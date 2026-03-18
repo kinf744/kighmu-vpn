@@ -85,6 +85,7 @@ class KighmuVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
         when (intent?.action) {
             ACTION_START -> startVpn()
             ACTION_STOP -> {
@@ -228,6 +229,7 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTED, "Connected")
                 updateNotification("Connected")
                 startStatsUpdate()
+                startWatchdog()
 
             } catch (e: Exception) {
                 logToFile("=== VPN START ERROR ===")
@@ -341,6 +343,37 @@ class KighmuVpnService : VpnService() {
                 putExtra(EXTRA_MESSAGE, message)
             })
         } catch (_: Exception) {}
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        try {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                ).apply { data = android.net.Uri.parse("package:$packageName") }
+                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(intent)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun startWatchdog() {
+        serviceScope.launch {
+            while (isActive) {
+                delay(10000) // Vérifier toutes les 10 secondes
+                if (!userRequestedStop && currentStatus == ConnectionStatus.CONNECTED) {
+                    val engine = tunnelEngine
+                    if (engine == null || !engine.isRunning()) {
+                        logToFile("WATCHDOG: engine mort - reconnexion")
+                        try { vpnInterface?.close() } catch (_: Exception) {}
+                        vpnInterface = null
+                        startVpn()
+                        break
+                    }
+                }
+            }
+        }
     }
 
     private fun logToFile(msg: String) {
