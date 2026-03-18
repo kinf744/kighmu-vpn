@@ -109,11 +109,11 @@ class ConfigFragment : Fragment() {
             val statusView = view.findViewById<TextView>(R.id.tv_link_status)
             val json = parseLinkToJson(link)
             if (json != null) {
-                // Stocker le lien parsé sans toucher le champ JSON
                 parsedJsonFromLink = json
-                statusView.text = "✓ Lien valide - config prête"
-                statusView.setTextColor(0xFF00C853.toInt())
+                // Sauvegarder immédiatement pour persistance
                 saveConfig(view)
+                statusView.text = "✓ Lien valide - config sauvegardée"
+                statusView.setTextColor(0xFF00C853.toInt())
             } else {
                 statusView.text = "❌ Format invalide"
                 statusView.setTextColor(0xFFFF5252.toInt())

@@ -317,19 +317,25 @@ class KighmuVpnService : VpnService() {
         statsJob = serviceScope.launch {
             var lastUp = 0L
             var lastDown = 0L
+            var pingCounter = 0
             while (isActive) {
                 delay(1000)
                 stats.uploadSpeed = stats.uploadBytes - lastUp
                 stats.downloadSpeed = stats.downloadBytes - lastDown
                 lastUp = stats.uploadBytes
                 lastDown = stats.downloadBytes
-                try {
-                    val start = System.currentTimeMillis()
-                    val socket = java.net.Socket()
-                    socket.connect(java.net.InetSocketAddress("8.8.8.8", 53), 2000)
-                    socket.close()
-                    stats.ping = (System.currentTimeMillis() - start).toInt()
-                } catch (_: Exception) {}
+                // Ping toutes les 30 secondes seulement
+                pingCounter++
+                if (pingCounter >= 30) {
+                    pingCounter = 0
+                    try {
+                        val start = System.currentTimeMillis()
+                        val socket = java.net.Socket()
+                        socket.connect(java.net.InetSocketAddress("8.8.8.8", 53), 2000)
+                        socket.close()
+                        stats.ping = (System.currentTimeMillis() - start).toInt()
+                    } catch (_: Exception) {}
+                }
                 updateNotification("Connected")
             }
         }
