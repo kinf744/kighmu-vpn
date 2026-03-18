@@ -112,17 +112,28 @@ class ExportActivity : AppCompatActivity() {
                             System.currentTimeMillis() + durationMinutes * 60 * 1000L else 0L
                         
                         val config = viewModel.config.value
+                        // Construire ExportConfig complet pour cloud
+                        val cloudLockDevice = findViewById<android.widget.CheckBox>(R.id.cb_lock_device_id).isChecked
+                        val cloudLockOp = findViewById<android.widget.CheckBox>(R.id.cb_lock_operator).isChecked
+                        val cloudSecurity = ExportConfig(
+                            expiresAt = expiresAt,
+                            exportType = if (isLimited) "expiry" else "normal",
+                            appId = packageName,
+                            userMessage = findViewById<android.widget.EditText>(R.id.et_user_message).text.toString(),
+                            lockAllConfig = findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
+                            accessCode = findViewById<android.widget.EditText>(R.id.et_access_code).text.toString(),
+                            lockDeviceId = cloudLockDevice,
+                            hardwareId = if (cloudLockDevice) android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) else "",
+                            lockOperator = cloudLockOp,
+                            operatorName = if (cloudLockOp) (getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).networkOperatorName else "",
+                            burnAfterImport = exportType == "burn",
+                            securitySignature = buildSignature(config.toString(), "", expiresAt, "")
+                        )
                         val exportPackage = mapOf(
                             "config" to config,
-                            "security" to mapOf(
-                                "expiresAt" to expiresAt,
-                                "exportType" to if (isLimited) "expiry" else "normal",
-                                "appId" to packageName,
-                                "userMessage" to findViewById<android.widget.EditText>(R.id.et_user_message).text.toString(),
-                                "lockAllConfig" to findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
-                                "accessCode" to findViewById<android.widget.EditText>(R.id.et_access_code).text.toString()
-                            ),
-                            "exportedAt" to System.currentTimeMillis()
+                            "security" to cloudSecurity,
+                            "exportedAt" to System.currentTimeMillis(),
+                            "appVersion" to com.kighmu.vpn.BuildConfig.VERSION_NAME
                         )
                         val json = com.google.gson.Gson().toJson(exportPackage)
 

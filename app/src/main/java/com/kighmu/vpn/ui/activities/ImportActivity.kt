@@ -144,15 +144,11 @@ class ImportActivity : AppCompatActivity() {
             }
         }
 
-        // Appliquer lockAllConfig
-        val finalConfig = if (security.lockAllConfig) {
-            config.copy(
-                exportConfig = security,
-                hardwareId = security.hardwareId
-            )
-        } else {
-            config.copy(exportConfig = security)
-        }
+        // Appliquer la security à la config importée (garder toutes les données)
+        val finalConfig = config.copy(
+            exportConfig = security,
+            hardwareId = if (security.lockDeviceId) security.hardwareId else config.hardwareId
+        )
 
         // Burn après import
         if (security.burnAfterImport) {
