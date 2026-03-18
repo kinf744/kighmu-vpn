@@ -348,8 +348,7 @@ class KighmuVpnService : VpnService() {
             val file = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
                 android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-            file.appendText("[$timestamp] $msg
-")
+            file.appendText("[$timestamp] $msg\n")
         } catch (_: Exception) {}
     }
 
