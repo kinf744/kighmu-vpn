@@ -345,10 +345,16 @@ class KighmuVpnService : VpnService() {
 
     private fun logToFile(msg: String) {
         try {
-            val file = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
+            // Écrire dans le dossier interne (pas besoin de permission)
+            val file = java.io.File(filesDir, "kighmu_close.txt")
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
             file.appendText("[$timestamp] $msg\n")
+            // Aussi copier vers Download si possible
+            try {
+                val dlFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
+                dlFile.appendText("[$timestamp] $msg\n")
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
     }
 
