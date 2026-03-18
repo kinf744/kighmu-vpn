@@ -226,7 +226,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ssl_ssh_pass).setText(c.sshSsl.sshPass)
         view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
         // Xray - initialiser les variables mémoire depuis la config sauvegardée
-        if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.jsonConfig
+        if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.xrayLinkJson
         if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
         // Charger la config JSON selon le tab et le mode
         if (currentTab == 5) {
@@ -336,15 +336,16 @@ class ConfigFragment : Fragment() {
                 else -> c.xray.inputMode
             }
             if (mode == "link") {
-                // Mode lien : sauvegarder le lien brut et le JSON parsé séparément
+                // Mode lien : sauvegarder lien brut + JSON parsé séparément
+                // jsonConfig reste INTACT - pas de contamination
                 val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
                 c.xray.copy(
                     xrayLink = rawLink,
-                    jsonConfig = parsedJsonFromLink,
+                    xrayLinkJson = parsedJsonFromLink,
                     inputMode = "link"
                 )
             } else {
-                // Mode JSON : sauvegarder seulement le JSON
+                // Mode JSON : sauvegarder seulement dans jsonConfig
                 c.xray.copy(
                     jsonConfig = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString(),
                     inputMode = "json"
