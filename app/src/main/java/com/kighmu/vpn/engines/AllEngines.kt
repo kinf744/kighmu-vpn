@@ -372,11 +372,14 @@ class XrayEngine(
 
     private fun writeXrayConfig(): File {
         val xrayConfig = config.xray
-        var jsonConfig = if (xrayConfig.jsonConfig.isNotBlank() &&
-            xrayConfig.jsonConfig != XrayConfig.defaultXrayConfig) {
-            xrayConfig.jsonConfig
-        } else {
-            buildXrayConfigFromFields(xrayConfig)
+        // Choisir la bonne config selon le mode tunnel
+        val isV2Dns = config.tunnelMode == com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
+        var jsonConfig = when {
+            isV2Dns && xrayConfig.v2dnsJsonConfig.isNotBlank() -> xrayConfig.v2dnsJsonConfig
+            isV2Dns && xrayConfig.xrayLinkJson.isNotBlank() -> xrayConfig.xrayLinkJson
+            xrayConfig.inputMode == "link" && xrayConfig.xrayLinkJson.isNotBlank() -> xrayConfig.xrayLinkJson
+            xrayConfig.jsonConfig.isNotBlank() && xrayConfig.jsonConfig != XrayConfig.defaultXrayConfig -> xrayConfig.jsonConfig
+            else -> buildXrayConfigFromFields(xrayConfig)
         }
         // Normaliser le port SOCKS et nettoyer geoip/geosite via JSON parsing
         try {
