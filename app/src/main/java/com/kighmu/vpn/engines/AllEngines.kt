@@ -868,37 +868,6 @@ transport:
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
         hysteriaProcess = pb.start()
         val proc = hysteriaProcess!!
-        logHysteria("vpnService non-null: ${vpnService != null}")
-        // Protéger tous les sockets du processus Hysteria via VpnService
-        // Répéter plusieurs fois pour capturer les sockets créés après le démarrage
-        Thread {
-            try {
-                val pid = try {
-                    val pidField = proc.javaClass.getDeclaredField("pid")
-                    pidField.isAccessible = true
-                    pidField.getInt(proc)
-                } catch (_: Exception) { -1 }
-                if (pid == -1) return@Thread
-                // Protéger immédiatement puis à 100ms, 300ms, 500ms, 1000ms
-                for (delay in listOf(0L, 100L, 300L, 500L, 1000L, 2000L)) {
-                    Thread.sleep(delay)
-                    val fdDir = java.io.File("/proc/$pid/fd")
-                    if (!fdDir.exists()) break
-                    var count = 0
-                    fdDir.listFiles()?.forEach { fdFile ->
-                        try {
-                            val target = fdFile.canonicalPath
-                            if (target.contains("socket")) {
-                                val fd = fdFile.name.toIntOrNull() ?: return@forEach
-                                val vpn = vpnService ?: context as? android.net.VpnService
-                                if (vpn?.protect(fd) == true) count++
-                            }
-                        } catch (_: Exception) {}
-                    }
-                    if (count > 0) logHysteria("Hysteria protect() $count sockets @${delay}ms pid=$pid")
-                }
-            } catch (_: Exception) {}
-        }.start()
         Thread { try { proc.inputStream.bufferedReader().forEachLine { if (running) logHysteria("[out] $it") } } catch (_: Exception) {} }.start()
         Thread { try { proc.errorStream.bufferedReader().forEachLine { if (running) logHysteria("[err] $it") } } catch (_: Exception) {} }.start()
     }
