@@ -792,11 +792,8 @@ class HysteriaEngine(
                 if (connected) break
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
-                // Créer proxy UDP protégé
-                val proxyPort = startProtectedUdpProxy(server, vpnService)
-                val effectiveServer = if (proxyPort > 0) "127.0.0.1:$proxyPort" else server
-                logHysteria("effectiveServer=$effectiveServer")
-                val configFile = writeHysteriaConfig(effectiveServer)
+                // Connexion directe sans proxy - comme OpenCustom
+                val configFile = writeHysteriaConfig(server)
                 val binary = extractHysteriaBinary() ?: break
                 try { hysteriaProcess?.destroy() } catch (_: Exception) {}
                 hysteriaProcess = null
