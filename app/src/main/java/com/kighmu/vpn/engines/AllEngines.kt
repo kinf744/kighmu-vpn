@@ -799,14 +799,10 @@ class HysteriaEngine(
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
                 // Initialiser ProtectedDialer via libgojni.so
-                if (v2rayPoint == null && vpnService != null) {
                     try {
-                        val loaded = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()
                         logHysteria("libgojni loaded=$loaded")
                         if (loaded) {
-                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2rayProxy.proxyV2RayVPNServiceSupportsSet(vpnService)
                             logHysteria("dialer créé")
-                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
                             logHysteria("V2RayPoint créé ✓")
                         }
                     } catch (e: Throwable) {
@@ -880,7 +876,6 @@ fdControlUnixSocket: "$fdSockPath"
     }
 
     private var fdControlServerSocket: android.net.LocalServerSocket? = null
-    private var v2rayPoint: chzPsiphonAndV2ray.V2RayPoint? = null
 
     private fun startFdControlServer(sockPath: String, vpnSvc: android.net.VpnService?) {
         if (vpnSvc == null) return
