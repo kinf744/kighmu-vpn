@@ -727,7 +727,7 @@ class HysteriaEngine(
                     try {
                         val pkt = java.net.DatagramPacket(buf, buf.size)
                         localSocket.receive(pkt)
-                        if (clientAddr == null) clientAddr = pkt.socketAddress
+                        if (clientAddr == null) { clientAddr = pkt.socketAddress; logHysteria("Proxy: premier paquet reçu de Hysteria ${pkt.length} bytes") }
                         val fwd = java.net.DatagramPacket(pkt.data, pkt.length, targetAddr)
                         protectedSocket.send(fwd)
                     } catch (_: Exception) { if (!running) break }
