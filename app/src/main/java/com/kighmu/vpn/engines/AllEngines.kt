@@ -747,28 +747,14 @@ class HysteriaEngine(
         KighmuLogger.info(TAG, msg)
         try {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                val resolver = context.contentResolver
-                val existing = resolver.query(
-                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    arrayOf(android.provider.MediaStore.MediaColumns._ID),
-                    "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?",
-                    arrayOf("kighmu_hyste.txt"), null)
-                val uri = if (existing != null && existing.moveToFirst()) {
-                    val id = existing.getLong(0); existing.close()
-                    android.content.ContentUris.withAppendedId(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, id)
-                } else {
-                    existing?.close()
-                    val values = android.content.ContentValues().apply {
-                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "kighmu_hyste.txt")
-                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/")
-                    }
-                    resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                }
-                uri?.let { resolver.openOutputStream(it, "wa")?.use { os -> os.write("[$timestamp] $msg\n".toByteArray()) } }
-            }
+            // Écrire dans fichier interne simple
+            val file = java.io.File(context.filesDir, "kighmu_hyste.txt")
+            file.appendText("[$timestamp] $msg\n")
         } catch (_: Exception) {}
+    }
+
+    private fun clearHysteriaLog() {
+        try { java.io.File(context.filesDir, "kighmu_hyste.txt").delete() } catch (_: Exception) {}
     }
 
     companion object {
@@ -794,6 +780,7 @@ class HysteriaEngine(
     override suspend fun start(): Int {
         if (running) return LOCAL_SOCKS_PORT
         running = true
+        clearHysteriaLog()
         withContext(Dispatchers.IO) {
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
@@ -924,8 +911,8 @@ transport:
                 }
             } catch (_: Exception) {}
         }.start()
-        Thread { try { proc.inputStream.bufferedReader().forEachLine { if (running) KighmuLogger.info(TAG, "[hysteria] $it") } } catch (_: Exception) {} }.start()
-        Thread { try { proc.errorStream.bufferedReader().forEachLine { if (running) KighmuLogger.error(TAG, "[hysteria err] $it") } } catch (_: Exception) {} }.start()
+        Thread { try { proc.inputStream.bufferedReader().forEachLine { if (running) logHysteria("[out] $it") } } catch (_: Exception) {} }.start()
+        Thread { try { proc.errorStream.bufferedReader().forEachLine { if (running) logHysteria("[err] $it") } } catch (_: Exception) {} }.start()
     }
 
     override fun startTun2Socks(fd: Int) {
