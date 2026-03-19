@@ -744,10 +744,15 @@ class HysteriaEngine(
         KighmuLogger.info(TAG, msg)
         try {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-            val line = "[$timestamp] $msg\n"
+            val line = "[$timestamp] [HYSTERIA] $msg\n"
             java.io.File(context.filesDir, "kighmu_hyste.txt").appendText(line)
-            // Copie vers cache externe lisible
-            context.externalCacheDir?.let { java.io.File(it, "kighmu_hyste.txt").appendText(line) }
+            // Écrire aussi dans kighmu_close.txt via MediaStore
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val existing = resolver.query(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, arrayOf(android.provider.MediaStore.MediaColumns._ID), "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?", arrayOf("kighmu_close.txt"), null)
+                val uri = if (existing != null && existing.moveToFirst()) { val id = existing.getLong(0); existing.close(); android.content.ContentUris.withAppendedId(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, id) } else { existing?.close(); val values = android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "kighmu_close.txt"); put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain"); put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/") }; resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) }
+                uri?.let { resolver.openOutputStream(it, "wa")?.use { os -> os.write(line.toByteArray()) } }
+            }
         } catch (_: Exception) {}
     }
 
