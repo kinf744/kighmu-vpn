@@ -939,7 +939,6 @@ fdControlUnixSocket: "$fdSockPath"
     }
 
     override suspend fun stop() {
-    override suspend fun stop() {
         running = false
         _socksPort = 0
         try { fdControlServerSocket?.close() } catch (_: Exception) {}
@@ -952,5 +951,4 @@ fdControlUnixSocket: "$fdSockPath"
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = receiveQueue.poll(500, java.util.concurrent.TimeUnit.MILLISECONDS)
     override fun isRunning() = running
-}
 }
