@@ -794,6 +794,8 @@ class HysteriaEngine(
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
                 val configFile = writeHysteriaConfig(server)
+                val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd.sock"
+                startFdControlServer(fdSockPath, vpnService)
                 val binary = extractHysteriaBinary() ?: break
                 try { hysteriaProcess?.destroy() } catch (_: Exception) {}
                 hysteriaProcess = null
@@ -825,6 +827,7 @@ obfs:
   salamander:
     password: "${hConfig.obfsPassword}"
 """ else ""
+        val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd.sock"
         val config = """server: "$server"
 auth: "${hConfig.authPassword}"
 $obfsSection
@@ -841,6 +844,8 @@ socks5:
 transport:
   udp:
     hopInterval: 30s
+
+fdControlUnixSocket: "$fdSockPath"
 """
         file.writeText(config)
         logHysteria("Config Hysteria2 écrite: $server")
@@ -852,6 +857,34 @@ transport:
         if (bin.exists()) { bin.setExecutable(true); return bin }
         KighmuLogger.error(TAG, "libhysteria.so introuvable")
         return null
+    }
+
+    private fun startFdControlServer(sockPath: String, vpnSvc: android.net.VpnService?) {
+        if (vpnSvc == null) return
+        java.io.File(sockPath).delete()
+        val serverSocket = android.net.LocalServerSocket(sockPath)
+        Thread {
+            try {
+                while (running) {
+                    val client = serverSocket.accept()
+                    Thread {
+                        try {
+                            val fds = client.ancillaryFileDescriptors
+                            fds?.forEach { fd ->
+                                val result = vpnSvc.protect(fd)
+                                logHysteria("fdControl protect fd=${fd} result=$result")
+                            }
+                        } catch (e: Exception) {
+                            logHysteria("fdControl error: ${e.message}")
+                        } finally {
+                            try { client.close() } catch (_: Exception) {}
+                        }
+                    }.start()
+                }
+            } catch (_: Exception) {}
+            try { serverSocket.close() } catch (_: Exception) {}
+        }.start()
+        logHysteria("fdControl server démarré: $sockPath")
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
