@@ -822,7 +822,7 @@ class HysteriaEngine(
                             val target = fdFile.canonicalPath
                             if (target.contains("socket")) {
                                 val fd = fdFile.name.toIntOrNull() ?: return@forEach
-                                val vpn = context as? android.net.VpnService
+                                val vpn = vpnService ?: context as? android.net.VpnService
                                 if (vpn?.protect(fd) == true) count++
                             }
                         } catch (_: Exception) {}
