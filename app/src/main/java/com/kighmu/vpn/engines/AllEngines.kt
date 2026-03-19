@@ -798,10 +798,14 @@ class HysteriaEngine(
                 // Initialiser ProtectedDialer via libgojni.so
                 if (v2rayPoint == null && vpnService != null) {
                     try {
-                        val dialer = HysteriaDialer(vpnService)
-                        v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
-                        logHysteria("V2RayPoint créé avec ProtectedDialer ✓")
-                    } catch (e: Exception) {
+                        if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
+                            val dialer = HysteriaDialer(vpnService)
+                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
+                            logHysteria("V2RayPoint créé avec ProtectedDialer ✓")
+                        } else {
+                            logHysteria("libgojni.so non disponible - connexion sans protect")
+                        }
+                    } catch (e: Throwable) {
                         logHysteria("V2RayPoint error: ${e.message}")
                     }
                 }
