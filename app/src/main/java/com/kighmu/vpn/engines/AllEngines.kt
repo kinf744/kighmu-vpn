@@ -682,6 +682,34 @@ class HysteriaEngine(
     private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
+    private fun logHysteria(msg: String) {
+        KighmuLogger.info(TAG, msg)
+        try {
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val existing = resolver.query(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    arrayOf(android.provider.MediaStore.MediaColumns._ID),
+                    "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?",
+                    arrayOf("kighmu_hyste.txt"), null)
+                val uri = if (existing != null && existing.moveToFirst()) {
+                    val id = existing.getLong(0); existing.close()
+                    android.content.ContentUris.withAppendedId(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, id)
+                } else {
+                    existing?.close()
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "kighmu_hyste.txt")
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/")
+                    }
+                    resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                }
+                uri?.let { resolver.openOutputStream(it, "wa")?.use { os -> os.write("[$timestamp] $msg\n".toByteArray()) } }
+            }
+        } catch (_: Exception) {}
+    }
+
     companion object {
         const val TAG = "HysteriaEngine"
         const val LOCAL_HTTP_PORT = 10821
@@ -716,7 +744,7 @@ class HysteriaEngine(
             for (port in ports) {
                 if (connected) break
                 val server = "$ip:$port"
-                KighmuLogger.info(TAG, "Hysteria essai port $port")
+                logHysteria("Hysteria essai port $port")
             // Vérifier si une interface VPN est active
             try {
                 val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
@@ -740,13 +768,13 @@ class HysteriaEngine(
                             java.net.Socket().use { s ->
                                 s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 300)
                                 connected = true
-                                KighmuLogger.info(TAG, "Hysteria connecté sur port $port")
+                                logHysteria("Hysteria connecté sur port $port")
                             }
                         } catch (_: Exception) { Thread.sleep(500) }
                     }
                 }
             }
-            if (!connected) throw Exception("Hysteria: aucun port disponible")
+            if (!connected) logHysteria("ECHEC: aucun port disponible"); throw Exception("Hysteria: aucun port disponible")
         }
         return LOCAL_SOCKS_PORT
     }
@@ -801,7 +829,7 @@ class HysteriaEngine(
         if (protectedFd > 0) pb.environment()["HYSTERIA_PROTECTED_FD"] = protectedFd.toString()
         hysteriaProcess = pb.start()
         val proc = hysteriaProcess!!
-        KighmuLogger.info(TAG, "vpnService non-null: ${vpnService != null}")
+        logHysteria("vpnService non-null: ${vpnService != null}")
         // Protéger tous les sockets du processus Hysteria via VpnService
         // Répéter plusieurs fois pour capturer les sockets créés après le démarrage
         Thread {
@@ -828,7 +856,7 @@ class HysteriaEngine(
                             }
                         } catch (_: Exception) {}
                     }
-                    if (count > 0) KighmuLogger.info(TAG, "Hysteria protect() $count sockets @${delay}ms pid=$pid")
+                    if (count > 0) logHysteria("Hysteria protect() $count sockets @${delay}ms pid=$pid")
                 }
             } catch (_: Exception) {}
         }.start()
