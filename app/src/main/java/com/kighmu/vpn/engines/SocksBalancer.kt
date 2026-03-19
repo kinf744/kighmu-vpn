@@ -36,7 +36,6 @@ class SocksBalancer(private val ports: List<Int>) {
                 try {
                     val client = serverSocket?.accept() ?: break
                     val targetPort = nextPort()
-                    KighmuLogger.info(TAG, "Nouvelle connexion -> SOCKS:$targetPort")
                     Thread { relay(client, targetPort) }.start()
                 } catch (e: Exception) {
                     if (running) KighmuLogger.error(TAG, "Accept error: ${e.message}")
