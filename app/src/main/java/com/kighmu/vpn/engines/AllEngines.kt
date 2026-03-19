@@ -858,25 +858,14 @@ transport:
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
-        // Créer un socket UDP protégé et le passer via PROTECT_FD
-        val udpSocket = java.net.DatagramSocket()
-        (context as? android.net.VpnService)?.protect(udpSocket)
-        val protectedFd = try {
-            val f = udpSocket.javaClass.getDeclaredField("impl")
-            f.isAccessible = true
-            val impl = f.get(udpSocket)
-            val f2 = impl.javaClass.getDeclaredField("fd")
-            f2.isAccessible = true
-            val fd = f2.get(impl) as java.io.FileDescriptor
-            android.system.Os.fcntlInt(fd, android.system.OsConstants.F_DUPFD_CLOEXEC, 3)
-        } catch (e: Exception) { -1 }
-        udpSocket.close()
-
-        val cmd = arrayOf(binary.absolutePath, "client", "-c", configFile.absolutePath)
+        // Même commande qu'OpenCustom - sans proxy, sans protect() externe
+        val cmd = arrayOf(binary.absolutePath, "client",
+            "--config", configFile.absolutePath,
+            "--log-level", "warn",
+            "--disable-update-check")
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
-        if (protectedFd > 0) pb.environment()["HYSTERIA_PROTECTED_FD"] = protectedFd.toString()
         hysteriaProcess = pb.start()
         val proc = hysteriaProcess!!
         logHysteria("vpnService non-null: ${vpnService != null}")
