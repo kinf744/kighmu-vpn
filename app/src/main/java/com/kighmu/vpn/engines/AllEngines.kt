@@ -678,7 +678,8 @@ class XraySlowDnsEngine(
 
 class HysteriaEngine(
     private val config: KighmuConfig,
-    private val context: Context
+    private val context: Context,
+    private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
     companion object {
