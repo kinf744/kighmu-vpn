@@ -709,8 +709,8 @@ class HysteriaEngine(
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
             } catch (_: Exception) { hConfig.serverAddress }
 
-            // Essayer port 20000 fixe d'abord, puis ports aléatoires 20000-50000
-            val ports = mutableListOf(20000) + (1..9).map { (20000..50000).random() }
+            // Essayer port 36712 (udp-custom) puis 20000 (hysteria direct) puis range
+            val ports = mutableListOf(36712, 20000) + (1..8).map { (1..65000).random() }
             var connected = false
             for (port in ports) {
                 if (connected) break
