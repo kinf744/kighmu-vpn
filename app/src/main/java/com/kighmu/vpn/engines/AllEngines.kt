@@ -859,10 +859,15 @@ fdControlUnixSocket: "$fdSockPath"
         return null
     }
 
+    private var fdControlServerSocket: android.net.LocalServerSocket? = null
+
     private fun startFdControlServer(sockPath: String, vpnSvc: android.net.VpnService?) {
         if (vpnSvc == null) return
+        // Fermer le socket précédent
+        try { fdControlServerSocket?.close() } catch (_: Exception) {}
         java.io.File(sockPath).delete()
         val serverSocket = android.net.LocalServerSocket(sockPath)
+        fdControlServerSocket = serverSocket
         Thread {
             try {
                 while (running) {
