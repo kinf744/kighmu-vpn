@@ -3,12 +3,21 @@ package com.kighmu.vpn.engines
 import android.net.VpnService
 
 /**
- * Implémente V2RayVPNServiceSupportsSet de libgojni.so
- * Exactement comme OpenCustom
+ * Interface V2RayVPNServiceSupportsSet pour libgojni.so
+ * Doit correspondre exactement au package chzPsiphonAndV2ray dans libgojni
  */
-class HysteriaDialer(private val vpnService: VpnService) :
-    chzPsiphonAndV2ray.V2RayVPNServiceSupportsSet {
+interface V2RayVPNServiceSupportsSet {
+    fun onEmitStatus(l: Long, s: String): Long
+    fun prepare(): Long
+    fun protect(fd: Long): Boolean
+    fun setup(conf: String): Long
+    fun shutdown(): Long
+}
 
+/**
+ * Implémentation pour Hysteria - protège les sockets UDP via VpnService
+ */
+class HysteriaDialer(private val vpnService: VpnService) : V2RayVPNServiceSupportsSet {
     override fun protect(fd: Long): Boolean {
         return try {
             vpnService.protect(fd.toInt())
@@ -16,7 +25,6 @@ class HysteriaDialer(private val vpnService: VpnService) :
             false
         }
     }
-
     override fun prepare(): Long = 0L
     override fun setup(conf: String): Long = 0L
     override fun shutdown(): Long = 0L
