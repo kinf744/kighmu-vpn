@@ -801,6 +801,7 @@ class HysteriaEngine(
         if (protectedFd > 0) pb.environment()["HYSTERIA_PROTECTED_FD"] = protectedFd.toString()
         hysteriaProcess = pb.start()
         val proc = hysteriaProcess!!
+        KighmuLogger.info(TAG, "vpnService non-null: ${vpnService != null}")
         // Protéger tous les sockets du processus Hysteria via VpnService
         // Répéter plusieurs fois pour capturer les sockets créés après le démarrage
         Thread {
