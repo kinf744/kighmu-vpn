@@ -939,9 +939,13 @@ fdControlUnixSocket: "$fdSockPath"
     }
 
     override suspend fun stop() {
+    override suspend fun stop() {
         running = false
         _socksPort = 0
-        hysteriaProcess?.destroy()
+        try { fdControlServerSocket?.close() } catch (_: Exception) {}
+        fdControlServerSocket = null
+        try { hysteriaProcess?.destroy() } catch (_: Exception) {}
+        hysteriaProcess = null
         engineScope.cancel()
     }
 
