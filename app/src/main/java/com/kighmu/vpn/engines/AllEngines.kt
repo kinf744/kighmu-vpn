@@ -807,17 +807,11 @@ class HysteriaEngine(
                 if (connected) break
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
-            // Vérifier si une interface VPN est active
-            try {
-                val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-                while (interfaces.hasMoreElements()) {
-                    val iface = interfaces.nextElement()
-                    if (iface.name.startsWith("tun") || iface.name.startsWith("vpn")) {
-                        KighmuLogger.info(TAG, "Interface VPN active: ${iface.name}")
-                    }
-                }
-            } catch (_: Exception) {}
-                val configFile = writeHysteriaConfig(server)
+                // Créer proxy UDP protégé
+                val proxyPort = startProtectedUdpProxy(server, vpnService)
+                val effectiveServer = if (proxyPort > 0) "127.0.0.1:$proxyPort" else server
+                logHysteria("effectiveServer=$effectiveServer")
+                val configFile = writeHysteriaConfig(effectiveServer)
                 val binary = extractHysteriaBinary() ?: break
                 try { hysteriaProcess?.destroy() } catch (_: Exception) {}
                 hysteriaProcess = null
