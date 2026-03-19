@@ -835,23 +835,32 @@ class HysteriaEngine(
     }
 
     private fun writeHysteriaConfig(server: String): File {
-        val file = File(context.filesDir, "hysteria_config.json")
-        val config = """{
-  "server": "$server",
-  "obfs": "${hConfig.obfsPassword}",
-  "auth_str": "${hConfig.authPassword}",
-  "up_mbps": ${hConfig.uploadMbps},
-  "down_mbps": ${hConfig.downloadMbps},
-  "retry": 3,
-  "retry_interval": 1,
-  "socks5": {
-    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
-  },
-  "insecure": true,
-  "recv_window_conn": 0,
-  "recv_window": 0
-}"""
+        val file = File(context.filesDir, "hysteria_config.yaml")
+        val obfsSection = if (hConfig.obfsPassword.isNotBlank()) """
+obfs:
+  type: salamander
+  salamander:
+    password: "${hConfig.obfsPassword}"
+""" else ""
+        val config = """server: "$server"
+auth: "${hConfig.authPassword}"
+$obfsSection
+bandwidth:
+  up: ${hConfig.uploadMbps} mbps
+  down: ${hConfig.downloadMbps} mbps
+
+tls:
+  insecure: true
+
+socks5:
+  listen: 127.0.0.1:$LOCAL_SOCKS_PORT
+
+transport:
+  udp:
+    hopInterval: 30s
+"""
         file.writeText(config)
+        logHysteria("Config Hysteria2 écrite: $server")
         return file
     }
 
@@ -877,7 +886,7 @@ class HysteriaEngine(
         } catch (e: Exception) { -1 }
         udpSocket.close()
 
-        val cmd = arrayOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
+        val cmd = arrayOf(binary.absolutePath, "client", "-c", configFile.absolutePath)
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
