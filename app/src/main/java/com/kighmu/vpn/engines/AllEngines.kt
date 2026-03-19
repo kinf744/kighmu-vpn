@@ -780,6 +780,18 @@ class HysteriaEngine(
         if (running) return LOCAL_SOCKS_PORT
         running = true
         clearHysteriaLog()
+        // Charger libgojni.so pour ProtectedDialer
+        withContext(Dispatchers.IO) {
+            try {
+                if (GoJniLoader.ensureLoaded(context)) {
+                    logHysteria("libgojni.so chargé - ProtectedDialer disponible")
+                } else {
+                    logHysteria("libgojni.so non disponible")
+                }
+            } catch (e: Exception) {
+                logHysteria("GoJniLoader error: ${e.message}")
+            }
+        }
         withContext(Dispatchers.IO) {
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
