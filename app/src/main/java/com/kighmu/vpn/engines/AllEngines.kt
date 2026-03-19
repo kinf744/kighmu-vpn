@@ -804,7 +804,7 @@ class HysteriaEngine(
                         val loaded = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()
                         logHysteria("libgojni loaded=$loaded")
                         if (loaded) {
-                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray_proxyV2RayVPNServiceSupportsSet(vpnService)
+                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2rayProxy.proxyV2RayVPNServiceSupportsSet(vpnService)
                             logHysteria("dialer créé")
                             v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
                             logHysteria("V2RayPoint créé ✓")
