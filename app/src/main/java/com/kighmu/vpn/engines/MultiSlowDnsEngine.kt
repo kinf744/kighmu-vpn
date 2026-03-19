@@ -117,8 +117,30 @@ class MultiSlowDnsEngine(
                     KighmuLogger.info(TAG, "Sessions actives: $alive/$total")
                 }
                 if (alive == 0 && total > 0) {
-                    KighmuLogger.error(TAG, "Toutes les sessions sont tombées!")
+                    KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage...")
+                    // Redémarrer toutes les sessions
+                    try { start() } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "Echec redémarrage sessions: ${e.message}")
+                    }
                     break
+                }
+                // Redémarrer les sessions mortes individuellement
+                engines.forEachIndexed { idx, engine ->
+                    if (!engine.isRunning() && profiles.size > idx) {
+                        KighmuLogger.warning(TAG, "Session[$idx] morte - redémarrage...")
+                        scope.launch {
+                            try {
+                                val port = engine.start()
+                                if (port > 0) {
+                                    KighmuLogger.info(TAG, "Session[$idx] redémarrée port=$port")
+                                    // Mettre à jour le balancer
+                                    val alivePorts = engines.filter { it.isRunning() }
+                                        .mapNotNull { it.getSocksPort() }
+                                    socksBalancer?.updatePorts(alivePorts)
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
                 }
             }
         }

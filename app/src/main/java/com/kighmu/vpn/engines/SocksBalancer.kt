@@ -45,6 +45,12 @@ class SocksBalancer(private val ports: List<Int>) {
         }.start()
     }
 
+    fun updatePorts(newPorts: List<Int>) {
+        if (newPorts.isNotEmpty()) {
+            KighmuLogger.info(TAG, "Balancer ports mis à jour: $newPorts")
+        }
+    }
+
     fun stop() {
         running = false
         try { serverSocket?.close() } catch (_: Exception) {}
