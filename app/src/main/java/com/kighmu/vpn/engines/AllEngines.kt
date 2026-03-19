@@ -690,48 +690,47 @@ class HysteriaEngine(
             val port = parts[1].toInt()
             val targetAddr = java.net.InetSocketAddress(host, port)
 
-            // Créer socket UDP protégé
+            // Socket protégé pour communiquer avec le serveur externe
             val protectedSocket = java.net.DatagramSocket()
             vpnSvc.protect(protectedSocket)
-            logHysteria("Socket UDP protégé créé: ${protectedSocket.localPort}")
+            protectedSocket.soTimeout = 30000
 
-            // Créer socket local pour Hysteria
-            val localSocket = java.net.DatagramSocket()
+            // Socket local pour Hysteria (non protégé - reste dans le VPN)
+            val localSocket = java.net.DatagramSocket(0, java.net.InetAddress.getByName("127.0.0.1"))
+            localSocket.soTimeout = 30000
             val localPort = localSocket.localPort
+            logHysteria("Socket UDP protégé créé: ${protectedSocket.localPort}")
             logHysteria("Proxy UDP local sur port $localPort → $targetServer")
 
-            // Thread proxy: local → protected → server
+            // Thread: Hysteria → proxy → serveur (avec mémorisation adresse client)
             Thread {
                 val buf = ByteArray(65535)
-                val localBuf = ByteArray(65535)
-                // Thread forward: local → server
+                var clientAddr: java.net.SocketAddress? = null
+                
+                // Thread retour: serveur → Hysteria
                 Thread {
+                    val rbuf = ByteArray(65535)
                     while (running) {
                         try {
-                            val pkt = java.net.DatagramPacket(buf, buf.size)
-                            localSocket.receive(pkt)
-                            val fwd = java.net.DatagramPacket(pkt.data, pkt.length, targetAddr)
-                            protectedSocket.send(fwd)
-                        } catch (_: Exception) { break }
+                            val pkt = java.net.DatagramPacket(rbuf, rbuf.size)
+                            protectedSocket.receive(pkt)
+                            clientAddr?.let { addr ->
+                                val reply = java.net.DatagramPacket(pkt.data, pkt.length, addr)
+                                localSocket.send(reply)
+                            }
+                        } catch (_: Exception) { if (!running) break }
                     }
                 }.start()
-                // Thread backward: server → local
-                var clientAddr: java.net.SocketAddress? = null
+
+                // Thread aller: Hysteria → serveur
                 while (running) {
                     try {
-                        val pkt = java.net.DatagramPacket(localBuf, localBuf.size)
-                        if (clientAddr == null) {
-                            val tmp = java.net.DatagramPacket(buf, buf.size)
-                            localSocket.receive(tmp)
-                            clientAddr = tmp.socketAddress
-                            val fwd = java.net.DatagramPacket(tmp.data, tmp.length, targetAddr)
-                            protectedSocket.send(fwd)
-                        }
-                        val recv = java.net.DatagramPacket(localBuf, localBuf.size)
-                        protectedSocket.receive(recv)
-                        val reply = java.net.DatagramPacket(recv.data, recv.length, clientAddr)
-                        localSocket.send(reply)
-                    } catch (_: Exception) { break }
+                        val pkt = java.net.DatagramPacket(buf, buf.size)
+                        localSocket.receive(pkt)
+                        if (clientAddr == null) clientAddr = pkt.socketAddress
+                        val fwd = java.net.DatagramPacket(pkt.data, pkt.length, targetAddr)
+                        protectedSocket.send(fwd)
+                    } catch (_: Exception) { if (!running) break }
                 }
                 try { localSocket.close() } catch (_: Exception) {}
                 try { protectedSocket.close() } catch (_: Exception) {}
