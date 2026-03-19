@@ -682,6 +682,68 @@ class HysteriaEngine(
     private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
+    private fun startProtectedUdpProxy(targetServer: String, vpnSvc: android.net.VpnService?): Int {
+        if (vpnSvc == null) return 0
+        return try {
+            val parts = targetServer.split(":")
+            val host = parts[0]
+            val port = parts[1].toInt()
+            val targetAddr = java.net.InetSocketAddress(host, port)
+
+            // Créer socket UDP protégé
+            val protectedSocket = java.net.DatagramSocket()
+            vpnSvc.protect(protectedSocket)
+            logHysteria("Socket UDP protégé créé: ${protectedSocket.localPort}")
+
+            // Créer socket local pour Hysteria
+            val localSocket = java.net.DatagramSocket()
+            val localPort = localSocket.localPort
+            logHysteria("Proxy UDP local sur port $localPort → $targetServer")
+
+            // Thread proxy: local → protected → server
+            Thread {
+                val buf = ByteArray(65535)
+                val localBuf = ByteArray(65535)
+                // Thread forward: local → server
+                Thread {
+                    while (running) {
+                        try {
+                            val pkt = java.net.DatagramPacket(buf, buf.size)
+                            localSocket.receive(pkt)
+                            val fwd = java.net.DatagramPacket(pkt.data, pkt.length, targetAddr)
+                            protectedSocket.send(fwd)
+                        } catch (_: Exception) { break }
+                    }
+                }.start()
+                // Thread backward: server → local
+                var clientAddr: java.net.SocketAddress? = null
+                while (running) {
+                    try {
+                        val pkt = java.net.DatagramPacket(localBuf, localBuf.size)
+                        if (clientAddr == null) {
+                            val tmp = java.net.DatagramPacket(buf, buf.size)
+                            localSocket.receive(tmp)
+                            clientAddr = tmp.socketAddress
+                            val fwd = java.net.DatagramPacket(tmp.data, tmp.length, targetAddr)
+                            protectedSocket.send(fwd)
+                        }
+                        val recv = java.net.DatagramPacket(localBuf, localBuf.size)
+                        protectedSocket.receive(recv)
+                        val reply = java.net.DatagramPacket(recv.data, recv.length, clientAddr)
+                        localSocket.send(reply)
+                    } catch (_: Exception) { break }
+                }
+                try { localSocket.close() } catch (_: Exception) {}
+                try { protectedSocket.close() } catch (_: Exception) {}
+            }.start()
+
+            localPort
+        } catch (e: Exception) {
+            logHysteria("Proxy UDP échec: ${e.message}")
+            0
+        }
+    }
+
     private fun logHysteria(msg: String) {
         KighmuLogger.info(TAG, msg)
         try {
