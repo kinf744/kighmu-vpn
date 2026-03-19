@@ -682,63 +682,60 @@ class HysteriaEngine(
     private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
+    private var proxyLocalSocket: java.net.DatagramSocket? = null
+    private var proxyProtectedSocket: java.net.DatagramSocket? = null
+
     private fun startProtectedUdpProxy(targetServer: String, vpnSvc: android.net.VpnService?): Int {
         if (vpnSvc == null) return 0
+        try { proxyLocalSocket?.close() } catch (_: Exception) {}
+        try { proxyProtectedSocket?.close() } catch (_: Exception) {}
         return try {
             val parts = targetServer.split(":")
             val host = parts[0]
             val port = parts[1].toInt()
             val targetAddr = java.net.InetSocketAddress(host, port)
-
-            // Socket protégé pour communiquer avec le serveur externe
             val protectedSocket = java.net.DatagramSocket()
             vpnSvc.protect(protectedSocket)
-            protectedSocket.soTimeout = 30000
-
-            // Socket local pour Hysteria (non protégé - reste dans le VPN)
+            proxyProtectedSocket = protectedSocket
             val localSocket = java.net.DatagramSocket(0, java.net.InetAddress.getByName("127.0.0.1"))
-            localSocket.soTimeout = 30000
+            proxyLocalSocket = localSocket
             val localPort = localSocket.localPort
             logHysteria("Socket UDP protégé créé: ${protectedSocket.localPort}")
-            logHysteria("Proxy UDP local sur port $localPort → $targetServer")
-
-            // Thread: Hysteria → proxy → serveur (avec mémorisation adresse client)
+            logHysteria("Proxy UDP local sur port $localPort -> $targetServer")
+            val clientAddr = java.util.concurrent.atomic.AtomicReference<java.net.SocketAddress>()
+            // Thread 1: Hysteria -> serveur
             Thread {
                 val buf = ByteArray(65535)
-                var clientAddr: java.net.SocketAddress? = null
-                
-                // Thread retour: serveur → Hysteria
-                Thread {
-                    val rbuf = ByteArray(65535)
-                    while (running) {
-                        try {
-                            val pkt = java.net.DatagramPacket(rbuf, rbuf.size)
-                            protectedSocket.receive(pkt)
-                            clientAddr?.let { addr ->
-                                val reply = java.net.DatagramPacket(pkt.data, pkt.length, addr)
-                                localSocket.send(reply)
-                            }
-                        } catch (_: Exception) { if (!running) break }
-                    }
-                }.start()
-
-                // Thread aller: Hysteria → serveur
                 while (running) {
                     try {
                         val pkt = java.net.DatagramPacket(buf, buf.size)
                         localSocket.receive(pkt)
-                        if (clientAddr == null) { clientAddr = pkt.socketAddress; logHysteria("Proxy: premier paquet reçu de Hysteria ${pkt.length} bytes") }
-                        val fwd = java.net.DatagramPacket(pkt.data, pkt.length, targetAddr)
-                        protectedSocket.send(fwd)
+                        clientAddr.compareAndSet(null, pkt.socketAddress)
+                        val data = pkt.data.copyOf(pkt.length)
+                        protectedSocket.send(java.net.DatagramPacket(data, data.size, targetAddr))
+                        logHysteria("Proxy ->serveur: ${data.size} bytes")
                     } catch (_: Exception) { if (!running) break }
                 }
-                try { localSocket.close() } catch (_: Exception) {}
-                try { protectedSocket.close() } catch (_: Exception) {}
             }.start()
-
+            // Thread 2: serveur -> Hysteria
+            Thread {
+                val buf = ByteArray(65535)
+                while (running) {
+                    try {
+                        val pkt = java.net.DatagramPacket(buf, buf.size)
+                        protectedSocket.receive(pkt)
+                        val addr = clientAddr.get()
+                        if (addr != null) {
+                            val data = pkt.data.copyOf(pkt.length)
+                            localSocket.send(java.net.DatagramPacket(data, data.size, addr))
+                            logHysteria("Proxy <-serveur: ${data.size} bytes")
+                        }
+                    } catch (_: Exception) { if (!running) break }
+                }
+            }.start()
             localPort
         } catch (e: Exception) {
-            logHysteria("Proxy UDP échec: ${e.message}")
+            logHysteria("Proxy UDP echec: ${e.message}")
             0
         }
     }
