@@ -684,7 +684,6 @@ class HysteriaEngine(
 
     private var proxyLocalSocket: java.net.DatagramSocket? = null
     private var proxyProtectedSocket: java.net.DatagramSocket? = null
-    private var v2rayPoint: chzPsiphonAndV2ray.V2RayPoint? = null
 
     private fun startProtectedUdpProxy(targetServer: String, vpnSvc: android.net.VpnService?): Int {
         if (vpnSvc == null) return 0
@@ -781,7 +780,6 @@ class HysteriaEngine(
         if (running) return LOCAL_SOCKS_PORT
         running = true
         clearHysteriaLog()
-        // libgojni.so est dans l'APK - chargé automatiquement par Android
         withContext(Dispatchers.IO) {
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
@@ -795,18 +793,7 @@ class HysteriaEngine(
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
-                // Initialiser ProtectedDialer via libgojni.so
-                if (v2rayPoint == null && vpnService != null) {
-                    try {
-                        if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
-                            val dialer = HysteriaDialer(vpnService)
-                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
-                            logHysteria("V2RayPoint créé avec ProtectedDialer ✓")
-                        } else {
-                            logHysteria("libgojni.so non disponible - connexion sans protect")
-                        }
                     } catch (e: Throwable) {
-                        logHysteria("V2RayPoint error: ${e.message}")
                     }
                 }
                 val configFile = writeHysteriaConfig(server)
@@ -968,7 +955,6 @@ fdControlUnixSocket: "$fdSockPath"
         _socksPort = 0
         try { fdControlServerSocket?.close() } catch (_: Exception) {}
         fdControlServerSocket = null
-        try { v2rayPoint = null } catch (_: Exception) {}
         try { hysteriaProcess?.destroy() } catch (_: Exception) {}
         hysteriaProcess = null
         engineScope.cancel()
