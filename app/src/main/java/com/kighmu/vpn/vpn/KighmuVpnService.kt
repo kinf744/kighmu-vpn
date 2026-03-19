@@ -198,6 +198,7 @@ class KighmuVpnService : VpnService() {
                     try { tempVpn?.close() } catch (_: Exception) {}
                     if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
+                        isStartingVpn = false // Reset pour permettre la reconnexion
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
                         delay(RECONNECT_DELAY)
                         startVpn()
