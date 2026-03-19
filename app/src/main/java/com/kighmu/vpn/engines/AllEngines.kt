@@ -744,14 +744,16 @@ class HysteriaEngine(
         KighmuLogger.info(TAG, msg)
         try {
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-            // Écrire dans fichier interne simple
-            val file = java.io.File(context.filesDir, "kighmu_hyste.txt")
-            file.appendText("[$timestamp] $msg\n")
+            val line = "[$timestamp] $msg\n"
+            java.io.File(context.filesDir, "kighmu_hyste.txt").appendText(line)
+            // Copie vers cache externe lisible
+            context.externalCacheDir?.let { java.io.File(it, "kighmu_hyste.txt").appendText(line) }
         } catch (_: Exception) {}
     }
 
     private fun clearHysteriaLog() {
         try { java.io.File(context.filesDir, "kighmu_hyste.txt").delete() } catch (_: Exception) {}
+        try { context.externalCacheDir?.let { java.io.File(it, "kighmu_hyste.txt").delete() } } catch (_: Exception) {}
     }
 
     companion object {
