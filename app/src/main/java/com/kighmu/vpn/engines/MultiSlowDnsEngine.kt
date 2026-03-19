@@ -50,32 +50,30 @@ class MultiSlowDnsEngine(
         // Attendre que les ports soient libérés
         delay(2500)
 
-        KighmuLogger.info(TAG, "=== STEP 1: Lancement ${selected.size} session(s) en parallèle ===")
+        KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle ${selected.size} session(s) ===")
 
-        // STEP 1 : Lancer toutes les sessions en parallèle
-        val jobs = selected.mapIndexed { idx, profile ->
-            scope.async {
-                KighmuLogger.info(TAG, "Session[${idx+1}/${selected.size}] démarrage: ${profile.profileName}")
-                val engine = SlowDnsEngine(buildConfig(profile), context, null, idx)
-                synchronized(engines) { engines.add(engine) }
-                val port = try {
-                    withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "Session[${idx+1}] FAILED: ${e.message}")
-                    -1
-                }
-                if (port > 0) {
-                    KighmuLogger.info(TAG, "Session[${idx+1}] CONNECTÉE ✓ port=$port (${profile.profileName})")
-                } else {
-                    KighmuLogger.error(TAG, "Session[${idx+1}] ÉCHEC ✗ (${profile.profileName})")
-                }
-                Pair(idx, port)
+        // STEP 1 : Lancer les sessions séquentiellement comme SSH Custom
+        val results = mutableListOf<Pair<Int, Int>>()
+        selected.forEachIndexed { idx, profile ->
+            KighmuLogger.info(TAG, "Session[${idx+1}/${selected.size}] démarrage: ${profile.profileName}")
+            val engine = SlowDnsEngine(buildConfig(profile), context, null, idx)
+            synchronized(engines) { engines.add(engine) }
+            val port = try {
+                withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "Session[${idx+1}] FAILED: ${e.message}")
+                -1
             }
+            if (port > 0) {
+                KighmuLogger.info(TAG, "Session[${idx+1}] CONNECTÉE ✓ port=$port")
+            } else {
+                KighmuLogger.error(TAG, "Session[${idx+1}] ÉCHEC ✗")
+            }
+            results.add(Pair(idx, port))
         }
 
-        // STEP 2 : Attendre TOUTES les sessions
-        KighmuLogger.info(TAG, "=== STEP 2: Attente de toutes les sessions ===")
-        val results = jobs.map { it.await() }
+        // STEP 2 : Résultats
+        KighmuLogger.info(TAG, "=== STEP 2: ${results.count { it.second > 0 }}/${selected.size} sessions ===")
         val successPorts = results.filter { it.second > 0 }.map { it.second }
         val failedCount = results.count { it.second <= 0 }
 
