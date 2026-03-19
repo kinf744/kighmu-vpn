@@ -793,9 +793,6 @@ class HysteriaEngine(
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
-                    } catch (e: Throwable) {
-                    }
-                }
                 val configFile = writeHysteriaConfig(server)
                 val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd.sock"
                 startFdControlServer(fdSockPath, vpnService)
