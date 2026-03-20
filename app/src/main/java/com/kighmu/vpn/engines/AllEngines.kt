@@ -929,7 +929,7 @@ class HysteriaEngine(
         // Hysteria 1 - commande: hysteria client -c config.json
         val cmd = arrayOf(binary.absolutePath, "client",
             "-c", configFile.absolutePath,
-            "--log-level", "warn")
+            "--log-level", "debug")
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
