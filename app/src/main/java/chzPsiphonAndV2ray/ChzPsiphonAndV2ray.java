@@ -27,16 +27,15 @@ public class ChzPsiphonAndV2ray {
                 Settings.Secure.ANDROID_ID
             );
             initV2Env(assetPath, deviceId);
-        } catch (Throwable e) {
-            // ignore
-        }
+        } catch (Throwable e) {}
     }
 
     public static native void initV2Env(String assetPath, String deviceId);
     public static native V2RayPoint newV2RayPoint(V2RayVPNServiceSupportsSet supports, boolean adVpn);
     public static native void touch();
 
-    public static class proxyV2RayVPNServiceSupportsSet implements V2RayVPNServiceSupportsSet {
+    // INNER CLASS - nom JNI exact: ChzPsiphonAndV2ray$proxyV2RayVPNServiceSupportsSet
+    public static final class proxyV2RayVPNServiceSupportsSet implements V2RayVPNServiceSupportsSet {
         private final VpnService vpnService;
         
         public proxyV2RayVPNServiceSupportsSet(VpnService vpnService) {
