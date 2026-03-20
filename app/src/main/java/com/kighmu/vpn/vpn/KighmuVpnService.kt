@@ -192,22 +192,7 @@ class KighmuVpnService : VpnService() {
 
                 // Pour Hysteria: établir l'interface VPN AVANT l'engine
                 // pour que addDisallowedApplication soit actif et permette UDP sortant
-                if (isHys) {
-                    val earlyVpn = try {
-                        Builder()
-                            .setSession("KIGHMU VPN")
-                            .addAddress("10.0.0.2", 24)
-                            .addRoute("0.0.0.0", 0)
-                            .addDnsServer("8.8.8.8")
-                            .setMtu(1500)
-                            .addDisallowedApplication(packageName)
-                            .establish()
-                    } catch (_: Exception) { null }
-                    if (earlyVpn != null) {
-                        vpnInterface = earlyVpn
-                        KighmuLogger.info("VpnService", "Interface VPN établie avant Hysteria")
-                    }
-                }
+                // Pour Hysteria: pas d'earlyVpn - lancer sans VPN actif
 
                 val localPort = try {
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
