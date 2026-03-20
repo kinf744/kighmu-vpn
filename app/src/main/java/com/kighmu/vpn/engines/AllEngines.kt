@@ -798,10 +798,7 @@ class HysteriaEngine(
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
-                val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd_${port}.sock"
-                val configFile = writeHysteriaConfig(server, fdSockPath)
-                startFdControlServer(fdSockPath, vpnService)
-                Thread.sleep(200) // Attendre que le socket soit prêt
+                val configFile = writeHysteriaConfig(server)
                 val binary = extractHysteriaBinary() ?: break
                 try { hysteriaProcess?.destroy() } catch (_: Exception) {}
                 hysteriaProcess = null
@@ -825,7 +822,7 @@ class HysteriaEngine(
         return LOCAL_SOCKS_PORT
     }
 
-    private fun writeHysteriaConfig(server: String, fdSockPath: String = ""): File {
+    private fun writeHysteriaConfig(server: String): File {
         val file = File(context.filesDir, "hysteria_config.yaml")
         val obfsSection = if (hConfig.obfsPassword.isNotBlank()) """
 obfs:
@@ -850,7 +847,6 @@ transport:
   udp:
     hopInterval: 30s
 
-fdControlUnixSocket: "$fdSockPath"
 """
         file.writeText(config)
         logHysteria("Config Hysteria2 écrite: $server")
