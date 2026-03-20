@@ -173,7 +173,8 @@ data class HysteriaConfig(
     @SerializedName("authPassword") var authPassword: String = "",
     @SerializedName("uploadMbps") var uploadMbps: Int = 10,
     @SerializedName("downloadMbps") var downloadMbps: Int = 50,
-    @SerializedName("obfsPassword") var obfsPassword: String = ""
+    @SerializedName("obfsPassword") var obfsPassword: String = "",
+    @SerializedName("portHopping") var portHopping: String = "20000-50000"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
