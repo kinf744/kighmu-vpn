@@ -1,5 +1,7 @@
 package go;
 
+import android.content.Context;
+
 public class Seq {
     static {
         System.loadLibrary("gojni");
@@ -7,7 +9,12 @@ public class Seq {
     }
     
     public static void touch() {}
-    private static native void init();
+    public static native void init();
+    public static native void setContext(Context ctx);
+    public static native void destroyRef(int refnum);
+    public static native void incGoRef(int refnum);
+    
+    public interface Proxy {}
     
     public static class Ref {
         public final int refnum;
@@ -17,6 +24,4 @@ public class Seq {
             this.obj = obj;
         }
     }
-    
-    public interface Proxy {}
 }
