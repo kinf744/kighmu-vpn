@@ -782,8 +782,9 @@ class HysteriaEngine(
     private var _resolvedServer: String = ""
 
     override suspend fun start(): Int {
-        if (running) return LOCAL_SOCKS_PORT
+        if (running && _socksPort > 0) return _socksPort
         running = true
+        _socksPort = 0
         clearHysteriaLog()
         withContext(Dispatchers.IO) {
             val ip = try {
