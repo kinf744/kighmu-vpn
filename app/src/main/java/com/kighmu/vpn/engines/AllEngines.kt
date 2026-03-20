@@ -829,16 +829,21 @@ class HysteriaEngine(
                 hysteriaProcess = null
                 _socksPort = 0
                 startHysteriaProcess(binary, configFile)
-                repeat(16) {
+                // Attendre que le port SOCKS5 soit détecté par le thread de log
+                repeat(20) {
                     if (!connected) {
                         try { hysteriaProcess?.exitValue(); return@repeat } catch (_: Exception) {}
-                        try {
-                            java.net.Socket().use { s ->
-                                s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 300)
-                                connected = true
-                                logHysteria("Hysteria connecté sur port $port")
-                            }
-                        } catch (_: Exception) { Thread.sleep(500) }
+                        val detectedPort = _socksPort
+                        if (detectedPort > 0) {
+                            try {
+                                java.net.Socket().use { s ->
+                                    s.connect(java.net.InetSocketAddress("127.0.0.1", detectedPort), 300)
+                                    connected = true
+                                    logHysteria("Hysteria connecté sur port $detectedPort")
+                                }
+                            } catch (_: Exception) {}
+                        }
+                        if (!connected) Thread.sleep(500)
                     }
                 }
             }
