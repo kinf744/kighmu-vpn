@@ -15,8 +15,15 @@ public class KighmuV2RayCallback implements V2RayVPNServiceSupportsSet {
     
     @Override
     public boolean protect(long fd) {
-        try { return vpnService.protect((int) fd); }
-        catch (Exception e) { return false; }
+        try { 
+            boolean result = vpnService.protect((int) fd);
+            android.util.Log.i("KighmuVPN", "protect() fd=" + fd + " result=" + result);
+            return result;
+        }
+        catch (Exception e) { 
+            android.util.Log.e("KighmuVPN", "protect() error: " + e.getMessage());
+            return false; 
+        }
     }
     
     @Override public long prepare() { return 0L; }
