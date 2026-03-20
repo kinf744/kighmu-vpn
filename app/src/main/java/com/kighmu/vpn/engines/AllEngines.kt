@@ -942,7 +942,7 @@ class HysteriaEngine(
                     if (running) logHysteria("[out] $line")
                     // Détecter le port SOCKS5 dynamique
                     if (line.contains("SOCKS5 server up") && line.contains("127.0.0.1:")) {
-                        val portMatch = Regex("127\.0\.0\.1:(\d+)").find(line)
+                        val portMatch = Regex("""127\.0\.0\.1:(\d+)""").find(line)
                         portMatch?.groupValues?.get(1)?.toIntOrNull()?.let { detectedPort ->
                             _socksPort = detectedPort
                             logHysteria("Port SOCKS5 détecté: $detectedPort")
