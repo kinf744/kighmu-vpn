@@ -961,7 +961,7 @@ class HysteriaEngine(
 
     }
     override fun startTun2Socks(fd: Int) {
-        val socksPort = _socksPort.takeIf { it > 0 } ?: LOCAL_SOCKS_PORT
+        val socksPort = LOCAL_SOCKS_PORT
         engineScope.launch(Dispatchers.IO) {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
