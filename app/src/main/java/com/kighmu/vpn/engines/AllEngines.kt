@@ -800,10 +800,13 @@ class HysteriaEngine(
                 val server = portHoppingServer
                 logHysteria("Hysteria port hopping: $server")
                 logHysteria("Etape 1: avant V2RayPoint")
+                logHysteria("vpnService=${vpnService != null} v2rayPoint=${v2rayPoint != null}")
                 // Connexion directe - initialiser ProtectedDialer via libgojni
                 if (v2rayPoint == null && vpnService != null) {
                     try {
+                        logHysteria("Etape 2: tryLoad")
                         if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
+                            logHysteria("Etape 3: libgojni chargé")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
                             // adVpn=true si Android >= 7.0 (SDK 25) - comme OpenCustom
                             val adVpn = android.os.Build.VERSION.SDK_INT >= 25
