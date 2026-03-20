@@ -864,7 +864,7 @@ class HysteriaEngine(
   "down_mbps": ${hConfig.downloadMbps},
   "insecure": true,
   "socks5": {
-    "listen": "127.0.0.1:0"
+    "listen": "127.0.0.1:${hConfig.socksPort.takeIf { it > 0 } ?: run { _socksPort = Companion.getFreePort(); _socksPort }}"
   }
 }
 """
