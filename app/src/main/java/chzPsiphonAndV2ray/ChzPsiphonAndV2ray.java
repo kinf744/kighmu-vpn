@@ -1,6 +1,8 @@
 package chzPsiphonAndV2ray;
 
+import android.content.Context;
 import android.net.VpnService;
+import android.provider.Settings;
 
 public class ChzPsiphonAndV2ray {
     
@@ -17,10 +19,23 @@ public class ChzPsiphonAndV2ray {
         }
     }
 
+    public static void initEnv(Context context) {
+        try {
+            String assetPath = context.getFilesDir().getAbsolutePath();
+            String deviceId = Settings.Secure.getString(
+                context.getContentResolver(), 
+                Settings.Secure.ANDROID_ID
+            );
+            initV2Env(assetPath, deviceId);
+        } catch (Throwable e) {
+            // ignore
+        }
+    }
+
+    public static native void initV2Env(String assetPath, String deviceId);
     public static native V2RayPoint newV2RayPoint(V2RayVPNServiceSupportsSet supports, boolean adVpn);
     public static native void touch();
 
-    // Inner class avec nom exact pour JNI
     public static class proxyV2RayVPNServiceSupportsSet implements V2RayVPNServiceSupportsSet {
         private final VpnService vpnService;
         

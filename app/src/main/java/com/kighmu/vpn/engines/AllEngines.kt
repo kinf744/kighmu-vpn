@@ -803,6 +803,8 @@ class HysteriaEngine(
                 if (v2rayPoint == null && vpnService != null) {
                     try {
                         if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
+                            chzPsiphonAndV2ray.ChzPsiphonAndV2ray.initEnv(context)
+                            logHysteria("initV2Env appelé")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
                             v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
                             logHysteria("V2RayPoint créé ✓")
