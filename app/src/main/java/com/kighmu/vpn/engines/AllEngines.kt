@@ -587,7 +587,7 @@ class XrayEngine(
 
 
     override fun startTun2Socks(fd: Int) {
-        val socksPort = LOCAL_SOCKS_PORT
+        val socksPort = 1080
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {
@@ -864,7 +864,7 @@ class HysteriaEngine(
   "down_mbps": ${hConfig.downloadMbps},
   "insecure": true,
   "socks5": {
-    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
+    "listen": "127.0.0.1:1080"
   }
 }
 """
@@ -949,7 +949,7 @@ class HysteriaEngine(
                     if (line.contains("SOCKS5 server up") && line.contains("127.0.0.1:")) {
                         val portMatch = Regex("""127\.0\.0\.1:(\d+)""").find(line)
                         portMatch?.groupValues?.get(1)?.toIntOrNull()?.let { detectedPort ->
-                            _socksPort = detectedPort
+                            _socksPort = 1080
                             logHysteria("Port SOCKS5 détecté: $detectedPort")
                         }
                     }
@@ -961,7 +961,7 @@ class HysteriaEngine(
 
     }
     override fun startTun2Socks(fd: Int) {
-        val socksPort = LOCAL_SOCKS_PORT
+        val socksPort = 1080
         engineScope.launch(Dispatchers.IO) {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
