@@ -863,14 +863,22 @@ class HysteriaEngine(
   "auth_str": "${hConfig.authPassword}",
   "up_mbps": ${hConfig.uploadMbps},
   "down_mbps": ${hConfig.downloadMbps},
-  "insecure": true,
+  "retry": 3,
+  "retry_interval": 1,
   "socks5": {
     "listen": "127.0.0.1:1080"
-  }
+  },
+  "insecure": true,
+  "recv_window_conn": 33554432,
+  "recv_window": 67108864,
+  "idle_timeout": 60,
+  "hop_interval": 120,
+  "resolver": "udp://1.1.1.1:53",
+  "resolve_preference": "64"
 }
 """
         file.writeText(config.trim())
-        logHysteria("Config Hysteria1 écrite: $server")
+        logHysteria("Config libuz écrite: $server")
         return file
     }
 
