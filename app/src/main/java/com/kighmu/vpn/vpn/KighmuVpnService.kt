@@ -217,13 +217,17 @@ class KighmuVpnService : VpnService() {
 
                 try { tempVpn?.close() } catch (_: Exception) {}
 
-                updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
-                vpnInterface = buildVpnInterface(localPort)
-
+                // Pour Hysteria: l'interface est déjà établie (earlyVpn)
                 if (vpnInterface == null) {
-                    updateStatus(ConnectionStatus.ERROR, "Failed to create VPN interface")
-                    try { tunnelEngine?.stop() } catch (_: Exception) {}
-                    return@launch
+                    updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
+                    vpnInterface = buildVpnInterface(localPort)
+                    if (vpnInterface == null) {
+                        updateStatus(ConnectionStatus.ERROR, "Failed to create VPN interface")
+                        try { tunnelEngine?.stop() } catch (_: Exception) {}
+                        return@launch
+                    }
+                } else {
+                    KighmuLogger.info("VpnService", "Interface VPN déjà établie (Hysteria)")
                 }
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
