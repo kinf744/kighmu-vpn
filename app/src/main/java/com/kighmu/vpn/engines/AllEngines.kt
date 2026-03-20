@@ -808,11 +808,13 @@ class HysteriaEngine(
                         val loaded = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()
                         logHysteria("Etape 3: loaded=$loaded")
                         if (loaded) {
-                            logHysteria("Etape 4: créer dialer")
+                            logHysteria("Etape 4: setContext")
+                            go.Seq.setContext(context)
+                            logHysteria("Etape 5: créer dialer")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
-                            logHysteria("Etape 5: dialer créé")
+                            logHysteria("Etape 6: dialer créé")
                             val adVpn = android.os.Build.VERSION.SDK_INT >= 25
-                            logHysteria("Etape 6: newV2RayPoint adVpn=$adVpn")
+                            logHysteria("Etape 7: newV2RayPoint adVpn=$adVpn")
                             v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, adVpn)
                             logHysteria("Etape 7: V2RayPoint créé ✓")
                             chzPsiphonAndV2ray.ChzPsiphonAndV2ray.initEnv(context)
