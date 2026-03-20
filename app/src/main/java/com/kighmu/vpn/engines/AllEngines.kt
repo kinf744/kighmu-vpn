@@ -849,7 +849,7 @@ class HysteriaEngine(
             }
             if (!connected) logHysteria("ECHEC: aucun port disponible"); throw Exception("Hysteria: aucun port disponible")
         }
-        return LOCAL_SOCKS_PORT
+        return _socksPort
     }
 
     private fun writeHysteriaConfig(server: String): File {
