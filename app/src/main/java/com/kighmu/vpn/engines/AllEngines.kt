@@ -962,7 +962,7 @@ class HysteriaEngine(
     }
     override fun startTun2Socks(fd: Int) {
         val socksPort = 1080
-        engineScope.launch(Dispatchers.IO) {
+        Thread {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
                 if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
@@ -982,7 +982,7 @@ class HysteriaEngine(
                 localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
                 KighmuLogger.info(TAG, "Hysteria fd $fd envoye via sock-path")
             } catch (e: Exception) { KighmuLogger.error(TAG, "tun2socks error: ${e.message}") }
-        }
+        }.start()
     }
 
     override suspend fun stop() {
