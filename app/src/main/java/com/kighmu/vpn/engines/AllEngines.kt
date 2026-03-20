@@ -803,11 +803,14 @@ class HysteriaEngine(
                 if (v2rayPoint == null && vpnService != null) {
                     try {
                         if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
+                            // initV2Env d'abord - comme OpenCustom
                             chzPsiphonAndV2ray.ChzPsiphonAndV2ray.initEnv(context)
                             logHysteria("initV2Env appelé")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
-                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, false)
-                            logHysteria("V2RayPoint créé ✓")
+                            // adVpn=true si Android >= 7.0 (SDK 25) - comme OpenCustom
+                            val adVpn = android.os.Build.VERSION.SDK_INT >= 25
+                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, adVpn)
+                            logHysteria("V2RayPoint créé ✓ adVpn=$adVpn")
                         }
                     } catch (e: Throwable) {
                         logHysteria("V2RayPoint error: ${e.message}")
