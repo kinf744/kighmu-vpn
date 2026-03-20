@@ -799,6 +799,7 @@ class HysteriaEngine(
                 if (connected) break
                 val server = portHoppingServer
                 logHysteria("Hysteria port hopping: $server")
+                logHysteria("Etape 1: avant V2RayPoint")
                 // Connexion directe - initialiser ProtectedDialer via libgojni
                 if (v2rayPoint == null && vpnService != null) {
                     try {
