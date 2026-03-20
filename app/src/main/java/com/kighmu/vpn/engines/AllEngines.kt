@@ -926,9 +926,9 @@ class HysteriaEngine(
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
-        // Hysteria 1 - format de commande différent
-        val cmd = arrayOf(binary.absolutePath,
-            "--config", configFile.absolutePath,
+        // Hysteria 1 - commande: hysteria client -c config.json
+        val cmd = arrayOf(binary.absolutePath, "client",
+            "-c", configFile.absolutePath,
             "--log-level", "warn")
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
