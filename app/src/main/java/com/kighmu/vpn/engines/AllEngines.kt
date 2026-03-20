@@ -864,7 +864,7 @@ class HysteriaEngine(
   "down_mbps": ${hConfig.downloadMbps},
   "insecure": true,
   "socks5": {
-    "listen": "127.0.0.1:${hConfig.socksPort.takeIf { it > 0 } ?: run { _socksPort = Companion.getFreePort(); _socksPort }}"
+    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
   }
 }
 """
@@ -961,7 +961,7 @@ class HysteriaEngine(
 
     }
     override fun startTun2Socks(fd: Int) {
-        val socksPort = LOCAL_SOCKS_PORT
+        val socksPort = _socksPort.takeIf { it > 0 } ?: LOCAL_SOCKS_PORT
         engineScope.launch(Dispatchers.IO) {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
