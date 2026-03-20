@@ -809,7 +809,7 @@ class HysteriaEngine(
                         logHysteria("Etape 3: loaded=$loaded")
                         if (loaded) {
                             logHysteria("Etape 4: setContext")
-                            go.Seq.setContext(context)
+                            go.Seq.setContext(context.applicationContext)
                             logHysteria("Etape 5: créer dialer")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
                             logHysteria("Etape 6: dialer créé")
