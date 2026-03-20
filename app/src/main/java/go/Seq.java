@@ -10,7 +10,6 @@ public class Seq {
     
     public static void touch() {}
     public static native void init();
-    public static native void setContext(Context ctx);
     public static native void setContext(Object ctx);
     public static native void destroyRef(int refnum);
     public static native void incGoRef(int refnum);
