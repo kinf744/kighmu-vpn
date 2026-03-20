@@ -805,20 +805,25 @@ class HysteriaEngine(
                 if (v2rayPoint == null && vpnService != null) {
                     try {
                         logHysteria("Etape 2: tryLoad")
-                        if (chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()) {
-                            logHysteria("Etape 3: libgojni chargé")
+                        val loaded = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()
+                        logHysteria("Etape 3: loaded=$loaded")
+                        if (loaded) {
+                            logHysteria("Etape 4: créer dialer")
                             val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
-                            // adVpn=true si Android >= 7.0 (SDK 25) - comme OpenCustom
+                            logHysteria("Etape 5: dialer créé")
                             val adVpn = android.os.Build.VERSION.SDK_INT >= 25
-                            // newV2RayPoint AVANT initV2Env - comme OpenCustom
+                            logHysteria("Etape 6: newV2RayPoint adVpn=$adVpn")
                             v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, adVpn)
-                            logHysteria("V2RayPoint créé ✓ adVpn=$adVpn")
-                            // initV2Env APRÈS newV2RayPoint - comme OpenCustom
+                            logHysteria("Etape 7: V2RayPoint créé ✓")
                             chzPsiphonAndV2ray.ChzPsiphonAndV2ray.initEnv(context)
-                            logHysteria("initV2Env appelé")
+                            logHysteria("Etape 8: initV2Env ok")
                         }
                     } catch (e: Throwable) {
-                        logHysteria("V2RayPoint error: ${e.message}")
+                        logHysteria("CRASH: ${e.javaClass.name}: ${e.message}")
+                        logHysteria("CAUSE: ${e.cause?.message}")
+                        val sw = java.io.StringWriter()
+                        e.printStackTrace(java.io.PrintWriter(sw))
+                        logHysteria("STACK: ${sw.toString().take(500)}")
                     }
                 }
                 val configFile = writeHysteriaConfig(server)
