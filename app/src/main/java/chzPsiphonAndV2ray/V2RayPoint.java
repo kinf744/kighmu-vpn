@@ -13,6 +13,10 @@ public class V2RayPoint {
     public native void setAsyncResolve(boolean resolve);
     public native boolean getIsRunning();
     public native void setIsRunning(boolean running);
+    public native V2RayVPNServiceSupportsSet getSupportSet();
+    public native void setSupportSet(V2RayVPNServiceSupportsSet supportSet);
     public native long runLoop(boolean testOnly);
     public native long stopLoop();
+    public native long measureDelay();
+    public native String queryStats(String tag, String direct);
 }
