@@ -848,33 +848,23 @@ class HysteriaEngine(
     }
 
     private fun writeHysteriaConfig(server: String): File {
-        val file = File(context.filesDir, "hysteria_config.yaml")
-        val obfsSection = if (hConfig.obfsPassword.isNotBlank()) """
-obfs:
-  type: salamander
-  salamander:
-    password: "${hConfig.obfsPassword}"
-""" else ""
-        val config = """server: "$server"
-auth: "${hConfig.authPassword}"
-$obfsSection
-bandwidth:
-  up: ${hConfig.uploadMbps} mbps
-  down: ${hConfig.downloadMbps} mbps
-
-tls:
-  insecure: true
-
-socks5:
-  listen: 127.0.0.1:$LOCAL_SOCKS_PORT
-
-transport:
-  udp:
-    hopInterval: 30s
-
+        val file = File(context.filesDir, "hysteria_config.json")
+        val obfs = if (hConfig.obfsPassword.isNotBlank()) hConfig.obfsPassword else ""
+        val config = """
+{
+  "server": "$server",
+  "obfs": "$obfs",
+  "auth_str": "${hConfig.authPassword}",
+  "up_mbps": ${hConfig.uploadMbps},
+  "down_mbps": ${hConfig.downloadMbps},
+  "insecure": true,
+  "socks5": {
+    "listen": "127.0.0.1:$LOCAL_SOCKS_PORT"
+  }
+}
 """
-        file.writeText(config)
-        logHysteria("Config Hysteria2 écrite: $server")
+        file.writeText(config.trim())
+        logHysteria("Config Hysteria1 écrite: $server")
         return file
     }
 
@@ -936,10 +926,10 @@ transport:
     }
 
     private fun startHysteriaProcess(binary: File, configFile: File) {
-        val cmd = arrayOf(binary.absolutePath, "client",
+        // Hysteria 1 - format de commande différent
+        val cmd = arrayOf(binary.absolutePath,
             "--config", configFile.absolutePath,
-            "--log-level", "warn",
-            "--disable-update-check")
+            "--log-level", "warn")
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
