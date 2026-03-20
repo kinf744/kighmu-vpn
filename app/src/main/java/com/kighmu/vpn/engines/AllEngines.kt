@@ -811,7 +811,7 @@ class HysteriaEngine(
                             logHysteria("Etape 4: setContext")
                             go.Seq.setContext(context.applicationContext)
                             logHysteria("Etape 5: créer dialer")
-                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
+                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService as android.net.VpnService)
                             logHysteria("Etape 6: dialer créé")
                             val adVpn = android.os.Build.VERSION.SDK_INT >= 25
                             logHysteria("Etape 7: newV2RayPoint adVpn=$adVpn")
