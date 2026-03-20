@@ -933,7 +933,6 @@ class HysteriaEngine(
         val pb = ProcessBuilder(*cmd)
         pb.environment()["HOME"] = context.filesDir.absolutePath
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
-        hysteriaProcess = pb.start()
         hysteriaProcess = pb.redirectErrorStream(true).start()
         val proc = hysteriaProcess!!
         logHysteria("Hysteria PID démarré")
@@ -947,6 +946,7 @@ class HysteriaEngine(
             } catch (e: Exception) { logHysteria("Hysteria thread error: ${e.message}") }
         }.start()
 
+    }
     override fun startTun2Socks(fd: Int) {
         val socksPort = LOCAL_SOCKS_PORT
         engineScope.launch(Dispatchers.IO) {
