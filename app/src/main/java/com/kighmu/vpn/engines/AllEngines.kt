@@ -804,25 +804,20 @@ class HysteriaEngine(
                 // Connexion directe - initialiser ProtectedDialer via libgojni
                 if (v2rayPoint == null && vpnService != null) {
                     try {
-                        logHysteria("Etape 2: tryLoad")
-                        val loaded = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.tryLoad()
-                        logHysteria("Etape 3: loaded=$loaded")
-                        if (loaded) {
-                            logHysteria("Etape 4: setContext")
-                            go.Seq.setContext(context.applicationContext)
-                            logHysteria("Etape 5: créer dialer")
-                            val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService as android.net.VpnService)
-                            logHysteria("Etape 6: dialer créé")
-                            val adVpn = android.os.Build.VERSION.SDK_INT >= 25
-                            logHysteria("Etape 7: newV2RayPoint adVpn=$adVpn")
-                            v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, adVpn)
-                            logHysteria("Etape 7: V2RayPoint créé ✓")
-                            chzPsiphonAndV2ray.ChzPsiphonAndV2ray.initEnv(context)
-                            logHysteria("Etape 8: initV2Env ok")
-                        }
+                        logHysteria("Etape 2: loadLibrary gojni")
+                        System.loadLibrary("gojni")
+                        logHysteria("Etape 3: gojni chargé")
+                        logHysteria("Etape 4: setContext")
+                        go.Seq.setContext(context.applicationContext)
+                        logHysteria("Etape 5: créer dialer")
+                        val adVpn = android.os.Build.VERSION.SDK_INT >= 25
+                        val dialer = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.proxyV2RayVPNServiceSupportsSet(vpnService)
+                        logHysteria("Etape 6: dialer créé")
+                        logHysteria("Etape 7: newV2RayPoint adVpn=$adVpn")
+                        v2rayPoint = chzPsiphonAndV2ray.ChzPsiphonAndV2ray.newV2RayPoint(dialer, adVpn)
+                        logHysteria("Etape 8: V2RayPoint créé ✓")
                     } catch (e: Throwable) {
                         logHysteria("CRASH: ${e.javaClass.name}: ${e.message}")
-                        logHysteria("CAUSE: ${e.cause?.message}")
                         val sw = java.io.StringWriter()
                         e.printStackTrace(java.io.PrintWriter(sw))
                         logHysteria("STACK: ${sw.toString().take(500)}")
