@@ -965,7 +965,7 @@ class HysteriaEngine(
         Thread {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
+                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@Thread }
                 bin.setExecutable(true)
                 val sockPath = "${context.cacheDir.absolutePath}/tun2socks_hysteria.sock"
                 File(sockPath).delete()
