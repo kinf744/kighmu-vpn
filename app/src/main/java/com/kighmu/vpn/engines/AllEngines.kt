@@ -791,12 +791,14 @@ class HysteriaEngine(
             } catch (_: Exception) { hConfig.serverAddress }
 
             // Essayer port 36712 (udp-custom) puis 20000 (hysteria direct) puis range
-            val ports = mutableListOf(36712, 20000) + (1..8).map { (1..65000).random() }
+            // Utiliser port hopping comme OpenCustom
+            val portHoppingServer = if (hConfig.portHopping.isNotBlank()) "$ip:${hConfig.portHopping}" else "$ip:20000-50000"
+            val ports = listOf(0) // Une seule tentative avec port hopping
             var connected = false
             for (port in ports) {
                 if (connected) break
-                val server = "$ip:$port"
-                logHysteria("Hysteria essai port $port")
+                val server = portHoppingServer
+                logHysteria("Hysteria port hopping: $server")
                 // Connexion directe sans proxy - comme OpenCustom
                 val configFile = writeHysteriaConfig(server)
                 val binary = extractHysteriaBinary() ?: break

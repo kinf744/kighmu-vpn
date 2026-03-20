@@ -269,6 +269,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
         view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
         view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
+        view.findViewById<EditText>(R.id.et_hys_port_hopping).setText(c.hysteria.portHopping)
         // Tab
         val tabIndex = when (c.tunnelMode) {
             com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
@@ -370,6 +371,7 @@ class ConfigFragment : Fragment() {
             uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
             downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
+            portHopping = view.findViewById<EditText>(R.id.et_hys_port_hopping).text.toString().ifBlank { "20000-50000" },
         )
 
         val newTunnelMode = when (currentTab) {
