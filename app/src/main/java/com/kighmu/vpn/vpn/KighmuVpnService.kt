@@ -233,7 +233,9 @@ class KighmuVpnService : VpnService() {
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 val eng = tunnelEngine
                 // Garder vpnInterface ouvert - le fermer au stop libère la clé VPN
+                KighmuLogger.info("VpnService", "Appel startTun2Socks fd=${vpnInterface!!.fd}")
                 tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
+                KighmuLogger.info("VpnService", "startTun2Socks terminé")
 
                 reconnectAttempts = 0
                 stats = VpnStats(connectedAt = System.currentTimeMillis())
