@@ -801,6 +801,7 @@ class HysteriaEngine(
                 val configFile = writeHysteriaConfig(server)
                 val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd_${port}.sock"
                 startFdControlServer(fdSockPath, vpnService)
+                Thread.sleep(200) // Attendre que le socket soit prêt
                 val binary = extractHysteriaBinary() ?: break
                 try { hysteriaProcess?.destroy() } catch (_: Exception) {}
                 hysteriaProcess = null
