@@ -798,17 +798,6 @@ class HysteriaEngine(
                 val server = "$ip:$port"
                 logHysteria("Hysteria essai port $port")
                 // Connexion directe sans proxy - comme OpenCustom
-                // Initialiser ProtectedDialer via libgojni.so
-                    try {
-                        logHysteria("libgojni loaded=$loaded")
-                        if (loaded) {
-                            logHysteria("dialer créé")
-                            logHysteria("V2RayPoint créé ✓")
-                        }
-                    } catch (e: Throwable) {
-                        logHysteria("V2RayPoint CRASH: ${e.javaClass.name}: ${e.message}")
-                    }
-                }
                 val configFile = writeHysteriaConfig(server)
                 val fdSockPath = "${context.filesDir.absolutePath}/hysteria_fd.sock"
                 startFdControlServer(fdSockPath, vpnService)
