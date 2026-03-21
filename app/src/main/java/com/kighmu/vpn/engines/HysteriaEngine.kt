@@ -3,7 +3,6 @@ package com.kighmu.vpn.engines
 import android.content.Context
 import android.net.VpnService
 import com.kighmu.vpn.models.TunnelConfig
-import com.kighmu.vpn.models.HysteriaConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,8 +29,7 @@ class HysteriaEngine(
         try {
             val ts = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
             val line = "[$ts] [HYSTERIA] $msg\n"
-            java.io.File(context.filesDir, "kighmu_hyste.txt").appendText(line)
-            context.externalCacheDir?.let { java.io.File(it, "kighmu_hyste.txt").appendText(line) }
+            File(context.filesDir, "kighmu_hyste.txt").appendText(line)
         } catch (_: Exception) {}
     }
 
@@ -44,7 +42,6 @@ class HysteriaEngine(
 
             val portHopping = if (hConfig.portHopping.isNotBlank()) hConfig.portHopping else "20000-50000"
             val server = "$ip:$portHopping"
-
             log("Démarrage Hysteria: $server")
 
             val configFile = writeConfig(server)
@@ -55,23 +52,20 @@ class HysteriaEngine(
 
             startProcess(binary, configFile)
 
-            // Attendre que SOCKS5 soit prêt
             var connected = false
             repeat(20) {
                 if (!connected) {
-                    try { hysteriaProcess?.exitValue()
-                        log("Hysteria exit inattendu")
+                    try {
+                        hysteriaProcess?.exitValue()
                         return@repeat
                     } catch (_: Exception) {}
-                    if (socksPort > 0) {
-                        try {
-                            java.net.Socket().use { s ->
-                                s.connect(java.net.InetSocketAddress("127.0.0.1", socksPort), 300)
-                                connected = true
-                                log("Hysteria connecté sur port $socksPort ✅")
-                            }
-                        } catch (_: Exception) {}
-                    }
+                    try {
+                        java.net.Socket().use { s ->
+                            s.connect(java.net.InetSocketAddress("127.0.0.1", socksPort), 300)
+                            connected = true
+                            log("Hysteria connecté sur port $socksPort")
+                        }
+                    } catch (_: Exception) {}
                     if (!connected) Thread.sleep(500)
                 }
             }
@@ -84,8 +78,7 @@ class HysteriaEngine(
     private fun writeConfig(server: String): File {
         val file = File(context.filesDir, "hysteria_config.json")
         val obfs = hConfig.obfsPassword.ifBlank { "" }
-        val config = """
-{
+        val config = """{
   "server": "$server",
   "obfs": "$obfs",
   "auth_str": "${hConfig.authPassword}",
@@ -95,7 +88,7 @@ class HysteriaEngine(
   "socks5": {
     "listen": "127.0.0.1:$socksPort"
   }
-}""".trimIndent()
+}"""
         file.writeText(config)
         log("Config écrite: $server")
         return file
@@ -104,7 +97,7 @@ class HysteriaEngine(
     private fun extractBinary(): File? {
         val bin = File(context.applicationInfo.nativeLibraryDir, "libhysteria.so")
         if (bin.exists()) { bin.setExecutable(true); return bin }
-        log("libhysteria.so introuvable dans ${context.applicationInfo.nativeLibraryDir}")
+        log("libhysteria.so introuvable")
         return null
     }
 
@@ -125,7 +118,6 @@ class HysteriaEngine(
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
                         log("[out] $line")
-                        // Détecter port SOCKS5
                         if (line.contains("SOCKS5 server up") && line.contains("127.0.0.1:")) {
                             val port = Regex("""127\.0\.0\.1:(\d+)""").find(line)?.groupValues?.get(1)?.toIntOrNull()
                             if (port != null && port > 0) {
@@ -138,7 +130,7 @@ class HysteriaEngine(
                 val code = hysteriaProcess?.waitFor() ?: -1
                 log("Hysteria exit code: $code")
             } catch (e: Exception) {
-                log("Hysteria thread: ${e.message}")
+                log("thread error: ${e.message}")
             }
         }.start()
     }
@@ -169,7 +161,7 @@ class HysteriaEngine(
                 localSocket.outputStream.write(1)
                 localSocket.outputStream.flush()
                 localSocket.close()
-                log("tun2socks fd=$fd envoyé sur port $socksPort")
+                log("tun2socks fd=$fd envoyé")
             } catch (e: Exception) {
                 log("tun2socks error: ${e.message}")
             }
