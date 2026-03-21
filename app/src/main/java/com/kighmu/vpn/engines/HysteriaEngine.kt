@@ -190,6 +190,8 @@ class HysteriaEngine(
         try { hysteriaProcess?.destroy() } catch (_: Exception) {}
         tun2socksProcess = null
         hysteriaProcess = null
+        // Attendre 2s comme MyUDPThread.stopVudp() pour libérer le port
+        withContext(Dispatchers.IO) { Thread.sleep(2000) }
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
