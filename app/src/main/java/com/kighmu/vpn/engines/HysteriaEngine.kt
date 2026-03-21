@@ -113,9 +113,11 @@ class HysteriaEngine(
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
                         log("[out] $line")
-                        if (line.contains("connected", ignoreCase = true) ||
-                            line.contains("Connected")) {
+                        // Hysteria 1: "Connected" dans le log serveur
+                        if ((line.contains("Connected") && line.contains("addr:")) ||
+                            line.contains("ZIVPN UDP running")) {
                             serverConnected = true
+                            log("Serveur connecté ✅")
                         }
                         if (line.contains("SOCKS5 server up") &&
                             line.contains("127.0.0.1:")) {
@@ -128,6 +130,7 @@ class HysteriaEngine(
                 }
                 val code = hysteriaProcess?.waitFor() ?: -1
                 log("Hysteria exit: $code")
+                serverConnected = false
             } catch (e: Exception) { log("thread: ${e.message}") }
         }.start()
     }
