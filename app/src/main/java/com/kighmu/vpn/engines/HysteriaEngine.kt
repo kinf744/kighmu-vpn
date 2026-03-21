@@ -2,7 +2,7 @@ package com.kighmu.vpn.engines
 
 import android.content.Context
 import android.net.VpnService
-import com.kighmu.vpn.models.TunnelConfig
+import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class HysteriaEngine(
-    private val config: TunnelConfig,
+    private val config: KighmuConfig,
     private val context: Context,
     private val vpnService: VpnService?
 ) : TunnelEngine {
