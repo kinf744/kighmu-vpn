@@ -138,24 +138,48 @@ class HysteriaEngine(
     override fun startTun2Socks(fd: Int) {
         Thread {
             try {
-                val bin = extractBinary("libtun2socks.so")
-                    ?: return@Thread
+                val bin = extractBinary("libtun2socks.so") ?: return@Thread
+                val sockPath = "${context.dataDir.absolutePath}/sock_path"
+                val sockFile = java.io.File(sockPath)
+                if (!sockFile.exists()) sockFile.createNewFile()
+
                 val cmd = "${bin.absolutePath}" +
                     " --netif-ipaddr 10.0.0.2" +
                     " --netif-netmask 255.255.255.0" +
                     " --socks-server-addr 127.0.0.1:$socksPort" +
                     " --tunmtu 1500" +
                     " --tunfd $fd" +
-                    " --loglevel 4" +
+                    " --sock-path $sockPath" +
+                    " --loglevel 3" +
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
                 log("tun2socks: $cmd")
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
-                Thread {
-                    tun2socksProcess?.inputStream?.bufferedReader()
-                        ?.forEachLine { KighmuLogger.debug(TAG, it) }
-                }.start()
-                log("tun2socks démarré fd=$fd port=$socksPort ✅")
-            } catch (e: Exception) { log("tun2socks: ${e.message}") }
+                Thread { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { log("[t2s] $it") } }.start()
+                Thread { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { log("[t2s-err] $it") } }.start()
+
+                // sendFd() comme udphystvpn
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                var sent = false
+                repeat(10) {
+                    if (!sent) {
+                        try {
+                            Thread.sleep(500)
+                            val localSocket = android.net.LocalSocket()
+                            localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                            localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                            localSocket.outputStream.write(42)
+                            localSocket.shutdownOutput()
+                            localSocket.close()
+                            sent = true
+                            log("fd=$fd envoyé via sock-path ✅")
+                        } catch (e: Exception) {
+                            log("sendFd: ${e.message}")
+                        }
+                    }
+                }
+                if (!sent) log("ERREUR: fd non envoyé")
+                tun2socksProcess?.waitFor()
+            } catch (e: Exception) { log("tun2socks error: ${e.message}") }
         }.start()
     }
 
