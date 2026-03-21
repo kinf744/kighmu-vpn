@@ -78,14 +78,23 @@ class HysteriaEngine(
 
     private fun writeConfig(server: String): File {
         val file = File(context.filesDir, "hysteria_config.json")
-        val obfs = hConfig.obfsPassword.ifBlank { "" }
+        val obfsSection = if (hConfig.obfsPassword.isNotBlank()) """
+  "obfs": {
+    "type": "salamander",
+    "salamander": {
+      "password": "${hConfig.obfsPassword}"
+    }
+  },""" else ""
         val config = """{
   "server": "$server",
-  "obfs": "$obfs",
-  "auth_str": "${hConfig.authPassword}",
-  "up_mbps": ${hConfig.uploadMbps},
-  "down_mbps": ${hConfig.downloadMbps},
-  "insecure": true,
+  "auth": "${hConfig.authPassword}",$obfsSection
+  "bandwidth": {
+    "up": "${hConfig.uploadMbps} mbps",
+    "down": "${hConfig.downloadMbps} mbps"
+  },
+  "tls": {
+    "insecure": true
+  },
   "socks5": {
     "listen": "127.0.0.1:$socksPort"
   }
