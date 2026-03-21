@@ -144,7 +144,7 @@ class HysteriaEngine(
                     " --tunmtu 1500" +
                     " --tunfd $fd" +
                     " --loglevel 4" +
-                    " --enable-udprelay"
+                    " --udpgw-remote-server-addr 127.0.0.1:7300"
                 log("tun2socks: $cmd")
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
                 Thread {
