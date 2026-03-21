@@ -167,9 +167,7 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
                 startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
 
-                val isHysteria = currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
-                // Pour Hysteria: pas de tempVPN - Hysteria doit démarrer sans VPN actif
-                val tempVpn = if (isHysteria) null else try {
+                val tempVpn = try {
                     Builder()
                         .setSession("KIGHMU VPN")
                         .addAddress("10.0.0.2", 24)
@@ -182,17 +180,10 @@ class KighmuVpnService : VpnService() {
                     KighmuLogger.warning("VpnService", "TempVPN: ${e.message}")
                     null
                 }
-                KighmuLogger.info("VpnService", "Interface temp etablie: ${tempVpn != null}")
                 KighmuLogger.info("VpnService", "=== DÉMARRAGE VPN ===")
                 KighmuLogger.info("VpnService", "Mode: ${currentConfig.tunnelMode.label}")
 
-                val isHys = currentConfig.tunnelMode == com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
-                if (isHys) { try { tempVpn?.close() } catch (_: Exception) {} }
-                KighmuLogger.info("VpnService", "TempVPN avant engine: ${tempVpn?.fileDescriptor}")
 
-                // Pour Hysteria: établir l'interface VPN AVANT l'engine
-                // pour que addDisallowedApplication soit actif et permette UDP sortant
-                // Pour Hysteria: pas d'earlyVpn - lancer sans VPN actif
 
                 val localPort = try {
                     tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)

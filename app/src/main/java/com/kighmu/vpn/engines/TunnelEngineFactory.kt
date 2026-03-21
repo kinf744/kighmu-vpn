@@ -18,7 +18,7 @@ object TunnelEngineFactory {
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context)
             TunnelMode.V2RAY_SLOWDNS -> XraySlowDnsEngine(config, context)
-            TunnelMode.HYSTERIA_UDP  -> HysteriaEngine(config, context, vpnService)
+            TunnelMode.HYSTERIA_UDP  -> throw UnsupportedOperationException("Hysteria UDP - en cours d'implémentation")
         }
     }
 }
