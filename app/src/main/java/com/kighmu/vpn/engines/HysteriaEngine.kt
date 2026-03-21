@@ -53,25 +53,18 @@ class HysteriaEngine(
 
             startProcess(binary, configFile)
 
-            var connected = false
-            repeat(20) {
-                if (!connected) {
-                    try {
-                        hysteriaProcess?.exitValue()
-                        return@repeat
-                    } catch (_: Exception) {}
-                    try {
-                        java.net.Socket().use { s ->
-                            s.connect(java.net.InetSocketAddress("127.0.0.1", socksPort), 300)
-                            connected = true
-                            log("Hysteria connecté sur port $socksPort")
-                        }
-                    } catch (_: Exception) {}
-                    if (!connected) Thread.sleep(500)
+            // Attendre que Hysteria soit connecté au SERVEUR (log "Connected")
+            // pas juste au port SOCKS5 local
+            var serverConnected = false
+            repeat(30) {
+                if (!serverConnected) {
+                    try { hysteriaProcess?.exitValue(); return@repeat } catch (_: Exception) {}
+                    if (serverConnected) return@repeat
+                    Thread.sleep(500)
                 }
             }
 
-            if (!connected) throw Exception("Hysteria: connexion impossible")
+            if (!serverConnected) throw Exception("Hysteria: connexion serveur impossible")
             socksPort
         }
     }
@@ -134,6 +127,11 @@ class HysteriaEngine(
                                 socksPort = port
                                 log("Port SOCKS5 détecté: $port")
                             }
+                        }
+                        // Connexion serveur confirmée
+                        if (line.contains("Connected") && !line.contains("SOCKS5")) {
+                            serverConnected = true
+                            log("Connexion serveur confirmée ✅")
                         }
                     }
                 }
