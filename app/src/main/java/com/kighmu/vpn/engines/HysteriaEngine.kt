@@ -23,6 +23,7 @@ class HysteriaEngine(
     private var running = false
     private var hysteriaProcess: Process? = null
     private var socksPort = 1080
+    @Volatile private var serverConnected = false
 
     private fun log(msg: String) {
         KighmuLogger.info(TAG, msg)
@@ -55,7 +56,7 @@ class HysteriaEngine(
 
             // Attendre que Hysteria soit connecté au SERVEUR (log "Connected")
             // pas juste au port SOCKS5 local
-            var serverConnected = false
+            serverConnected = false
             repeat(30) {
                 if (!serverConnected) {
                     try { hysteriaProcess?.exitValue(); return@repeat } catch (_: Exception) {}
