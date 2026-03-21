@@ -114,8 +114,8 @@ class HysteriaEngine(
                     if (running) {
                         log("[out] $line")
                         // Hysteria 1: "Connected" dans le log serveur
-                        if ((line.contains("Connected") && line.contains("addr:")) ||
-                            line.contains("ZIVPN UDP running")) {
+                        // Déclencheur VPN: "UDP running" comme dans kiaje34
+                        if (line.contains("UDP running") || line.contains("running")) {
                             serverConnected = true
                             log("Serveur connecté ✅")
                         }
