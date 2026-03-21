@@ -26,10 +26,8 @@ jobs:
           cd $GITHUB_WORKSPACE
           mkdir -p app/src/main/jniLibs/armeabi-v7a
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libdnstt.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/376422237"
-          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libhysteria.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/375439489"
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libhysteria.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/377183519"
           mkdir -p app/libs
-          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/libs/go_classes.jar "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/377879058"
-          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libgojni.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/377365170"
           curl -L -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so https://github.com/kinf744/kighmu-vpn/releases/download/v1.0-binary/libtun2socks-badvpn-armv7.so
           ls -la app/src/main/jniLibs/armeabi-v7a/
 
