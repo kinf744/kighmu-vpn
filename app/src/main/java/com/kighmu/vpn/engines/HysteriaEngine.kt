@@ -81,10 +81,14 @@ class HysteriaEngine(
   "auth_str": "${hConfig.authPassword}",
   "up_mbps": ${hConfig.uploadMbps},
   "down_mbps": ${hConfig.downloadMbps},
-  "insecure": true,
+  "retry": 3,
+  "retry_interval": 1,
   "socks5": {
     "listen": "127.0.0.1:$socksPort"
-  }
+  },
+  "insecure": true,
+  "recv_window_conn": 4194304,
+  "recv_window": 16777216
 }"""
         file.writeText(config)
         log("Config écrite: $server")
