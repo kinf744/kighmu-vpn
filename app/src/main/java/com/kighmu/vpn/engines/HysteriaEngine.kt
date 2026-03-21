@@ -29,7 +29,8 @@ class HysteriaEngine(
         try {
             val ts = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
             val line = "[$ts] [HYSTERIA] $msg\n"
-            File(context.filesDir, "kighmu_hyste.txt").appendText(line)
+            val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
+            f.appendText(line)
         } catch (_: Exception) {}
     }
 
