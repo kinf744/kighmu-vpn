@@ -40,20 +40,20 @@ class HysteriaEngine(
         running = true
         serverConnected = false
         return withContext(Dispatchers.IO) {
-            // Diagnostic: vérifier si port 1080 est libre
-            try {
-                java.net.ServerSocket(1080).close()
-                log("Port 1080 LIBRE ✅")
-            } catch (e: Exception) {
-                log("Port 1080 OCCUPÉ ❌: ${e.message}")
-                // Trouver quel processus occupe le port
+            // Attendre que le port 1080 soit libre (max 30s)
+            var portWait = 0
+            while (portWait < 30) {
                 try {
-                    val proc = Runtime.getRuntime().exec("cat /proc/net/tcp6")
-                    val out = proc.inputStream.bufferedReader().readText()
-                    val hex1080 = "00000000000000000000000000000001:0438" // 127.0.0.1:1080 en hex
-                    if (out.contains("0438")) log("tcp6 contient 0438 (port 1080)")
-                } catch (_: Exception) {}
+                    java.net.ServerSocket(1080).close()
+                    log("Port 1080 LIBRE ✅")
+                    break
+                } catch (_: Exception) {
+                    if (portWait == 0) log("Port 1080 occupé, attente...")
+                    Thread.sleep(1000)
+                    portWait++
+                }
             }
+            if (portWait >= 30) throw Exception("Port 1080 occupé après 30s - fermez les autres apps VPN")
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
                     ?: hConfig.serverAddress
@@ -161,8 +161,15 @@ class HysteriaEngine(
                 val sockFile = java.io.File(sockPath)
                 if (!sockFile.exists()) sockFile.createNewFile()
 
+                // Utiliser l'IP du routeur VPN comme kiaje34 (mPrivateAddress.mRouter)
+                val vpnIp = vpnService?.let {
+                    try {
+                        val builder = it.javaClass.getMethod("getBuilder").invoke(it)
+                        "10.0.0.2"
+                    } catch (_: Exception) { "10.0.0.2" }
+                } ?: "10.0.0.2"
                 val cmd = "${bin.absolutePath}" +
-                    " --netif-ipaddr 10.0.0.2" +
+                    " --netif-ipaddr $vpnIp" +
                     " --netif-netmask 255.255.255.0" +
                     " --socks-server-addr 127.0.0.1:$socksPort" +
                     " --tunmtu 1500" +
