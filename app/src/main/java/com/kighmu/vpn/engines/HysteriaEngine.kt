@@ -40,6 +40,20 @@ class HysteriaEngine(
         running = true
         serverConnected = false
         return withContext(Dispatchers.IO) {
+            // Diagnostic: vérifier si port 1080 est libre
+            try {
+                java.net.ServerSocket(1080).close()
+                log("Port 1080 LIBRE ✅")
+            } catch (e: Exception) {
+                log("Port 1080 OCCUPÉ ❌: ${e.message}")
+                // Trouver quel processus occupe le port
+                try {
+                    val proc = Runtime.getRuntime().exec("cat /proc/net/tcp6")
+                    val out = proc.inputStream.bufferedReader().readText()
+                    val hex1080 = "00000000000000000000000000000001:0438" // 127.0.0.1:1080 en hex
+                    if (out.contains("0438")) log("tcp6 contient 0438 (port 1080)")
+                } catch (_: Exception) {}
+            }
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
                     ?: hConfig.serverAddress
