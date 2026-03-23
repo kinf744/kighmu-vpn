@@ -245,7 +245,7 @@ class HttpProxyEngine(
                     "--netif-ipaddr", "10.0.0.2",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
-                    "--enable-udprelay",
+                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
                     "--loglevel", "4"
                 )
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)

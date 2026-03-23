@@ -153,7 +153,7 @@ class SshWebSocketEngine(
                 bin.setExecutable(true)
                 val sockPath = "${context.cacheDir.absolutePath}/tun2socks_ws.sock"
                 File(sockPath).delete()
-                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--enable-udprelay", "--loglevel", "4")
+                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--udpgw-remote-server-addr", "127.0.0.1:7300", "--loglevel", "4")
                 val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
                 Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
                 Thread.sleep(500)
@@ -282,7 +282,7 @@ class SshSslEngine(
                 bin.setExecutable(true)
                 val sockPath = "${context.cacheDir.absolutePath}/tun2socks_ssl.sock"
                 File(sockPath).delete()
-                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--enable-udprelay", "--loglevel", "4")
+                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--udpgw-remote-server-addr", "127.0.0.1:7300", "--loglevel", "4")
                 val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
                 Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
                 Thread.sleep(500)
@@ -603,7 +603,7 @@ class XrayEngine(
                     "--netif-ipaddr", "10.0.0.2",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$socksPort",
-                    "--enable-udprelay",
+                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")

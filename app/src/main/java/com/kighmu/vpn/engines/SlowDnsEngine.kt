@@ -141,7 +141,7 @@ class SlowDnsEngine(
                     "--netif-ipaddr", "10.0.0.2",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$targetPort",
-                    "--enable-udprelay",
+                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
