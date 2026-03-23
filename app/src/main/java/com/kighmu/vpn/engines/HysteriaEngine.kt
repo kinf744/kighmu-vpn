@@ -179,8 +179,14 @@ class HysteriaEngine(
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
                 log("tun2socks: $cmd")
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
-                Thread { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { log("[t2s] $it") } }.start()
-                Thread { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { log("[t2s-err] $it") } }.start()
+                val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                t2sIn.isDaemon = true
+                t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                t2sIn.start()
+                val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                t2sErr.isDaemon = true
+                t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                t2sErr.start()
 
                 // sendFd() comme udphystvpn
                 val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
