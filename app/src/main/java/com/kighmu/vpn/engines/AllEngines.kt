@@ -587,7 +587,7 @@ class XrayEngine(
 
 
     override fun startTun2Socks(fd: Int) {
-        val socksPort = 1080
+        val socksPort = LOCAL_SOCKS_PORT
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {

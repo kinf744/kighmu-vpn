@@ -173,7 +173,7 @@ class HysteriaEngine(
                     " --netif-netmask 255.255.255.0" +
                     " --socks-server-addr 127.0.0.1:$socksPort" +
                     " --tunmtu 1500" +
-                    " --tunfd $fd" +
+
                     " --sock-path $sockPath" +
                     " --loglevel 3" +
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
