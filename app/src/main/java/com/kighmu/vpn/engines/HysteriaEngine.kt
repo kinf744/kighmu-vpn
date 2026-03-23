@@ -188,7 +188,7 @@ class HysteriaEngine(
                 repeat(10) {
                     if (!sent) {
                         try {
-                            Thread.sleep(500)
+                try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
                             val localSocket = android.net.LocalSocket()
                             localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
                             localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
