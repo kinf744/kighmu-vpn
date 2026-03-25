@@ -71,11 +71,11 @@ class SlowDnsEngine(
         .replace("&", "")
         .replace("|", "")
         .replace("$", "")
-    private val currentProfile get() = config.slowDnsProfiles.getOrNull(profileIndex)
-    private val sshHostVal: String get() = (currentProfile?.sshHost ?: config.slowDns.sshHost).substringBefore(":")
-    private val sshPortVal: Int get() = currentProfile?.sshPort ?: config.slowDns.sshPort
-    private val sshUserVal: String get() = currentProfile?.sshUser ?: config.slowDns.sshUser
-    private val sshPassVal: String get() = currentProfile?.sshPass ?: config.slowDns.sshPass
+    // Fix: lire directement depuis config.slowDns (rempli par buildConfig)
+    private val sshHostVal: String get() = config.slowDns.sshHost.substringBefore(":")
+    private val sshPortVal: Int    get() = config.slowDns.sshPort
+    private val sshUserVal: String get() = config.slowDns.sshUser
+    private val sshPassVal: String get() = config.slowDns.sshPass
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")

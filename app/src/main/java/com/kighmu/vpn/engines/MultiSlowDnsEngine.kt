@@ -183,6 +183,10 @@ class MultiSlowDnsEngine(
                 username = p.sshUser, password = p.sshPass
             ),
             slowDns = baseConfig.slowDns.copy(
+                sshHost = p.sshHost,
+                sshPort = p.sshPort,
+                sshUser = p.sshUser,
+                sshPass = p.sshPass,
                 dnsServer = p.dnsServer,
                 nameserver = p.nameserver,
                 publicKey = p.publicKey.trim().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
