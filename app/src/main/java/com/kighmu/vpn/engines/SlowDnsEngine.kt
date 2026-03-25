@@ -79,8 +79,8 @@ class SlowDnsEngine(
     override suspend fun start(): Int = withContext(Dispatchers.IO) {
         running = true
         KighmuLogger.info(TAG, "=== Demarrage SlowDNS ===")
-        KighmuLogger.info(TAG, "DNS: ${dns.dnsServer}:${dns.dnsPort}")
-        KighmuLogger.info(TAG, "SSH: $sshHostVal:${sshPortVal} / ${sshUserVal}")
+        KighmuLogger.info(TAG, "Connexion SlowDNS en cours...")
+        KighmuLogger.info(TAG, "Serveur SSH configuré ✓")
 
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
@@ -106,7 +106,7 @@ class SlowDnsEngine(
         // dnstt expose le flux SSH brut directement sur port 7000
         // trilead se connecte directement a 127.0.0.1:7000
         startSsh()
-        KighmuLogger.info(TAG, "=== SSH connecte, SOCKS5 port $socksPort ===")
+        KighmuLogger.info(TAG, "=== Tunnel SlowDNS actif ✓ ===")
 
         _socksPort
     }
@@ -122,7 +122,7 @@ class SlowDnsEngine(
     }
 
     private fun startTun2SocksInternal(fd: Int, targetPort: Int) {
-        KighmuLogger.info(TAG, "Demarrage BadVPN tun2socks --tunfd=$fd")
+        KighmuLogger.info(TAG, "Démarrage tunnel interface...")
         engineScope.launch(Dispatchers.IO) {
             try {
                 val nativeDir = context.applicationInfo.nativeLibraryDir
@@ -144,7 +144,7 @@ class SlowDnsEngine(
                     "--udpgw-remote-server-addr", "127.0.0.1:7300",
                     "--loglevel", "4"
                 )
-                KighmuLogger.info(TAG, "cmd: ${cmd.joinToString(" ")}")
+                KighmuLogger.info(TAG, "Interface VPN configurée ✓")
                 // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
                 val cmdArray = cmd.toTypedArray()
                 tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
@@ -185,7 +185,7 @@ class SlowDnsEngine(
     private fun extractDnsttBinary(): File {
         val nativeDir = context.applicationInfo.nativeLibraryDir
         val binFile = File(nativeDir, "libdnstt.so")
-        KighmuLogger.info(TAG, "dnstt path: ${binFile.absolutePath}, existe: ${binFile.exists()}")
+        KighmuLogger.info(TAG, "Binaire DNS trouvé ✓")
         if (!binFile.exists()) throw Exception("libdnstt.so introuvable dans $nativeDir")
         return binFile
     }
@@ -203,7 +203,7 @@ class SlowDnsEngine(
         delay(3000)
         // Vérifier que dnstt est toujours vivant
         if (dnsttProcess?.isAlive == false) throw Exception("dnstt mort au démarrage")
-        KighmuLogger.info(TAG, "dnstt pret sur port $dnsttPort")
+        KighmuLogger.info(TAG, "DNS tunnel prêt ✓")
         return dnsttPort
     }
 
@@ -216,7 +216,7 @@ class SlowDnsEngine(
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
-        KighmuLogger.info(TAG, "Lancement dnstt: ${cmd.joinToString(" ")}")
+        KighmuLogger.info(TAG, "Démarrage DNS tunnel...")
         // Log détaillé pour debug
         try {
             val f = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_key.txt")
@@ -270,11 +270,11 @@ class SlowDnsEngine(
     private fun startSsh() {
         // dnstt expose le flux SSH brut sur 127.0.0.1:7000
         // trilead se connecte directement comme si c'etait le vrai serveur SSH
-        KighmuLogger.info(TAG, "Connexion SSH trilead -> dnstt 127.0.0.1:$dnsttPort")
+        KighmuLogger.info(TAG, "Établissement connexion SSH...")
 
         val conn = Connection("127.0.0.1", dnsttPort)
         val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
-        KighmuLogger.info(TAG, "SSH connecte! kex=${connInfo.keyExchangeAlgorithm} cipher=${connInfo.clientToServerCryptoAlgorithm}")
+        KighmuLogger.info(TAG, "SSH connecté ✓")
 
         val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
         if (!authenticated) throw Exception("SSH auth echoue pour ${sshUserVal}")
@@ -285,7 +285,7 @@ class SlowDnsEngine(
         _socksPort = socksServer.localPort
         socksServer.close()
         conn.createDynamicPortForwarder(_socksPort)
-        KighmuLogger.info(TAG, "Dynamic SOCKS5 forwarding actif sur $_socksPort")
+        KighmuLogger.info(TAG, "Proxy SOCKS5 actif ✓")
         sshConnection = conn
     }
 
