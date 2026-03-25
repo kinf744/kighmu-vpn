@@ -24,7 +24,7 @@ object KighmuLogger {
     private fun sanitize(message: String): String {
         var msg = message
         // Masquer passwords et auth
-        msg = msg.replace(Regex("(auth[_-]?str|password|auth|obfs)["\s:=]+[^\s,"{}]+"), "$1: ***")
+        msg = msg.replace(Regex("""(auth[_-]?str|password|auth|obfs)["\s:=]+[^\s,"{}]+"""), "$1: ***")
         msg = msg.replace(Regex("(ghp|token|key|secret)_[A-Za-z0-9]+"), "***")
         // Masquer IPs partiellement (garder dernier octet)
         // Ne pas masquer les IPs locales 127.x et 10.x
