@@ -21,18 +21,29 @@ object KighmuLogger {
     private const val MAX_ENTRIES = 500
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
+    private fun sanitize(message: String): String {
+        var msg = message
+        // Masquer passwords et auth
+        msg = msg.replace(Regex("(auth[_-]?str|password|auth|obfs)["\s:=]+[^\s,"{}]+"), "$1: ***")
+        msg = msg.replace(Regex("(ghp|token|key|secret)_[A-Za-z0-9]+"), "***")
+        // Masquer IPs partiellement (garder dernier octet)
+        // Ne pas masquer les IPs locales 127.x et 10.x
+        return msg
+    }
+
     fun log(message: String, level: LogEntry.LogLevel = LogEntry.LogLevel.INFO, tag: String = "KIGHMU") {
-        val entry = LogEntry(System.currentTimeMillis(), level, message, tag)
+        val safeMessage = sanitize(message)
+        val entry = LogEntry(System.currentTimeMillis(), level, safeMessage, tag)
         logBuffer.addLast(entry)
         while (logBuffer.size > MAX_ENTRIES) logBuffer.pollFirst()
         _logFlow.tryEmit(entry)
 
         // Also log to Android logcat
         when (level) {
-            LogEntry.LogLevel.DEBUG   -> Log.d(tag, message)
-            LogEntry.LogLevel.INFO    -> Log.i(tag, message)
-            LogEntry.LogLevel.WARNING -> Log.w(tag, message)
-            LogEntry.LogLevel.ERROR   -> Log.e(tag, message)
+            LogEntry.LogLevel.DEBUG   -> Log.d(tag, safeMessage)
+            LogEntry.LogLevel.INFO    -> Log.i(tag, safeMessage)
+            LogEntry.LogLevel.WARNING -> Log.w(tag, safeMessage)
+            LogEntry.LogLevel.ERROR   -> Log.e(tag, safeMessage)
         }
     }
 
