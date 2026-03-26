@@ -45,10 +45,10 @@ class HysteriaEngine(
             while (portWait < 30) {
                 try {
                     java.net.ServerSocket(1080).close()
-                    log("Port 1080 LIBRE ✅".sanitizeHysteria())
+                    log("Port 1080 LIBRE ✅".())
                     break
                 } catch (_: Exception) {
-                    if (portWait == 0) log("Port 1080 occupé, attente...".sanitizeHysteria())
+                    if (portWait == 0) log("Port 1080 occupé, attente...".())
                     Thread.sleep(1000)
                     portWait++
                 }
@@ -62,7 +62,7 @@ class HysteriaEngine(
             val portHopping = if (hConfig.portHopping.isNotBlank())
                 hConfig.portHopping else "20000-50000"
             val server = "$ip:$portHopping"
-            log("Démarrage Hysteria: $server".sanitizeHysteria())
+            log("Démarrage Hysteria: $server".())
 
             val configFile = writeConfig(server)
             val binary = extractBinary("libhysteria.so")
@@ -82,7 +82,7 @@ class HysteriaEngine(
             }
 
             if (!serverConnected) throw Exception("Hysteria: connexion serveur impossible")
-            log("Hysteria prêt sur port $socksPort ✅".sanitizeHysteria())
+            log("Hysteria prêt sur port $socksPort ✅".())
             socksPort
         }
     }
@@ -105,14 +105,14 @@ class HysteriaEngine(
   "recv_window": 16777216
 }"""
         file.writeText(config)
-        log("Config écrite: $server".sanitizeHysteria())
+        log("Config écrite: $server".())
         return file
     }
 
     private fun extractBinary(name: String): File? {
         val bin = File(context.applicationInfo.nativeLibraryDir, name)
         if (bin.exists()) { bin.setExecutable(true); return bin }
-        log("$name introuvable dans ${context.applicationInfo.nativeLibraryDir}".sanitizeHysteria())
+        log("$name introuvable dans ${context.applicationInfo.nativeLibraryDir}".())
         return null
     }
 
@@ -124,32 +124,32 @@ class HysteriaEngine(
         pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
         pb.redirectErrorStream(true)
         hysteriaProcess = pb.start()
-        log("Hysteria PID démarré".sanitizeHysteria())
+        log("Hysteria PID démarré".())
 
         Thread {
             try {
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
-                        log("[out] $line".sanitizeHysteria())
+                        log("[out] $line".())
                         // Hysteria 1: "Connected" dans le log serveur
                         // Déclencheur VPN: "UDP running" comme dans kiaje34
                         if (line.contains("UDP running") || line.contains("running")) {
                             serverConnected = true
-                            log("Serveur connecté ✅".sanitizeHysteria())
+                            log("Serveur connecté ✅".())
                         }
                         if (line.contains("SOCKS5 server up") &&
                             line.contains("127.0.0.1:")) {
                             Regex("""127\.0\.0\.1:(\d+)""").find(line)
                                 ?.groupValues?.get(1)?.toIntOrNull()?.let {
-                                    if (it > 0) { socksPort = it; log("Port SOCKS5: $it".sanitizeHysteria()) }
+                                    if (it > 0) { socksPort = it; log("Port SOCKS5: $it".()) }
                                 }
                         }
                     }
                 }
                 val code = hysteriaProcess?.waitFor() ?: -1
-                log("Hysteria exit: $code".sanitizeHysteria())
+                log("Hysteria exit: $code".())
                 serverConnected = false
-            } catch (e: Exception) { log("thread: ${e.message}".sanitizeHysteria()) }
+            } catch (e: Exception) { log("thread: ${e.message}".()) }
         }.start()
     }
 
@@ -177,7 +177,7 @@ class HysteriaEngine(
                     " --sock-path $sockPath" +
                     " --loglevel 3" +
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
-                log("tun2socks: $cmd".sanitizeHysteria())
+                log("tun2socks: $cmd".())
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
                 val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
                 t2sIn.isDaemon = true
@@ -202,15 +202,15 @@ class HysteriaEngine(
                             localSocket.shutdownOutput()
                             localSocket.close()
                             sent = true
-                            log("fd=$fd envoyé via sock-path ✅".sanitizeHysteria())
+                            log("fd=$fd envoyé via sock-path ✅".())
                         } catch (e: Exception) {
-                            log("sendFd: ${e.message}".sanitizeHysteria())
+                            log("sendFd: ${e.message}".())
                         }
                     }
                 }
-                if (!sent) log("ERREUR: fd non envoyé".sanitizeHysteria())
+                if (!sent) log("ERREUR: fd non envoyé".())
                 tun2socksProcess?.waitFor()
-            } catch (e: Exception) { log("tun2socks error: ${e.message}".sanitizeHysteria()) }
+            } catch (e: Exception) { log("tun2socks error: ${e.message}".()) }
         }.start()
     }
 
