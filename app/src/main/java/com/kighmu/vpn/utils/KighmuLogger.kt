@@ -32,11 +32,22 @@ object KighmuLogger {
 
     private fun sanitize(message: String): String {
         var msg = message
-        // Masquer passwords et auth
-        msg = msg.replace(Regex("""(auth[_-]?str|password|auth|obfs)["\s:=]+[^\s,"{}]+"""), "$1: ***")
-        msg = msg.replace(Regex("(ghp|token|key|secret)_[A-Za-z0-9]+"), "***")
-        // Masquer IPs partiellement (garder dernier octet)
-        // Ne pas masquer les IPs locales 127.x et 10.x
+        // Masquer passwords, auth, obfs
+        msg = msg.replace(Regex("""(auth[_-]?str|password|obfs)[":\s=]+\S+"""), "$1: ***")
+        // Masquer clés publiques dnstt
+        msg = msg.replace(Regex("-pubkey\s+[A-Fa-f0-9]+"), "-pubkey ***")
+        // Masquer tokens GitHub
+        msg = msg.replace(Regex("ghp_[A-Za-z0-9]+"), "***")
+        // Masquer chemins complets app (garder juste le nom du binaire)
+        msg = msg.replace(Regex("/data/app/[^/]+/[^/]+/lib/[^/]+/"), "lib/")
+        msg = msg.replace(Regex("/data/user/0/[^/]+/"), "data/")
+        // Masquer ports SOCKS dynamiques (>10000)
+        msg = msg.replace(Regex("127\.0\.0\.1:(\d{5,})")) { m ->
+            val port = m.groupValues[1].toIntOrNull() ?: 0
+            if (port > 10000) "127.0.0.1:****" else m.value
+        }
+        // Masquer domaines dnstt
+        msg = msg.replace(Regex("\S+\.ggff\.net"), "***.ggff.net")
         return msg
     }
 
