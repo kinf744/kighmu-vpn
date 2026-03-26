@@ -12,6 +12,15 @@ import java.util.concurrent.ConcurrentLinkedDeque
  * Central logger for KIGHMU VPN.
  * Keeps last 500 log entries in memory and exposes a Flow for UI.
  */
+
+fun String.sanitizeGlobal(): String {
+    return this
+        .replace(Regex("(\\d{1,3}\\.){3}\\d{1,3}"), "[IP]")
+        .replace(Regex(":\\d{2,5}\b"), ":[PORT]")
+        .replace(Regex("/data/app/~~[a-zA-Z0-9_-]+/"), "/data/app/[MASKED]/")
+}
+
+
 object KighmuLogger {
 
     private val _logFlow = MutableSharedFlow<LogEntry>(extraBufferCapacity = 100)
