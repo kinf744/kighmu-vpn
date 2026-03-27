@@ -175,9 +175,14 @@ class HysteriaEngine(
             val pb = ProcessBuilder(*cmd)
             pb.redirectErrorStream(true)
             val tunProcess = pb.start()
+
+            // Fonction locale pour "sanitizer" les logs
+            fun String.sanitizeLocal(): String = this.replace(Regex(".*/"), "data/.../")
+
             tunProcess.inputStream.bufferedReader().forEachLine { line ->
-                log("[tun2socks] ${KighmuLogger.sanitize(line)}")
+                log("[tun2socks] ${line.sanitizeLocal()}")
             }
+
         } catch (e: Exception) {
             log("tun2socks error: ${e.message}")
         }
