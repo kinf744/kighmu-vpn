@@ -130,7 +130,8 @@ class HysteriaEngine(
             try {
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
-                        log("[out] $line")
+                        val safeLine = KighmuLogger.sanitize(line)
+                            log("[out] $safeLine")
                         // Hysteria 1: "Connected" dans le log serveur
                         // Déclencheur VPN: "UDP running" comme dans kiaje34
                         if (line.contains("UDP running") || line.contains("running")) {
@@ -154,65 +155,34 @@ class HysteriaEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        Thread {
-            try {
-                val bin = extractBinary("libtun2socks.so") ?: return@Thread
-                val sockPath = "${context.dataDir.absolutePath}/sock_path"
-                val sockFile = java.io.File(sockPath)
-                if (!sockFile.exists()) sockFile.createNewFile()
+    Thread {
+        try {
+            val bin = extractBinary("libtun2socks.so") ?: return@Thread
+            val sockPath = "${context.dataDir.absolutePath}/sock_path"
+            val safeSockPath = sockPath.replace(Regex(".*/"), "data/.../")
 
-                // Utiliser l'IP du routeur VPN comme kiaje34 (mPrivateAddress.mRouter)
-                val vpnIp = vpnService?.let {
-                    try {
-                        val builder = it.javaClass.getMethod("getBuilder").invoke(it)
-                        "10.0.0.2"
-                    } catch (_: Exception) { "10.0.0.2" }
-                } ?: "10.0.0.2"
-                val cmd = "${bin.absolutePath}" +
-                    " --netif-ipaddr $vpnIp" +
-                    " --netif-netmask 255.255.255.0" +
-                    " --socks-server-addr 127.0.0.1:$socksPort" +
-                    " --tunmtu 1500" +
+            val cmd = arrayOf(
+                bin.absolutePath,
+                "--netif-ipaddr", "10.0.0.2",
+                "--netif-netmask", "255.255.255.0",
+                "--socks-server-addr", "127.0.0.1:$socksPort",
+                "--tunmtu", "1500",
+                "--sock-path", safeSockPath,
+                "--loglevel", "3",
+                "--udpgw-remote-server-addr", "127.0.0.1:7300"
+            )
 
-                    " --sock-path $sockPath" +
-                    " --loglevel 3" +
-                    " --udpgw-remote-server-addr 127.0.0.1:7300"
-                log("tun2socks: $cmd")
-                tun2socksProcess = Runtime.getRuntime().exec(cmd)
-                val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
-                t2sIn.isDaemon = true
-                t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
-                t2sIn.start()
-                val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
-                t2sErr.isDaemon = true
-                t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
-                t2sErr.start()
-
-                // sendFd() comme udphystvpn
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                var sent = false
-                repeat(10) {
-                    if (!sent) {
-                        try {
-                try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
-                            val localSocket = android.net.LocalSocket()
-                            localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                            localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                            localSocket.outputStream.write(42)
-                            localSocket.shutdownOutput()
-                            localSocket.close()
-                            sent = true
-                            log("fd=$fd envoyé via sock-path ✅")
-                        } catch (e: Exception) {
-                            log("sendFd: ${e.message}")
-                        }
-                    }
-                }
-                if (!sent) log("ERREUR: fd non envoyé")
-                tun2socksProcess?.waitFor()
-            } catch (e: Exception) { log("tun2socks error: ${e.message}") }
-        }.start()
-    }
+            val pb = ProcessBuilder(*cmd)
+            pb.redirectErrorStream(true)
+            val tunProcess = pb.start()
+            tunProcess.inputStream.bufferedReader().forEachLine { line ->
+                log("[tun2socks] ${KighmuLogger.sanitize(line)}")
+            }
+        } catch (e: Exception) {
+            log("tun2socks error: ${e.message}")
+        }
+    }.start()
+}
 
     override suspend fun stop() {
         running = false
