@@ -130,7 +130,7 @@ class HysteriaEngine(
             try {
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
-                        val safeLine = KighmuLogger.sanitize(line)
+                        val safeLine = sanitizeLocal(line)
                             log("[out] $safeLine")
                         // Hysteria 1: "Connected" dans le log serveur
                         // Déclencheur VPN: "UDP running" comme dans kiaje34
