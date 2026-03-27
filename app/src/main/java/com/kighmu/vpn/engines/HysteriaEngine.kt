@@ -130,8 +130,7 @@ class HysteriaEngine(
             try {
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
-                        val safeLine = sanitizeLocal(line)
-                            log("[out] $safeLine")
+                        log("[out] $line")
                         // Hysteria 1: "Connected" dans le log serveur
                         // Déclencheur VPN: "UDP running" comme dans kiaje34
                         if (line.contains("UDP running") || line.contains("running")) {
@@ -177,10 +176,10 @@ class HysteriaEngine(
             val tunProcess = pb.start()
 
             // Fonction locale pour "sanitizer" les logs
-            fun String.sanitizeLocal(): String = this.replace(Regex(".*/"), "data/.../")
+            fun String.(): String = this.replace(Regex(".*/"), "data/.../")
 
             tunProcess.inputStream.bufferedReader().forEachLine { line ->
-                log("[tun2socks] ${line.sanitizeLocal()}")
+                log("[tun2socks] ${line.()}")
             }
 
         } catch (e: Exception) {
