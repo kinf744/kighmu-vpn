@@ -176,10 +176,9 @@ class HysteriaEngine(
             val tunProcess = pb.start()
 
             // Fonction locale pour "sanitizer" les logs
-            fun String.(): String = this.replace(Regex(".*/"), "data/.../")
 
             tunProcess.inputStream.bufferedReader().forEachLine { line ->
-                log("[tun2socks] ${line.()}")
+                log("[tun2socks] $line")
             }
 
         } catch (e: Exception) {
