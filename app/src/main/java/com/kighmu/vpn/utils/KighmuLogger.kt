@@ -48,6 +48,14 @@ object KighmuLogger {
         }
         // Masquer domaines dnstt
         msg = msg.replace(Regex("""\S+\.ggff\.net"""), "***.ggff.net")
+        // Masquer commande tun2socks complète
+        if (msg.contains("tun2socks cmd:") || msg.contains("tun2socks:")) {
+            msg = msg.replace(Regex("""lib/\S+\.so.*"""), "lib/libtun2socks.so [masqué]")
+        }
+        // Masquer fd envoyé
+        if (msg.contains("envoye via") || msg.contains("envoyé via")) {
+            msg = msg.replace(Regex("""fd \d+ envoye.*"""), "fd *** envoyé ✅")
+        }
         return msg
     }
 
