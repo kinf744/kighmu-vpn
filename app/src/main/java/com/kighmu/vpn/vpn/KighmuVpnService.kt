@@ -264,8 +264,6 @@ class KighmuVpnService : VpnService() {
         // 3. Arrêter engine en arrière-plan
         val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
         scope.launch { try { engineRef?.stop() } catch (_: Exception) {} }
-            }
-        }.start()
 
     }
 
