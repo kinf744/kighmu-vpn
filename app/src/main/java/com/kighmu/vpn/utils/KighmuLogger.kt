@@ -50,6 +50,10 @@ object KighmuLogger {
     }
 
     fun log(message: String, level: LogEntry.LogLevel = LogEntry.LogLevel.INFO, tag: String = "KIGHMU") {
+        // Filtrer les logs debug trop verbeux de tous les tunnels
+        if (message.contains("[DEBU]") || message.contains("SOCKS5 TCP") ||
+            message.contains("TCP EOF") || message.contains("TCP request") ||
+            message.contains("action:Proxy") || message.contains("action: Proxy")) return
         val safeMessage = sanitize(message)
         val entry = LogEntry(System.currentTimeMillis(), level, safeMessage, tag)
         logBuffer.addLast(entry)
