@@ -203,6 +203,20 @@ class HysteriaEngine(
         }.start()
     }
 
+    override suspend fun stop() {
+        running = false
+        serverConnected = false
+        val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+        val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+        t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+        t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+        try { tun2socksProcess?.destroy() } catch (_: Exception) {}
+        try { hysteriaProcess?.destroy() } catch (_: Exception) {}
+        tun2socksProcess = null
+        hysteriaProcess = null
+        withContext(Dispatchers.IO) { Thread.sleep(2000) }
+    }
+
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = null
     override fun isRunning() = running && serverConnected
