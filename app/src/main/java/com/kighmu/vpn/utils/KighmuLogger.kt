@@ -32,16 +32,16 @@ object KighmuLogger {
 
     private fun sanitize(message: String): String {
         var msg = message
-        msg = msg.replace(Regex("(auth_str|password|obfs)[:\s\"=]+\S+"), "$1: ***")
-        msg = msg.replace(Regex("-pubkey\s+[A-Fa-f0-9]+"), "-pubkey ***")
-        msg = msg.replace(Regex("ghp_[A-Za-z0-9]+"), "***")
-        msg = msg.replace(Regex("/data/app/[^/]+/[^/]+/lib/[^/]+/"), "lib/")
-        msg = msg.replace(Regex("/data/user/0/[^\s/]+/"), "data/")
-        msg = msg.replace(Regex("127\.0\.0\.1:(\d{5,})")) { m ->
+        msg = msg.replace(Regex("""(auth_str|password|obfs)[:\s"=]+\S+"""), "$1: ***")
+        msg = msg.replace(Regex("""-pubkey\s+[A-Fa-f0-9]+"""), "-pubkey ***")
+        msg = msg.replace(Regex("""ghp_[A-Za-z0-9]+"""), "***")
+        msg = msg.replace(Regex("""/data/app/[^/]+/[^/]+/lib/[^/]+/"""), "lib/")
+        msg = msg.replace(Regex("""/data/user/0/[^\s/]+/"""), "data/")
+        msg = msg.replace(Regex("""127[.]0[.]0[.]1:([0-9]{5,})""")) { m ->
             val port = m.groupValues[1].toIntOrNull() ?: 0
             if (port > 10000) "127.0.0.1:****" else m.value
         }
-        msg = msg.replace(Regex("[\w.-]+\.ggff\.net"), "***.ggff.net")
+        msg = msg.replace(Regex("""[\w.-]+[.]ggff[.]net"""), "***.ggff.net")
         if (msg.contains("tun2socks cmd:") || msg.startsWith("tun2socks:")) {
             val soIdx = msg.indexOf(".so")
             if (soIdx > 0) msg = msg.substring(0, soIdx + 3) + " [...]"
