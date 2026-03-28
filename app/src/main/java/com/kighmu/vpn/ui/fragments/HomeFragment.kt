@@ -69,7 +69,8 @@ class HomeFragment : Fragment() {
             btnConnect.setOnClickListener {
                 val activity = requireActivity() as MainActivity
                 when (viewModel.connectionStatus.value) {
-                    ConnectionStatus.CONNECTED, ConnectionStatus.CONNECTING ->
+                    ConnectionStatus.CONNECTED, ConnectionStatus.CONNECTING,
+                    ConnectionStatus.RECONNECTING, ConnectionStatus.ERROR ->
                         activity.requestVpnDisconnect()
                     else -> activity.requestVpnConnect()
                 }
@@ -82,7 +83,11 @@ class HomeFragment : Fragment() {
                         ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> "CONNECTING"
                         else -> "DISCONNECTED"
                     }
-                    btnConnect.text = if (status == ConnectionStatus.CONNECTED) "DISCONNECT" else "CONNECT"
+                    val isActive = status == ConnectionStatus.CONNECTED || 
+                        status == ConnectionStatus.CONNECTING ||
+                        status == ConnectionStatus.RECONNECTING ||
+                        status == ConnectionStatus.ERROR
+                    btnConnect.text = if (isActive) "DISCONNECT" else "CONNECT"
                 }
             }
 
