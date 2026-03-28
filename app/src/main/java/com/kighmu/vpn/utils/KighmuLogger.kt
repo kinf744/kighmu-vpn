@@ -32,29 +32,19 @@ object KighmuLogger {
 
     private fun sanitize(message: String): String {
         var msg = message
-        // Masquer passwords, auth, obfs
-        msg = msg.replace(Regex("""(auth[_-]?str|password|obfs)[":\s=]+\S+"""), "$1: ***")
-        // Masquer clés publiques dnstt
-        msg = msg.replace(Regex("""-pubkey\s+[A-Fa-f0-9]+"""), "-pubkey ***")
-        // Masquer tokens GitHub
+        msg = msg.replace(Regex("(auth_str|password|obfs)[:\s\"=]+\S+"), "$1: ***")
+        msg = msg.replace(Regex("-pubkey\s+[A-Fa-f0-9]+"), "-pubkey ***")
         msg = msg.replace(Regex("ghp_[A-Za-z0-9]+"), "***")
-        // Masquer chemins complets app (garder juste le nom du binaire)
         msg = msg.replace(Regex("/data/app/[^/]+/[^/]+/lib/[^/]+/"), "lib/")
-        msg = msg.replace(Regex("/data/user/0/[^/]+/"), "data/")
-        // Masquer ports SOCKS dynamiques (>10000)
-        msg = msg.replace(Regex("""127\.0\.0\.1:(\d{5,})""")) { m ->
+        msg = msg.replace(Regex("/data/user/0/[^\s/]+/"), "data/")
+        msg = msg.replace(Regex("127\.0\.0\.1:(\d{5,})")) { m ->
             val port = m.groupValues[1].toIntOrNull() ?: 0
             if (port > 10000) "127.0.0.1:****" else m.value
         }
-        // Masquer domaines dnstt
-        msg = msg.replace(Regex("""\S+\.ggff\.net"""), "***.ggff.net")
-        // Masquer commande tun2socks complète
-        if (msg.contains("tun2socks cmd:") || msg.contains("tun2socks:")) {
-            msg = msg.replace(Regex("""lib/\S+\.so.*"""), "lib/libtun2socks.so [masqué]")
-        }
-        // Masquer fd envoyé
-        if (msg.contains("envoye via") || msg.contains("envoyé via")) {
-            msg = msg.replace(Regex("""fd \d+ envoye.*"""), "fd *** envoyé ✅")
+        msg = msg.replace(Regex("[\w.-]+\.ggff\.net"), "***.ggff.net")
+        if (msg.contains("tun2socks cmd:") || msg.startsWith("tun2socks:")) {
+            val soIdx = msg.indexOf(".so")
+            if (soIdx > 0) msg = msg.substring(0, soIdx + 3) + " [...]"
         }
         return msg
     }
