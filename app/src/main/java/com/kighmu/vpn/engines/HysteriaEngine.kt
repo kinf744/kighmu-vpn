@@ -154,48 +154,53 @@ class HysteriaEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-    Thread {
-        try {
-            val bin = extractBinary("libtun2socks.so") ?: return@Thread
-            val sockPath = "${context.dataDir.absolutePath}/sock_path"
-            val safeSockPath = sockPath.replace(Regex(".*/"), "data/.../")
+        Thread {
+            try {
+                val bin = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
+                if (!bin.exists()) { log("libtun2socks.so introuvable"); return@Thread }
+                val sockPath = "${context.dataDir.absolutePath}/sock_path"
+                java.io.File(sockPath).let { if (!it.exists()) it.createNewFile() }
 
-            val cmd = arrayOf(
-                bin.absolutePath,
-                "--netif-ipaddr", "10.0.0.2",
-                "--netif-netmask", "255.255.255.0",
-                "--socks-server-addr", "127.0.0.1:$socksPort",
-                "--tunmtu", "1500",
-                "--sock-path", safeSockPath,
-                "--loglevel", "3",
-                "--udpgw-remote-server-addr", "127.0.0.1:7300"
-            )
+                val cmd = "${bin.absolutePath}" +
+                    " --netif-ipaddr 10.0.0.2" +
+                    " --netif-netmask 255.255.255.0" +
+                    " --socks-server-addr 127.0.0.1:$socksPort" +
+                    " --tunmtu 1500" +
+                    " --tunfd $fd" +
+                    " --sock-path $sockPath" +
+                    " --loglevel 3" +
+                    " --udpgw-remote-server-addr 127.0.0.1:7300"
 
-            val pb = ProcessBuilder(*cmd)
-            pb.redirectErrorStream(true)
-            val tunProcess = pb.start()
+                log("tun2socks démarré fd=$fd port=$socksPort ✓")
+                tun2socksProcess = Runtime.getRuntime().exec(cmd)
 
-            // Fonction locale pour "sanitizer" les logs
+                val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                t2sIn.isDaemon = true
+                t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                t2sIn.start()
+                val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                t2sErr.isDaemon = true
+                t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                t2sErr.start()
 
-            tunProcess.inputStream.bufferedReader().forEachLine { line ->
-                log("[tun2socks] $line")
-            }
-
-        } catch (e: Exception) {
-            log("tun2socks error: ${e.message}")
-        }
-    }.start()
-}
-
-    override suspend fun stop() {
-        running = false
-        serverConnected = false
-        try { tun2socksProcess?.destroy() } catch (_: Exception) {}
-        try { hysteriaProcess?.destroy() } catch (_: Exception) {}
-        tun2socksProcess = null
-        hysteriaProcess = null
-        // Attendre 2s comme MyUDPThread.stopVudp() pour libérer le port
-        withContext(Dispatchers.IO) { Thread.sleep(2000) }
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                var sent = false
+                repeat(10) {
+                    if (!sent) try {
+                        try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
+                        val s = android.net.LocalSocket()
+                        s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                        s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                        s.outputStream.write(42)
+                        s.shutdownOutput(); s.close()
+                        sent = true
+                        log("fd=$fd envoyé ✅")
+                    } catch (e: Exception) { log("sendFd: ${e.message}") }
+                }
+                if (!sent) log("ERREUR: fd non envoyé")
+                try { tun2socksProcess?.waitFor() } catch (_: Exception) {}
+            } catch (e: Exception) { log("tun2socks error: ${e.message}") }
+        }.start()
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
