@@ -252,20 +252,18 @@ class KighmuVpnService : VpnService() {
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
-        // Arrêter dans un Thread séparé pour éviter crash natif
-        val vpnRef = vpnInterface
+        // 1. Fermer VPN interface IMMÉDIATEMENT → clé disparaît instantanément
+        try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
-        Thread {
-            try { kotlinx.coroutines.runBlocking { 
-                withTimeoutOrNull(3000) { engineRef?.stop() }
-            }} catch (_: Exception) {}
-            try { vpnRef?.close() } catch (_: Exception) {}
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
-                    try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
-                }
-                updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
-                stopSelf()
+        // 2. Retirer notification IMMÉDIATEMENT
+        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
+            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+        }
+        updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
+        stopSelf()
+        // 3. Arrêter engine en arrière-plan
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+        scope.launch { try { engineRef?.stop() } catch (_: Exception) {} }
             }
         }.start()
 
