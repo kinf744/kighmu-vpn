@@ -214,7 +214,7 @@ class HysteriaEngine(
         try { hysteriaProcess?.destroy() } catch (_: Exception) {}
         tun2socksProcess = null
         hysteriaProcess = null
-        withContext(Dispatchers.IO) { Thread.sleep(2000) }
+        withContext(Dispatchers.IO) { Thread.sleep(500) }
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}

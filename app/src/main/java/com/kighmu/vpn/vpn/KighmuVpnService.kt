@@ -257,7 +257,7 @@ class KighmuVpnService : VpnService() {
         vpnInterface = null
         Thread {
             try { kotlinx.coroutines.runBlocking { 
-                withTimeoutOrNull(2000) { engineRef?.stop() }
+                withTimeoutOrNull(3000) { engineRef?.stop() }
             }} catch (_: Exception) {}
             try { vpnRef?.close() } catch (_: Exception) {}
             android.os.Handler(android.os.Looper.getMainLooper()).post {
