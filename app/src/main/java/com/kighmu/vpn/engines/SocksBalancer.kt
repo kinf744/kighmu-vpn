@@ -64,9 +64,15 @@ class SocksBalancer(private val ports: List<Int>) {
     private fun relay(client: Socket, targetPort: Int) {
         try {
             client.soTimeout = 30000
+            client.setPerformancePreferences(0, 0, 1) // optimiser débit
+            client.receiveBufferSize = 65536
+            client.sendBufferSize = 65536
             val server = Socket()
             server.connect(InetSocketAddress("127.0.0.1", targetPort), 5000)
             server.soTimeout = 30000
+            server.receiveBufferSize = 65536
+            server.sendBufferSize = 65536
+            server.setPerformancePreferences(0, 0, 1)
 
             val clientIn = client.getInputStream()
             val clientOut = client.getOutputStream()
@@ -95,13 +101,16 @@ class SocksBalancer(private val ports: List<Int>) {
     }
 
     private fun pipe(inp: InputStream, out: OutputStream) {
-        val buf = ByteArray(8192)
+        val buf = ByteArray(65536) // 64KB buffer pour meilleur débit
         var n: Int
-        while (true) {
-            n = inp.read(buf)
-            if (n == -1) break
-            out.write(buf, 0, n)
-            out.flush()
-        }
+        try {
+            while (true) {
+                n = inp.read(buf)
+                if (n == -1) break
+                out.write(buf, 0, n)
+                // flush seulement si pas de données en attente
+                if (inp.available() == 0) out.flush()
+            }
+        } catch (_: Exception) {}
     }
 }
