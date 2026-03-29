@@ -79,20 +79,24 @@ class SocksBalancer(private val ports: List<Int>) {
             val serverIn = server.getInputStream()
             val serverOut = server.getOutputStream()
 
-            // client -> socks server
-            Thread {
-                try {
-                    pipe(clientIn, serverOut)
-                } catch (_: Exception) {}
+            // Relay natif C++ si disponible, sinon Kotlin
+            if (NativeRelay.isAvailable) {
+                val clientFd = client.fileDescriptor?.let {
+                    android.system.Os.dup(it)
+                }
+                NativeRelay.relay(
+                    client.fd,
+                    server.fd
+                )
+            } else {
+                Thread {
+                    try { pipe(clientIn, serverOut) } catch (_: Exception) {}
+                    try { server.close() } catch (_: Exception) {}
+                }.start()
+                try { pipe(serverIn, clientOut) } catch (_: Exception) {}
+                try { client.close() } catch (_: Exception) {}
                 try { server.close() } catch (_: Exception) {}
-            }.start()
-
-            // socks server -> client
-            try {
-                pipe(serverIn, clientOut)
-            } catch (_: Exception) {}
-            try { client.close() } catch (_: Exception) {}
-            try { server.close() } catch (_: Exception) {}
+            }
 
         } catch (e: Exception) {
             KighmuLogger.error(TAG, "Relay error port $targetPort: ${e.message}")
