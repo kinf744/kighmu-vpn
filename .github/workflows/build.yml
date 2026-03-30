@@ -28,6 +28,7 @@ jobs:
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libdnstt.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/376422237"
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libhysteria.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/378442939"
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libpdnsd.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/378443137"
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/arm64-v8a/libtun2socks_ssc.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/385094917"
           mkdir -p app/libs
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/378443119"
           ls -la app/src/main/jniLibs/armeabi-v7a/
