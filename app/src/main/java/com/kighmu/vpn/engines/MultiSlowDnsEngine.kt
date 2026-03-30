@@ -90,14 +90,9 @@ class MultiSlowDnsEngine(
         val connectedPorts = successPorts.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
 
         KighmuLogger.info(TAG, "Ports SOCKS actifs: $connectedPorts")
-        val balancer = SocksBalancer(connectedPorts)
-        balancer.start()
-        socksBalancer = balancer
-
-        // STEP 4 : tun2socks démarré par KighmuVpnService via startTun2Socks()
-        // On retourne le port du BALANCER pour agréger le trafic sur tous les tunnels
-        activePort = SocksBalancer.BALANCER_PORT
-        KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port principal=$activePort, ${successPorts.size} tunnels actifs ===")
+        // Retourner directement le port du premier tunnel - sans balancer
+        activePort = successPorts.first()
+        KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port direct=$activePort, ${successPorts.size} tunnels actifs ===")
 
         // Surveiller les sessions en background
         monitorSessions(selected)
