@@ -125,6 +125,24 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "Démarrage tunnel interface...")
         engineScope.launch(Dispatchers.IO) {
             try {
+                if (Tun2Socks.isAvailable) {
+                    // Utiliser tun2socks JNI SSH Custom (plus rapide)
+                    KighmuLogger.info(TAG, "tun2socks JNI SSC fd=$fd port=$targetPort")
+                    val t = Thread {
+                        val result = Tun2Socks.runTun2Socks(
+                            fd, MTU, "10.0.0.2", "255.255.255.0",
+                            "127.0.0.1:$targetPort", "127.0.0.1:7300",
+                            false, 3
+                        )
+                        KighmuLogger.info(TAG, "tun2socks JNI terminé: $result")
+                    }
+                    t.isDaemon = true
+                    t.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                    t.start()
+                    KighmuLogger.info(TAG, "fd $fd envoye via JNI")
+                    return@launch
+                }
+                // Fallback: processus externe
                 val nativeDir = context.applicationInfo.nativeLibraryDir
                 val bin = File(nativeDir, "libtun2socks.so")
                 if (!bin.exists()) {
@@ -145,7 +163,6 @@ class SlowDnsEngine(
                     "--loglevel", "4"
                 )
                 KighmuLogger.info(TAG, "Interface VPN configurée ✓")
-                // Utiliser Runtime.exec avec tableau pour eviter probleme d'espaces
                 val cmdArray = cmd.toTypedArray()
                 tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
                 // Lire stdout+stderr dans fichier
