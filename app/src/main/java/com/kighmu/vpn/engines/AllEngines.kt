@@ -2,6 +2,7 @@ package com.kighmu.vpn.engines
 
 import com.kighmu.vpn.models.XrayConfig
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import com.trilead.ssh2.Connection
@@ -159,7 +160,8 @@ class SshWebSocketEngine(
                 Thread.sleep(500)
                 val localSocket = android.net.LocalSocket()
                 localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    val pfd = vpnPfd!!
                 localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                 localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
                 KighmuLogger.info(TAG, "SshWsEngine fd $fd envoye via sock-path")
@@ -288,7 +290,8 @@ class SshSslEngine(
                 Thread.sleep(500)
                 val localSocket = android.net.LocalSocket()
                 localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    val pfd = vpnPfd!!
                 localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                 localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
                 KighmuLogger.info(TAG, "SshSslEngine fd $fd envoye via sock-path")
@@ -615,7 +618,8 @@ class XrayEngine(
                 try {
                     val localSocket = android.net.LocalSocket()
                     localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    val pfd = vpnPfd!!
                     localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                     localSocket.outputStream.write(1)
                     localSocket.outputStream.flush()
@@ -644,6 +648,8 @@ class XrayEngine(
         } catch (_: Exception) {}
         
         xrayProcess = null
+        try { vpnPfd?.close() } catch (_: Exception) {}
+        vpnPfd = null
         _socksPort = 0
         dnsttProxyPort = 0
         

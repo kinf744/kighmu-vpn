@@ -2,6 +2,7 @@ package com.kighmu.vpn.engines
 
 import android.content.Context
 import android.net.VpnService
+import android.os.ParcelFileDescriptor
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,7 @@ class HysteriaEngine(
     @Volatile private var tun2socksProcess: Process? = null
     @Volatile private var socksPort = 1080
     @Volatile private var serverConnected = false
+    @Volatile private var vpnPfd: ParcelFileDescriptor? = null
 
     private fun log(msg: String) {
         KighmuLogger.info(TAG, msg)
@@ -183,7 +185,8 @@ class HysteriaEngine(
                 t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
                 t2sErr.start()
 
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                val pfd = vpnPfd!!
                 var sent = false
                 repeat(10) {
                     if (!sent) try {
@@ -227,6 +230,8 @@ class HysteriaEngine(
         } catch (_: Exception) {}
         
         tun2socksProcess = null
+        try { vpnPfd?.close() } catch (_: Exception) {}
+        vpnPfd = null
         hysteriaProcess = null
         
         // Commande de secours pour libérer le port 1080 si nécessaire
