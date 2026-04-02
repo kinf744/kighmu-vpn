@@ -242,10 +242,14 @@ class KighmuVpnService : VpnService() {
 
     private fun stopVpn() {
         userRequestedStop = true
-        // Libérer WakeLock
+        KighmuLogger.info(TAG, "=== DÉCONNEXION NUCLÉAIRE DÉMARRÉE ===")
+        
+        // 1. Libérer WakeLock immédiatement
         try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
         wakeLock = null
         reconnectAttempts = 0
+        
+        // 2. Annuler tous les jobs de monitoring
         vpnJob?.cancel()
         statsJob?.cancel()
         
@@ -254,40 +258,50 @@ class KighmuVpnService : VpnService() {
         tun2socksRelay = null
         stats = VpnStats()
 
-        // 1. Arrêter le moteur de tunnel de manière prioritaire
-        // On utilise runBlocking pour s'assurer que l'arrêt est initié avant de fermer l'interface
-        try {
-            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-            scope.launch {
+        // 3. Arrêter le moteur et tuer les processus natifs de manière SYNCHRONE
+        // On utilise un thread séparé mais on attend un peu avant de fermer l'interface
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+        scope.launch {
+            try {
+                KighmuLogger.info(TAG, "Arrêt du moteur...")
+                engineRef?.stop()
+                
+                // Tuer TOUS les processus natifs qui pourraient tenir le FD de l'interface TUN
+                KighmuLogger.info(TAG, "Nettoyage des processus natifs...")
+                val killCmd = "killall -9 libtun2socks.so xray hysteria libhysteria.so dnstt"
+                Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor()
+                
+                // Délai de grâce pour laisser le noyau Linux libérer les ressources
+                kotlinx.coroutines.delay(500)
+                
+                // 4. Fermer VPN interface - C'est l'étape CRITIQUE pour la clé VPN
                 try {
-                    engineRef?.stop()
-                    // Tuer tous les processus natifs restants par précaution
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "killall libtun2socks.so xray hysteria libhysteria.so")).waitFor()
-                } catch (_: Exception) {}
+                    vpnInterface?.close()
+                    KighmuLogger.info(TAG, "VPN Interface fermée avec succès")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "Erreur fermeture interface: ${e.message}")
+                }
+                vpnInterface = null
+
+                // 5. Retirer notification et arrêter le service
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    try {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                    } catch (_: Exception) {
+                        try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
+                    }
+                    updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
+                    stopSelf()
+                    KighmuLogger.info(TAG, "Service VPN arrêté proprement")
+                }
+            } catch (e: Exception) {
+                KighmuLogger.error(TAG, "Erreur lors de la déconnexion: ${e.message}")
+                // Fallback de secours : fermer l'interface quoi qu'il arrive
+                try { vpnInterface?.close() } catch (_: Exception) {}
+                vpnInterface = null
+                stopSelf()
             }
-        } catch (_: Exception) {}
-
-        // 2. Fermer VPN interface - C'est ce qui fait disparaître la clé VPN
-        try {
-            vpnInterface?.close()
-            KighmuLogger.info(TAG, "VPN Interface fermée")
-        } catch (e: Exception) {
-            KighmuLogger.error(TAG, "Erreur fermeture interface: ${e.message}")
         }
-        vpnInterface = null
-
-        // 3. Retirer notification
-        try {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } catch (_: Exception) {
-            try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
-        }
-        
-        updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
-        
-        // 4. Arrêter le service
-        stopSelf()
-        KighmuLogger.info(TAG, "Service VPN arrêté")
     }
 
     private fun reconnect() {
