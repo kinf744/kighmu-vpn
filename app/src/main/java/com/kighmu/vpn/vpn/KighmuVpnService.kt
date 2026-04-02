@@ -240,7 +240,7 @@ class KighmuVpnService : VpnService() {
         }
     }
 
-                private fun stopVpn() {
+                    private fun stopVpn() {
         userRequestedStop = true
         KighmuLogger.info(TAG, "=== DÉCONNEXION NUCLÉAIRE DÉMARRÉE ===")
         
@@ -269,6 +269,11 @@ class KighmuVpnService : VpnService() {
                 KighmuLogger.info(TAG, "Nettoyage des processus natifs...")
                 val killCmd = "killall -9 libtun2socks.so xray hysteria libhysteria.so dnstt"
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor()
+                
+                // Sécurité supplémentaire : tuer tout processus occupant les ports SOCKS
+                try {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 1080/tcp 10808/tcp")).waitFor()
+                } catch (_: Exception) {}
                 
                 // Délai de grâce pour laisser le noyau Linux libérer les ressources
                 kotlinx.coroutines.delay(500)
