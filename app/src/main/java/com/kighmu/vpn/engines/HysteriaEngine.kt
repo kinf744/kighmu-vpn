@@ -206,15 +206,36 @@ class HysteriaEngine(
     override suspend fun stop() {
         running = false
         serverConnected = false
-        val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
-        val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
-        t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
-        t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
-        try { tun2socksProcess?.destroy() } catch (_: Exception) {}
-        try { hysteriaProcess?.destroy() } catch (_: Exception) {}
+        log("Arrêt forcé de Hysteria et tun2socks...")
+        
+        try {
+            tun2socksProcess?.let { p ->
+                p.inputStream?.close()
+                p.errorStream?.close()
+                p.outputStream?.close()
+                p.destroyForcibly()
+            }
+        } catch (_: Exception) {}
+        
+        try {
+            hysteriaProcess?.let { p ->
+                p.inputStream?.close()
+                p.errorStream?.close()
+                p.outputStream?.close()
+                p.destroyForcibly()
+            }
+        } catch (_: Exception) {}
+        
         tun2socksProcess = null
         hysteriaProcess = null
+        
+        // Commande de secours pour libérer le port 1080 si nécessaire
+        try {
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 1080/tcp")).waitFor()
+        } catch (_: Exception) {}
+        
         withContext(Dispatchers.IO) { Thread.sleep(500) }
+        log("Hysteria arrêté ✅")
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {}

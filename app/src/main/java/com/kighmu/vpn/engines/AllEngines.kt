@@ -632,10 +632,26 @@ class XrayEngine(
     }
     override suspend fun stop() {
         running = false
+        KighmuLogger.info(TAG, "Arrêt forcé de Xray...")
+        
+        try {
+            xrayProcess?.let { p ->
+                p.inputStream?.close()
+                p.errorStream?.close()
+                p.outputStream?.close()
+                p.destroyForcibly()
+            }
+        } catch (_: Exception) {}
+        
+        xrayProcess = null
         _socksPort = 0
         dnsttProxyPort = 0
-        _socksPort = 0  // Reset port pour prochain démarrage
-        xrayProcess?.destroy()
+        
+        // Commande de secours pour libérer le port SOCKS si nécessaire
+        try {
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 10808/tcp")).waitFor()
+        } catch (_: Exception) {}
+        
         engineScope.cancel()
     }
 
