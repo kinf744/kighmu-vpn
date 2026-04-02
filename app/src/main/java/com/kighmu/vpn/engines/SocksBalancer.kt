@@ -79,11 +79,22 @@ class SocksBalancer(private val ports: List<Int>) {
             val serverIn = server.getInputStream()
             val serverOut = server.getOutputStream()
 
-            Thread {
-                try { pipe(clientIn, serverOut) } catch (_: Exception) {}
-                try { server.close() } catch (_: Exception) {}
-            }.start()
-            try { pipe(serverIn, clientOut) } catch (_: Exception) {}
+            if (NativeRelay.isAvailable) {
+                try {
+                    val cfd = android.system.Os.dup(client.fileDescriptor)
+                    val sfd = android.system.Os.dup(server.fileDescriptor)
+                    NativeRelay.relay(
+                        cfd.fd,
+                        sfd.fd
+                    )
+                } catch (_: Exception) {
+                    Thread { try { pipe(clientIn, serverOut) } catch (_: Exception) {} }.start()
+                    try { pipe(serverIn, clientOut) } catch (_: Exception) {}
+                }
+            } else {
+                Thread { try { pipe(clientIn, serverOut) } catch (_: Exception) {} }.start()
+                try { pipe(serverIn, clientOut) } catch (_: Exception) {}
+            }
             try { client.close() } catch (_: Exception) {}
             try { server.close() } catch (_: Exception) {}
 
