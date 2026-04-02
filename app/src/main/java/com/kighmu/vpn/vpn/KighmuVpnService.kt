@@ -248,23 +248,46 @@ class KighmuVpnService : VpnService() {
         reconnectAttempts = 0
         vpnJob?.cancel()
         statsJob?.cancel()
+        
         val engineRef = tunnelEngine
         tunnelEngine = null
         tun2socksRelay = null
         stats = VpnStats()
-        // 1. Fermer VPN interface IMMÉDIATEMENT → clé disparaît instantanément
-        try { vpnInterface?.close() } catch (_: Exception) {}
+
+        // 1. Arrêter le moteur de tunnel de manière prioritaire
+        // On utilise runBlocking pour s'assurer que l'arrêt est initié avant de fermer l'interface
+        try {
+            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+            scope.launch {
+                try {
+                    engineRef?.stop()
+                    // Tuer tous les processus natifs restants par précaution
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "killall libtun2socks.so xray hysteria libhysteria.so")).waitFor()
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+
+        // 2. Fermer VPN interface - C'est ce qui fait disparaître la clé VPN
+        try {
+            vpnInterface?.close()
+            KighmuLogger.info(TAG, "VPN Interface fermée")
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "Erreur fermeture interface: ${e.message}")
+        }
         vpnInterface = null
-        // 2. Retirer notification IMMÉDIATEMENT
-        try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {
+
+        // 3. Retirer notification
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {
             try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
         }
+        
         updateStatus(ConnectionStatus.DISCONNECTED, "Disconnected")
+        
+        // 4. Arrêter le service
         stopSelf()
-        // 3. Arrêter engine en arrière-plan
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-        scope.launch { try { engineRef?.stop() } catch (_: Exception) {} }
-
+        KighmuLogger.info(TAG, "Service VPN arrêté")
     }
 
     private fun reconnect() {
