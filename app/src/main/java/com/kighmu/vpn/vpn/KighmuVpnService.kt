@@ -240,7 +240,7 @@ class KighmuVpnService : VpnService() {
         }
     }
 
-            private fun stopVpn() {
+                private fun stopVpn() {
         userRequestedStop = true
         KighmuLogger.info(TAG, "=== DÉCONNEXION NUCLÉAIRE DÉMARRÉE ===")
         
