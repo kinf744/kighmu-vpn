@@ -240,7 +240,7 @@ class KighmuVpnService : VpnService() {
         }
     }
 
-    private fun stopVpn() {
+        private fun stopVpn() {
         userRequestedStop = true
         KighmuLogger.info(TAG, "=== DÉCONNEXION NUCLÉAIRE DÉMARRÉE ===")
         
@@ -259,7 +259,6 @@ class KighmuVpnService : VpnService() {
         stats = VpnStats()
 
         // 3. Arrêter le moteur et tuer les processus natifs de manière SYNCHRONE
-        // On utilise un thread séparé mais on attend un peu avant de fermer l'interface
         val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
         scope.launch {
             try {
