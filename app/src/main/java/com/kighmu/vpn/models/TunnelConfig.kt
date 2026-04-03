@@ -10,7 +10,6 @@ import com.google.gson.annotations.SerializedName
 enum class TunnelMode(val id: Int, val label: String) {
     SLOW_DNS(0, "SlowDNS"),
     HTTP_PROXY(1, "HTTP Proxy + Payload"),
-    SSH_WEBSOCKET(2, "SSH WebSocket"),
     SSH_SSL_TLS(3, "SSH SSL/TLS"),
     V2RAY_XRAY(4, "V2Ray / Xray"),
     V2RAY_SLOWDNS(5, "V2Ray + SlowDNS"),
