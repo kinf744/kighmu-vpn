@@ -14,19 +14,13 @@ class SplashActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         try {
             super.onCreate(savedInstanceState)
-            val layout = LinearLayout(this)
-            layout.setBackgroundColor(Color.parseColor("#0D1117"))
-            val text = TextView(this)
-            text.text = "KIGHMU VPN"
-            text.setTextColor(Color.WHITE)
-            text.textSize = 24f
-            layout.addView(text)
-            setContentView(layout)
-            lifecycleScope.launch {
-                delay(1500)
-                startActivity(Intent(this@SplashActivity, MainActivity::class.java))
+            setContentView(R.layout.activity_splash)
+
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
                 finish()
-            }
+            }, 2000) // 2 secondes de délai
         } catch (e: Exception) {
             e.printStackTrace()
         }
