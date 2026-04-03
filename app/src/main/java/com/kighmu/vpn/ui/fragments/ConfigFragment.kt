@@ -344,26 +344,15 @@ class ConfigFragment : Fragment() {
                 R.id.rb_xray_json -> "json"
                 else -> if (c.xray.inputMode.isNotBlank()) c.xray.inputMode else "json"
             }
-            if (mode == "link") {
-                val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-                val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
-                c.xray.copy(
-                    xrayLink = rawLink,
-                    xrayLinkJson = parsedJsonFromLink,
-                    // Conserver jsonConfig existant si et_xray_json est vide
-                    jsonConfig = if (currentJson.isNotBlank()) currentJson else c.xray.jsonConfig,
-                    inputMode = "link"
-                )
-            } else {
-                // Mode JSON : sauvegarder jsonConfig ET conserver xrayLink intact
-                val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-                c.xray.copy(
-                    jsonConfig = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString(),
-                    xrayLink = if (rawLink.isNotBlank()) rawLink else c.xray.xrayLink,
-                    xrayLinkJson = if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else c.xray.xrayLinkJson,
-                    inputMode = "json"
-                )
-            }
+            // Sauvegarder les deux champs simultanément - indépendance totale
+            val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
+            val rawJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
+            c.xray.copy(
+                xrayLink = if (rawLink.isNotBlank()) rawLink else c.xray.xrayLink,
+                xrayLinkJson = if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else c.xray.xrayLinkJson,
+                jsonConfig = if (rawJson.isNotBlank()) rawJson else c.xray.jsonConfig,
+                inputMode = mode
+            )
         }
 
         val hys = c.hysteria.copy(
