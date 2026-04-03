@@ -73,7 +73,7 @@ class ConfigFragment : Fragment() {
                     etLink.setText("")
                 }
             } else if (index == 5) {
-                etJson.setText(parsedJsonFromV2dnsLink)
+                etJson.setText(if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
             }
             tabs.forEachIndexed { i, btn ->
                 btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
@@ -334,9 +334,12 @@ class ConfigFragment : Fragment() {
                     inputMode = "link"
                 )
             } else {
-                // Mode JSON : sauvegarder seulement dans jsonConfig
+                // Mode JSON : sauvegarder jsonConfig ET conserver xrayLink intact
+                val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
                 c.xray.copy(
                     jsonConfig = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString(),
+                    xrayLink = if (rawLink.isNotBlank()) rawLink else c.xray.xrayLink,
+                    xrayLinkJson = if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else c.xray.xrayLinkJson,
                     inputMode = "json"
                 )
             }
