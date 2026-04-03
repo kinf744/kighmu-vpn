@@ -55,7 +55,14 @@ class HomeFragment : Fragment() {
             spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 
             val modes = TunnelMode.values().map { it.label }
-            val adapter = ArrayAdapter(requireContext(), R.layout.spinner_item, modes)
+            val adapter = object : ArrayAdapter<String>(requireContext(), R.layout.spinner_item, modes) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val v = super.getView(position, convertView, parent)
+                    (v as TextView).setTextColor(android.graphics.Color.WHITE)
+                    v.setPadding(32, 0, 32, 0) // Ajouter du padding horizontal pour le texte sélectionné
+                    return v
+                }
+            }
             adapter.setDropDownViewResource(R.layout.spinner_item)
             spinnerMode.adapter = adapter
             spinnerMode.setSelection(viewModel.config.value.tunnelMode.ordinal)
