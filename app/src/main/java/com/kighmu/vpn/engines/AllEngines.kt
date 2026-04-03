@@ -160,8 +160,7 @@ class SshWebSocketEngine(
                 Thread.sleep(500)
                 val localSocket = android.net.LocalSocket()
                 localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    val pfd = vpnPfd!!
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                 localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                 localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
                 KighmuLogger.info(TAG, "SshWsEngine fd $fd envoye via sock-path")
@@ -290,8 +289,7 @@ class SshSslEngine(
                 Thread.sleep(500)
                 val localSocket = android.net.LocalSocket()
                 localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    val pfd = vpnPfd!!
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                 localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                 localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
                 KighmuLogger.info(TAG, "SshSslEngine fd $fd envoye via sock-path")
@@ -618,8 +616,7 @@ class XrayEngine(
                 try {
                     val localSocket = android.net.LocalSocket()
                     localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                    vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    val pfd = vpnPfd!!
+                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                     localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                     localSocket.outputStream.write(1)
                     localSocket.outputStream.flush()

@@ -274,7 +274,7 @@ class ConfigFragment : Fragment() {
         val tabIndex = when (c.tunnelMode) {
             com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
             com.kighmu.vpn.models.TunnelMode.HTTP_PROXY -> 1
-            com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET -> 2
+            com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 2
             com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 3
             com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 4
             com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 5
@@ -377,7 +377,7 @@ class ConfigFragment : Fragment() {
         val newTunnelMode = when (currentTab) {
             0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
             1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
-            2 -> com.kighmu.vpn.models.TunnelMode.SSH_WEBSOCKET
+            2 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
             3 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
             4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
             5 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
