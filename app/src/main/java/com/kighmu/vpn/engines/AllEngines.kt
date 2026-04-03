@@ -363,7 +363,10 @@ class XrayEngine(
                     if (line.length > 500) return@forEachLine
                     val skip = line.contains("accepted") || line.contains("begin stream")
                         || line.contains("Reading config") || line.contains("from tcp")
-                        || line.contains("from udp")
+                        || line.contains("from udp") || line.contains("tunneling")
+                        || line.contains("proxy") || line.contains("dial")
+                        || line.contains("connection") || line.contains("127.0.0.1")
+                        || line.isBlank()
                     if (!skip) KighmuLogger.error(TAG, "[xray] ${line.take(200)}")
                 }
             } catch (_: Exception) {}
@@ -375,7 +378,10 @@ class XrayEngine(
                     if (line.length > 500) return@forEachLine
                     val skip = line.contains("accepted") || line.contains("begin stream")
                         || line.contains("Reading config") || line.contains("from tcp")
-                        || line.contains("from udp")
+                        || line.contains("from udp") || line.contains("tunneling")
+                        || line.contains("proxy") || line.contains("dial")
+                        || line.contains("connection") || line.contains("127.0.0.1")
+                        || line.isBlank()
                     if (!skip) KighmuLogger.info(TAG, "[xray] ${line.take(200)}")
                 }
             } catch (_: Exception) {}
