@@ -63,12 +63,11 @@ class ConfigFragment : Fragment() {
                 val xray = viewModel.config.value?.xray
                 val mode = xray?.inputMode ?: "json"
                 if (mode == "link") {
-                    // Mode lien : restaurer le lien brut, vider JSON
                     val savedLink = xray?.xrayLink ?: ""
                     etLink.setText(savedLink)
-                    etJson.setText("")
+                    // Ne pas vider etJson - conserver jsonConfig intact
+                    if (etJson.text.isBlank()) etJson.setText("")
                 } else {
-                    // Mode JSON : restaurer le JSON, vider lien
                     etJson.setText(xray?.jsonConfig ?: "")
                     etLink.setText("")
                 }
@@ -325,6 +324,7 @@ class ConfigFragment : Fragment() {
 
         val xray = if (currentTab == 5) {
             // V2DNS totalement indépendant - ne touche pas aux champs Xray
+            // jsonConfig/xrayLink/xrayLinkJson/inputMode conservés via copy()
             c.xray.copy(v2dnsJsonConfig = xrayJson)
         } else {
             val mode = when (rgXray.checkedRadioButtonId) {
@@ -333,12 +333,13 @@ class ConfigFragment : Fragment() {
                 else -> if (c.xray.inputMode.isNotBlank()) c.xray.inputMode else "json"
             }
             if (mode == "link") {
-                // Mode lien : sauvegarder lien brut + JSON parsé séparément
-                // jsonConfig reste INTACT - pas de contamination
                 val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
+                val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
                 c.xray.copy(
                     xrayLink = rawLink,
                     xrayLinkJson = parsedJsonFromLink,
+                    // Conserver jsonConfig existant si et_xray_json est vide
+                    jsonConfig = if (currentJson.isNotBlank()) currentJson else c.xray.jsonConfig,
                     inputMode = "link"
                 )
             } else {
