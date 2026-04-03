@@ -73,7 +73,9 @@ class ConfigFragment : Fragment() {
                     etLink.setText("")
                 }
             } else if (index == 5) {
-                etJson.setText(if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
+                view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(
+                    if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
+                    else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
             }
             tabs.forEachIndexed { i, btn ->
                 btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
@@ -159,6 +161,7 @@ class ConfigFragment : Fragment() {
                 val json = parseLinkToJson(link)
                 if (json != null) {
                     parsedJsonFromV2dnsLink = json
+                    view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(json)
                     status.text = "✓ Config générée avec succès"
                     status.setTextColor(0xFF00C853.toInt())
                     saveConfig(view)
@@ -229,7 +232,9 @@ class ConfigFragment : Fragment() {
         if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
         // Charger la config JSON selon le tab et le mode
         if (currentTab == 5) {
-            view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.v2dnsJsonConfig)
+            view.findViewById<EditText>(R.id.et_v2dns_json).setText(
+                if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
+                else c.xray.v2dnsJsonConfig)
         } else if (c.xray.inputMode == "json") {
             // Mode JSON : charger seulement jsonConfig dans et_xray_json
             view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
@@ -306,7 +311,9 @@ class ConfigFragment : Fragment() {
         }
 
         val xrayJson = if (currentTab == 5) {
+            val v2dnsJsonField = view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).text.toString()
             when {
+                v2dnsJsonField.isNotBlank() -> v2dnsJsonField
                 parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
                 c.xray.v2dnsJsonConfig.isNotBlank() -> c.xray.v2dnsJsonConfig
                 else -> ""
