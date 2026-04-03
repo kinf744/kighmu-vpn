@@ -99,15 +99,12 @@ class ConfigFragment : Fragment() {
                 R.id.rb_xray_link -> {
                     panelLink.visibility = View.VISIBLE
                     panelJson.visibility = View.GONE
-                    // Vider le champ JSON quand on passe en mode Lien
-                    view.findViewById<android.widget.EditText>(R.id.et_xray_json).setText("")
-                    parsedJsonFromLink = ""
+                    // Ne PAS effacer les autres champs - indépendants
                 }
                 R.id.rb_xray_json -> {
                     panelJson.visibility = View.VISIBLE
                     panelLink.visibility = View.GONE
-                    // Vider le champ Lien quand on passe en mode JSON
-                    view.findViewById<android.widget.EditText>(R.id.et_xray_link).setText("")
+                    // Ne PAS effacer les autres champs - indépendants
                 }
             }
         }
