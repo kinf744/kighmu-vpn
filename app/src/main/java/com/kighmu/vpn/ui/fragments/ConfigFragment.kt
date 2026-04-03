@@ -65,10 +65,11 @@ class ConfigFragment : Fragment() {
                 // Toujours charger les deux champs indépendamment
                 etJson.setText(xray?.jsonConfig ?: "")
                 etLink.setText(xray?.xrayLink ?: "")
-                // Afficher le bon panel selon le mode
+                // Désactiver listener pendant le check pour éviter boucle
                 val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
                 val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
                 val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+                rgRestore.setOnCheckedChangeListener(null)
                 if (mode == "link") {
                     rgRestore.check(R.id.rb_xray_link)
                     pLink.visibility = android.view.View.VISIBLE
@@ -77,6 +78,24 @@ class ConfigFragment : Fragment() {
                     rgRestore.check(R.id.rb_xray_json)
                     pJson.visibility = android.view.View.VISIBLE
                     pLink.visibility = android.view.View.GONE
+                }
+                // Réactiver le listener après check
+                rgRestore.setOnCheckedChangeListener { _, id ->
+                    view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning).visibility = android.view.View.GONE
+                    when (id) {
+                        R.id.rb_xray_link -> {
+                            val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
+                            if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
+                            pLink.visibility = android.view.View.VISIBLE
+                            pJson.visibility = android.view.View.GONE
+                        }
+                        R.id.rb_xray_json -> {
+                            val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
+                            if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
+                            pJson.visibility = android.view.View.VISIBLE
+                            pLink.visibility = android.view.View.GONE
+                        }
+                    }
                 }
             } else if (index == 5) {
                 view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(
@@ -101,25 +120,7 @@ class ConfigFragment : Fragment() {
         val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
         val tvWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
 
-        rgMode.setOnCheckedChangeListener { _, id ->
-            tvWarning.visibility = View.GONE
-            when (id) {
-                R.id.rb_xray_link -> {
-                    val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
-                    if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
-                    panelLink.visibility = View.VISIBLE
-                    panelJson.visibility = View.GONE
-                    // Ne PAS effacer les autres champs - indépendants
-                }
-                R.id.rb_xray_json -> {
-                    val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-                    if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
-                    panelJson.visibility = View.VISIBLE
-                    panelLink.visibility = View.GONE
-                    // Ne PAS effacer les autres champs - indépendants
-                }
-            }
-        }
+
 
         // Parse Xray link
         view.findViewById<Button>(R.id.btn_parse_link).setOnClickListener {
