@@ -324,12 +324,13 @@ class ConfigFragment : Fragment() {
         }
 
         val xray = if (currentTab == 5) {
+            // V2DNS totalement indépendant - ne touche pas aux champs Xray
             c.xray.copy(v2dnsJsonConfig = xrayJson)
         } else {
             val mode = when (rgXray.checkedRadioButtonId) {
                 R.id.rb_xray_link -> "link"
                 R.id.rb_xray_json -> "json"
-                else -> c.xray.inputMode
+                else -> if (c.xray.inputMode.isNotBlank()) c.xray.inputMode else "json"
             }
             if (mode == "link") {
                 // Mode lien : sauvegarder lien brut + JSON parsé séparément
