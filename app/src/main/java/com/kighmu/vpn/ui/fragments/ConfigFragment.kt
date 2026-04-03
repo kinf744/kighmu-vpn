@@ -62,14 +62,21 @@ class ConfigFragment : Fragment() {
             if (index == 4) {
                 val xray = viewModel.config.value?.xray
                 val mode = xray?.inputMode ?: "json"
+                // Toujours charger les deux champs indépendamment
+                etJson.setText(xray?.jsonConfig ?: "")
+                etLink.setText(xray?.xrayLink ?: "")
+                // Afficher le bon panel selon le mode
+                val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+                val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+                val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
                 if (mode == "link") {
-                    val savedLink = xray?.xrayLink ?: ""
-                    etLink.setText(savedLink)
-                    // Ne pas vider etJson - conserver jsonConfig intact
-                    if (etJson.text.isBlank()) etJson.setText("")
+                    rgRestore.check(R.id.rb_xray_link)
+                    pLink.visibility = android.view.View.VISIBLE
+                    pJson.visibility = android.view.View.GONE
                 } else {
-                    etJson.setText(xray?.jsonConfig ?: "")
-                    etLink.setText("")
+                    rgRestore.check(R.id.rb_xray_json)
+                    pJson.visibility = android.view.View.VISIBLE
+                    pLink.visibility = android.view.View.GONE
                 }
             } else if (index == 5) {
                 view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(
@@ -100,12 +107,14 @@ class ConfigFragment : Fragment() {
                 R.id.rb_xray_link -> {
                     val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
                     if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
+                    panelLink.visibility = View.VISIBLE
                     panelJson.visibility = View.GONE
                     // Ne PAS effacer les autres champs - indépendants
                 }
                 R.id.rb_xray_json -> {
                     val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
                     if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
+                    panelJson.visibility = View.VISIBLE
                     panelLink.visibility = View.GONE
                     // Ne PAS effacer les autres champs - indépendants
                 }
