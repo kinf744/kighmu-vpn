@@ -20,10 +20,12 @@ import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
-    private lateinit var btnConnect: Button
+    private lateinit var btnConnect: com.google.android.material.button.MaterialButton
     private lateinit var tvStatus: TextView
-    private lateinit var tvMode: TextView
     private lateinit var spinnerMode: Spinner
+    private lateinit var viewGlowRing: View
+    private lateinit var cardUserMessage: androidx.cardview.widget.CardView
+    private lateinit var tvUserMessage: TextView
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.fragment_home, container, false)
@@ -34,20 +36,22 @@ class HomeFragment : Fragment() {
         try {
             btnConnect = view.findViewById(R.id.btn_connect)
             tvStatus = view.findViewById(R.id.tv_connection_status)
-            val tvUserMessage = view.findViewById<android.widget.TextView>(R.id.tv_user_message)
-            // Afficher message de la config exportée
+            viewGlowRing = view.findViewById(R.id.view_glow_ring)
+            cardUserMessage = view.findViewById(R.id.card_user_message)
+            tvUserMessage = view.findViewById(R.id.tv_user_message)
+            
+            // Afficher message de la config exportée (en bas)
             viewLifecycleOwner.lifecycleScope.launch {
                 viewModel.config.collect { cfg ->
                     val msg = cfg.exportConfig?.userMessage ?: ""
                     if (msg.isNotBlank()) {
                         tvUserMessage.text = msg
-                        tvUserMessage.visibility = android.view.View.VISIBLE
+                        cardUserMessage.visibility = android.view.View.VISIBLE
                     } else {
-                        tvUserMessage.visibility = android.view.View.GONE
+                        cardUserMessage.visibility = android.view.View.GONE
                     }
                 }
             }
-            tvMode = view.findViewById(R.id.tv_current_mode)
             spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 
             val modes = TunnelMode.values().map { it.label }
@@ -83,26 +87,24 @@ class HomeFragment : Fragment() {
                         ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> "CONNECTING"
                         else -> "DISCONNECTED"
                     }
-                    val isActive = status == ConnectionStatus.CONNECTED || 
-                        status == ConnectionStatus.CONNECTING ||
-                        status == ConnectionStatus.RECONNECTING ||
-                        status == ConnectionStatus.ERROR
-                    btnConnect.text = if (isActive) "DISCONNECT" else "CONNECT"
-
-                    // Mise à jour dynamique de la couleur du bouton
+                    
+                    // Mise à jour dynamique de la couleur du bouton et de l'anneau
                     val color = when (status) {
                         ConnectionStatus.CONNECTED -> android.graphics.Color.parseColor("#4CAF50") // Vert
                         ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING, ConnectionStatus.ERROR -> 
                             android.graphics.Color.parseColor("#F44336") // Rouge
                         else -> android.graphics.Color.parseColor("#2196F3") // Bleu par défaut
                     }
-                    btnConnect.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+                    
+                    // Appliquer la couleur à l'anneau (glow)
+                    viewGlowRing.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+                    // Appliquer la couleur au contour du bouton
+                    btnConnect.setStrokeColor(android.content.res.ColorStateList.valueOf(color))
                 }
             }
 
             viewLifecycleOwner.lifecycleScope.launch {
                 viewModel.config.collect { cfg ->
-                    tvMode.text = cfg.tunnelMode.label
                     spinnerMode.setSelection(cfg.tunnelMode.ordinal)
                 }
             }

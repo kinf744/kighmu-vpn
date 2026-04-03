@@ -1,108 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#0D1117"
-    android:padding="16dp">
+    android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tv_connection_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="DISCONNECTED"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:gravity="center"
-        android:padding="16dp"/>
-
-    <TextView
-        android:id="@+id/tv_current_mode"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Mode"
-        android:textColor="#AAAAAA"
-        android:textSize="14sp"
-        android:gravity="center"/>
-
-    <TextView
-        android:id="@+id/tv_status_message"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#AAAAAA"
-        android:textSize="12sp"
-        android:gravity="center"/>
-
-    <TextView
-        android:id="@+id/tv_config_name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#AAAAAA"
-        android:textSize="12sp"
-        android:gravity="center"/>
-
-    <TextView
-        android:id="@+id/tv_user_message"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#4FC3F7"
-        android:textSize="13sp"
-        android:gravity="center"
-        android:padding="8dp"
-        android:visibility="gone"
-        android:background="#1A2744"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="4dp"/>
-
-    <ProgressBar
-        android:id="@+id/progress_connecting"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone"/>
-
-    <Spinner
-        android:id="@+id/spinner_tunnel_mode"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="16dp"
-        android:background="@android:drawable/btn_dropdown"
-        android:backgroundTint="#1F6FEB"
-        android:spinnerMode="dropdown" />
-
-    <Button
-        android:id="@+id/btn_connect"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="CONNECT"
-        android:textColor="#FFFFFF"
-        android:backgroundTint="#2196F3"/>
-
+    <!-- 1. Top: Tunnel Mode Selector -->
     <LinearLayout
-        android:id="@+id/card_stats"
+        android:id="@+id/top_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:visibility="gone"
-        android:layout_marginTop="16dp">
+        android:layout_alignParentTop="true">
 
-        <TextView android:id="@+id/tv_upload_speed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="↑ 0"/>
-        <TextView android:id="@+id/tv_download_speed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="↓ 0"/>
-        <TextView android:id="@+id/tv_upload_total" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="0"/>
-        <TextView android:id="@+id/tv_download_total" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="0"/>
-        <TextView android:id="@+id/tv_duration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="00:00"/>
-        <TextView android:id="@+id/tv_ping" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:text="--"/>
+        <TextView
+            android:id="@+id/tv_current_mode_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TUNNEL MODE"
+            android:textColor="#4FC3F7"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="8dp"/>
+
+        <Spinner
+            android:id="@+id/spinner_tunnel_mode"
+            android:layout_width="240dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@android:drawable/btn_dropdown"
+            android:backgroundTint="#1F6FEB"
+            android:spinnerMode="dropdown" />
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/iv_vpn_status"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="center"
-        android:src="@drawable/ic_vpn_lock_off"/>
+    <!-- 2. Center: Main VPN Button with Logo -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center">
 
-</LinearLayout>
+        <FrameLayout
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:gravity="center">
+
+            <!-- Glow Ring -->
+            <View
+                android:id="@+id/view_glow_ring"
+                android:layout_width="220dp"
+                android:layout_height="220dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_vpn_button_glow" />
+
+            <!-- Main Button (Circular) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_connect"
+                android:layout_width="180dp"
+                android:layout_height="180dp"
+                android:layout_gravity="center"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Kighmu.Circle"
+                android:backgroundTint="#161B22"
+                app:strokeColor="#1F6FEB"
+                app:strokeWidth="2dp"
+                android:padding="0dp" />
+
+            <!-- Logo inside Button -->
+            <ImageView
+                android:id="@+id/iv_logo_center"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center"
+                android:src="@mipmap/ic_launcher"
+                android:scaleType="fitCenter"
+                android:elevation="8dp"
+                android:clickable="false"
+                android:focusable="false" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/tv_connection_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DISCONNECTED"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:id="@+id/tv_status_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Secure your connection"
+            android:textColor="#8B949E"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <!-- 3. Bottom: User Message (Config/Cloud) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_user_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:visibility="gone"
+        app:cardBackgroundColor="#1A2744"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_dialog_info"
+                app:tint="#4FC3F7"
+                android:layout_marginEnd="12dp"/>
+
+            <TextView
+                android:id="@+id/tv_user_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Message from config"
+                android:textColor="#E6EDF3"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</RelativeLayout>
