@@ -67,8 +67,11 @@
     <Spinner
         android:id="@+id/spinner_tunnel_mode"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"/>
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:background="@android:drawable/btn_dropdown"
+        android:backgroundTint="#1F6FEB"
+        android:spinnerMode="dropdown" />
 
     <Button
         android:id="@+id/btn_connect"

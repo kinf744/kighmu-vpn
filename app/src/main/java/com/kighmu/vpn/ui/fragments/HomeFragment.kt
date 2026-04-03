@@ -51,8 +51,8 @@ class HomeFragment : Fragment() {
             spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 
             val modes = TunnelMode.values().map { it.label }
-            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, modes)
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            val adapter = ArrayAdapter(requireContext(), R.layout.spinner_item, modes)
+            adapter.setDropDownViewResource(R.layout.spinner_item)
             spinnerMode.adapter = adapter
             spinnerMode.setSelection(viewModel.config.value.tunnelMode.ordinal)
 
