@@ -100,10 +100,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         saveConfig(_config.value.copy(httpProxy = proxy))
     }
 
-    fun updateSshWebSocket(ws: SshWebSocketConfig) {
-        saveConfig(_config.value.copy(sshWebSocket = ws))
-    }
-
     fun updateSshSsl(ssl: SshSslConfig) {
         saveConfig(_config.value.copy(sshSsl = ssl))
     }

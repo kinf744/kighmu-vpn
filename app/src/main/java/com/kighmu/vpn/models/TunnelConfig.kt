@@ -83,23 +83,6 @@ data class HttpProxyConfig(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SSH WebSocket Config
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-data class SshWebSocketConfig(
-    @SerializedName("sshHost") var sshHost: String = "",
-    @SerializedName("sshPort") var sshPort: Int = 22,
-    @SerializedName("sshUser") var sshUser: String = "",
-    @SerializedName("sshPass") var sshPass: String = "",
-    @SerializedName("wsHost") var wsHost: String = "",
-    @SerializedName("wsPort") var wsPort: Int = 80,
-    @SerializedName("wsPath") var wsPath: String = "/",
-    @SerializedName("useWss") var useWss: Boolean = false,
-    @SerializedName("wsHeaders") var wsHeaders: MutableMap<String, String> = mutableMapOf()
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
 // SSH SSL/TLS Config
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -195,7 +178,6 @@ data class KighmuConfig(
     @SerializedName("slowDnsProfiles") var slowDnsProfiles: MutableList<SlowDnsConfig> = mutableListOf(),
     @SerializedName("exportConfig") var exportConfig: ExportConfig? = null,
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
-    @SerializedName("sshWebSocket") var sshWebSocket: SshWebSocketConfig = SshWebSocketConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
     @SerializedName("xray") var xray: XrayConfig = XrayConfig(),
     @SerializedName("hysteria") var hysteria: HysteriaConfig = HysteriaConfig(),

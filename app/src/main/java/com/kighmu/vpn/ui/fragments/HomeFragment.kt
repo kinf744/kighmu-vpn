@@ -54,7 +54,7 @@ class HomeFragment : Fragment() {
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, modes)
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             spinnerMode.adapter = adapter
-            spinnerMode.setSelection(viewModel.config.value.tunnelMode.id)
+            spinnerMode.setSelection(viewModel.config.value.tunnelMode.ordinal)
 
             spinnerMode.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
@@ -94,7 +94,7 @@ class HomeFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch {
                 viewModel.config.collect { cfg ->
                     tvMode.text = cfg.tunnelMode.label
-                    spinnerMode.setSelection(cfg.tunnelMode.id)
+                    spinnerMode.setSelection(cfg.tunnelMode.ordinal)
                 }
             }
         } catch (e: Exception) {

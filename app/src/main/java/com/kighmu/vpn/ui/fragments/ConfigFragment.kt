@@ -40,7 +40,6 @@ class ConfigFragment : Fragment() {
         val tabs = listOf(
             view.findViewById<Button>(R.id.tab_slowdns),
             view.findViewById<Button>(R.id.tab_http),
-            view.findViewById<Button>(R.id.tab_ws),
             view.findViewById<Button>(R.id.tab_ssl),
             view.findViewById<Button>(R.id.tab_xray),
             view.findViewById<Button>(R.id.tab_v2dns),
@@ -50,7 +49,6 @@ class ConfigFragment : Fragment() {
         val panels = listOf(
             view.findViewById<LinearLayout>(R.id.panel_slowdns),
             view.findViewById<LinearLayout>(R.id.panel_http),
-            view.findViewById<LinearLayout>(R.id.panel_ws),
             view.findViewById<LinearLayout>(R.id.panel_ssl),
             view.findViewById<LinearLayout>(R.id.panel_xray),
             view.findViewById<LinearLayout>(R.id.panel_v2dns),
@@ -222,14 +220,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_proxy_host).setText(c.httpProxy.proxyHost)
         view.findViewById<EditText>(R.id.et_proxy_port).setText(c.httpProxy.proxyPort.toString())
         view.findViewById<EditText>(R.id.et_payload).setText(c.httpProxy.customPayload)
-        // WS
-        view.findViewById<EditText>(R.id.et_ws_ssh_host).setText(c.sshWebSocket.sshHost)
-        view.findViewById<EditText>(R.id.et_ws_ssh_port).setText(c.sshWebSocket.sshPort.toString())
-        view.findViewById<EditText>(R.id.et_ws_ssh_user).setText(c.sshWebSocket.sshUser)
-        view.findViewById<EditText>(R.id.et_ws_ssh_pass).setText(c.sshWebSocket.sshPass)
-        view.findViewById<EditText>(R.id.et_ws_host).setText(c.sshWebSocket.wsHost)
-        view.findViewById<EditText>(R.id.et_ws_port).setText(c.sshWebSocket.wsPort.toString())
-        view.findViewById<EditText>(R.id.et_ws_path).setText(c.sshWebSocket.wsPath)
+
         // SSL
         view.findViewById<EditText>(R.id.et_ssl_ssh_host).setText(c.sshSsl.sshHost)
         view.findViewById<EditText>(R.id.et_ssl_ssh_port).setText(c.sshSsl.sshPort.toString())
@@ -275,10 +266,9 @@ class ConfigFragment : Fragment() {
             com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
             com.kighmu.vpn.models.TunnelMode.HTTP_PROXY -> 1
             com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 2
-            com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 3
-            com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 4
-            com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 5
-            com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 6
+            com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 3
+            com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 4
+            com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 5
             else -> 0
         }
         currentTab = tabIndex
@@ -295,16 +285,6 @@ class ConfigFragment : Fragment() {
             proxyHost = view.findViewById<EditText>(R.id.et_proxy_host).text.toString(),
             proxyPort = view.findViewById<EditText>(R.id.et_proxy_port).text.toString().toIntOrNull() ?: 8080,
             customPayload = view.findViewById<EditText>(R.id.et_payload).text.toString()
-        )
-
-        val ws = c.sshWebSocket.copy(
-            sshHost = view.findViewById<EditText>(R.id.et_ws_ssh_host).text.toString(),
-            sshPort = view.findViewById<EditText>(R.id.et_ws_ssh_port).text.toString().toIntOrNull() ?: 22,
-            sshUser = view.findViewById<EditText>(R.id.et_ws_ssh_user).text.toString(),
-            sshPass = view.findViewById<EditText>(R.id.et_ws_ssh_pass).text.toString(),
-            wsHost = view.findViewById<EditText>(R.id.et_ws_host).text.toString(),
-            wsPort = view.findViewById<EditText>(R.id.et_ws_port).text.toString().toIntOrNull() ?: 80,
-            wsPath = view.findViewById<EditText>(R.id.et_ws_path).text.toString()
         )
 
         val ssl = c.sshSsl.copy(
@@ -378,10 +358,9 @@ class ConfigFragment : Fragment() {
             0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
             1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
             2 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
-            3 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
-            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
-            5 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
-            6 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+            3 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
+            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
+            5 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
             else -> c.tunnelMode
         }
 
@@ -390,7 +369,6 @@ class ConfigFragment : Fragment() {
         viewModel.saveConfig(c.copy(
             tunnelMode = newTunnelMode,
             httpProxy = http,
-            sshWebSocket = ws,
             sshSsl = ssl,
             slowDns = dns,
             xray = xray,
