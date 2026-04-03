@@ -98,12 +98,14 @@ class ConfigFragment : Fragment() {
             tvWarning.visibility = View.GONE
             when (id) {
                 R.id.rb_xray_link -> {
-                    panelLink.visibility = View.VISIBLE
+                    val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
+                    if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
                     panelJson.visibility = View.GONE
                     // Ne PAS effacer les autres champs - indépendants
                 }
                 R.id.rb_xray_json -> {
-                    panelJson.visibility = View.VISIBLE
+                    val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
+                    if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
                     panelLink.visibility = View.GONE
                     // Ne PAS effacer les autres champs - indépendants
                 }
