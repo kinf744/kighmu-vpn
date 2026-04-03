@@ -88,6 +88,15 @@ class HomeFragment : Fragment() {
                         status == ConnectionStatus.RECONNECTING ||
                         status == ConnectionStatus.ERROR
                     btnConnect.text = if (isActive) "DISCONNECT" else "CONNECT"
+
+                    // Mise à jour dynamique de la couleur du bouton
+                    val color = when (status) {
+                        ConnectionStatus.CONNECTED -> android.graphics.Color.parseColor("#4CAF50") // Vert
+                        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING, ConnectionStatus.ERROR -> 
+                            android.graphics.Color.parseColor("#F44336") // Rouge
+                        else -> android.graphics.Color.parseColor("#2196F3") // Bleu par défaut
+                    }
+                    btnConnect.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
                 }
             }
 
