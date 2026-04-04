@@ -74,11 +74,45 @@ class KighmuVpnService : VpnService() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
-                // Ecrire dans stockage externe accessible
                 val crashFile = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_crash.txt")
-                val stack = throwable.stackTrace.take(10).joinToString("|")
-                val msg = "CRASH: " + throwable.javaClass.name + " | " + throwable.message + " | Thread: " + thread.name + " | " + stack
-                crashFile.writeText(msg)
+                val sb = StringBuilder()
+                sb.appendLine("====== KIGHMU VPN CRASH REPORT ======")
+                sb.appendLine("Date: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+                sb.appendLine("Thread: ${thread.name} (id=${thread.id})")
+                sb.appendLine("======================================")
+                sb.appendLine()
+                sb.appendLine("--- EXCEPTION ---")
+                sb.appendLine("Type: ${throwable.javaClass.name}")
+                sb.appendLine("Message: ${throwable.message}")
+                sb.appendLine()
+                sb.appendLine("--- CAUSE ---")
+                var cause = throwable.cause
+                while (cause != null) {
+                    sb.appendLine("Caused by: ${cause.javaClass.name}: ${cause.message}")
+                    cause = cause.cause
+                }
+                sb.appendLine()
+                sb.appendLine("--- STACK TRACE ---")
+                throwable.stackTrace.forEach { sb.appendLine("  at $it") }
+                sb.appendLine()
+                sb.appendLine("--- DEVICE INFO ---")
+                sb.appendLine("Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+                sb.appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                sb.appendLine("ABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
+                sb.appendLine()
+                sb.appendLine("--- NATIVE LIBS ---")
+                try {
+                    val nativeDir = applicationInfo.nativeLibraryDir
+                    sb.appendLine("NativeLibDir: $nativeDir")
+                    java.io.File(nativeDir).listFiles()?.forEach {
+                        sb.appendLine("  ${it.name} (${it.length()} bytes)")
+                    }
+                } catch (e: Exception) { sb.appendLine("Error: ${e.message}") }
+                sb.appendLine()
+                sb.appendLine("--- VPN STATE ---")
+                sb.appendLine("TunnelMode: ${currentConfig?.tunnelMode?.name ?: "unknown"}")
+                sb.appendLine("======================================")
+                crashFile.writeText(sb.toString())
             } catch (_: Exception) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
