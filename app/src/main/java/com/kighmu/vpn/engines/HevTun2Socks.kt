@@ -1,30 +1,30 @@
 package com.kighmu.vpn.engines
 
+import android.content.Context
 import android.util.Log
+import hev.htproxy.TProxyService
+import java.io.File
 
 object HevTun2Socks {
-    private var loaded = false
     const val TAG = "HevTun2Socks"
 
-    init {
-        try {
-            System.loadLibrary("tun2socks")
-            loaded = true
-            Log.i(TAG, "hev-socks5-tunnel chargé ✅")
-        } catch (e: Throwable) {
-            Log.e(TAG, "Load failed: ${e.message}")
-        }
+    val isAvailable get() = TProxyService.isAvailable
+
+    fun start(context: Context, fd: Int, socksPort: Int, mtu: Int = 8500) {
+        val config = buildConfig(socksPort, mtu)
+        val configFile = File(context.cacheDir, "hev_config.yaml")
+        configFile.writeText(config)
+        Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
+        TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
-    val isAvailable get() = loaded
+    fun stop() {
+        TProxyService.TProxyStopService()
+    }
 
-    external fun hev_socks5_tunnel_main_from_str(config: String, len: Int): Int
-    external fun hev_socks5_tunnel_stop()
-
-    fun buildConfig(tunFd: Int, socksPort: Int, mtu: Int = 8500): String {
+    private fun buildConfig(socksPort: Int, mtu: Int): String {
         return """
 tunnel:
-  fd: $tunFd
   mtu: $mtu
   ipv4: 198.18.0.1
 
@@ -36,11 +36,5 @@ socks5:
 misc:
   log-level: warn
 """.trimIndent()
-    }
-
-    fun buildConfigMulti(tunFd: Int, socksPorts: List<Int>, mtu: Int = 8500): String {
-        // hev utilise un seul port — on prend le premier
-        // Le balancing se fait au niveau SSH
-        return buildConfig(tunFd, socksPorts.first(), mtu)
     }
 }
