@@ -19,25 +19,25 @@ jobs:
           echo "NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
 
       - name: Clone hev-socks5-tunnel
-        run: git clone --depth=1 https://github.com/heiher/hev-socks5-tunnel.git
+        run: |
+          git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
+          ls hev-socks5-tunnel/
 
       - name: Build armeabi-v7a
         run: |
           cd hev-socks5-tunnel
-          mkdir build && cd build
-          cmake .. \
-            -DCMAKE_TOOLCHAIN_FILE=$NDK_HOME/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=armeabi-v7a \
-            -DANDROID_PLATFORM=android-21 \
-            -DANDROID_STL=c++_static \
-            -DCMAKE_BUILD_TYPE=Release
-          make -j$(nproc)
+          ls
+          # hev utilise un Makefile avec ANDROID_NDK
+          export ANDROID_NDK=$NDK_HOME
+          make ARCH=arm ANDROID_API=21 \
+            CC=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang \
+            STRIP=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
           find . -type f -executable | head -10
           find . -name "*.so" | head -10
 
       - name: Copy binary
         run: |
-          BINARY=$(find hev-socks5-tunnel/build -type f -executable | head -1)
+          BINARY=$(find hev-socks5-tunnel -type f -executable -not -path "*/.git/*" | head -1)
           echo "Binary: $BINARY"
           cp "$BINARY" libtun2socks.so
           ls -lh libtun2socks.so
