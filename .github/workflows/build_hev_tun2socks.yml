@@ -18,11 +18,6 @@ jobs:
       - name: Clone hev-socks5-tunnel
         run: git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
 
-      - name: Check Android.mk
-        run: |
-          cat hev-socks5-tunnel/Android.mk
-          cat hev-socks5-tunnel/Application.mk
-
       - name: Build with ndk-build
         run: |
           cd hev-socks5-tunnel
@@ -31,16 +26,13 @@ jobs:
             APP_BUILD_SCRIPT=Android.mk \
             APP_ABI=armeabi-v7a \
             APP_PLATFORM=android-21 \
+            APP_CFLAGS="-DANDROID -DPKGNAME=hev/htproxy -DCLSNAME=TProxyService" \
             NDK_OUT=build/obj \
-            NDK_LIBS_OUT=build/libs \
-            V=1 2>&1 | tail -30
-          echo "=== Tous les fichiers produits ==="
-          find build/ -type f 2>/dev/null || echo "Aucun fichier dans build/"
-          find . -name "*.so" -o -name "hev-socks5-tunnel" 2>/dev/null | grep -v ".git"
+            NDK_LIBS_OUT=build/libs
+          find build/libs -type f
 
-      - name: Upload all build output
-        if: always()
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hev-build-output
-          path: hev-socks5-tunnel/build/
+          name: hev-socks5-tunnel-armeabi-v7a
+          path: hev-socks5-tunnel/build/libs/armeabi-v7a/
