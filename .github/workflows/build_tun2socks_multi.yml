@@ -53,9 +53,13 @@ jobs:
             -DBUILD_TUN2SOCKS=1 \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS="-DBADVPN_USE_SELFPIPE -DBADVPN_LINUX"
-          make -j$(nproc) 2>&1
-          cp tun2socks/tun2socks ../../libtun2socks.so
-          echo "Build OK"
+          make -j$(nproc)
+          echo "=== Contenu tun2socks/ ==="
+          find tun2socks/ -type f
+          find . -name "tun2socks" -o -name "tun2socks.so" | head -5
+          cp tun2socks/tun2socks ../../libtun2socks.so || \
+          cp tun2socks/libtun2socks.so ../../libtun2socks.so || \
+          find . -name "tun2socks*" -exec cp {} ../../libtun2socks.so \;
           ls -lh ../../libtun2socks.so
 
       - name: Upload artifact
