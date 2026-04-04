@@ -26,73 +26,18 @@ jobs:
           cd badvpn
           python3 << 'PYEOF'
           content = open('tun2socks/tun2socks.c').read()
-
-          # 1. Ajouter include atomique après les includes existants
-          content = content.replace(
-              '#include <system/BAddr.h>',
-              '#include <system/BAddr.h>\n#include <stdatomic.h>\n#define MAX_SOCKS_SERVERS 8'
-          )
-
-          # 2. Transformer BAddr socks_server_addr en tableau
-          content = content.replace(
-              'BAddr socks_server_addr;',
-              'BAddr socks_server_addrs[MAX_SOCKS_SERVERS];\nint socks_server_count = 0;\nstatic atomic_int socks_round_robin = 0;'
-          )
-
-          # 3. Remplacer char *socks_server_addr dans options
-          content = content.replace(
-              '    char *socks_server_addr;',
-              '    char *socks_server_addr[MAX_SOCKS_SERVERS];\n    int socks_server_addr_count;'
-          )
-
-          # 4. Init options
-          content = content.replace(
-              '    options.socks_server_addr = NULL;',
-              '    options.socks_server_addr_count = 0;\n    for (int _i=0; _i<MAX_SOCKS_SERVERS; _i++) options.socks_server_addr[_i] = NULL;'
-          )
-
-          # 5. Parsing argument --socks-server-addr (peut être répété)
-          content = content.replace(
-              '            options.socks_server_addr = argv[i + 1];',
-              '            if (options.socks_server_addr_count < MAX_SOCKS_SERVERS) { options.socks_server_addr[options.socks_server_addr_count++] = argv[i + 1]; }'
-          )
-
-          # 6. Validation
-          content = content.replace(
-              '    if (!options.socks_server_addr) {',
-              '    if (options.socks_server_addr_count == 0) {'
-          )
-
-          # 7. Parse des adresses
-          content = content.replace(
-              '    if (!BAddr_Parse2(&socks_server_addr, options.socks_server_addr, NULL, 0, 0)) {',
-              '    socks_server_count = options.socks_server_addr_count;\n    for (int _i=0; _i<socks_server_count; _i++) {\n    if (!BAddr_Parse2(&socks_server_addrs[_i], options.socks_server_addr[_i], NULL, 0, 0)) {'
-          )
-
-          # Fermer la boucle après l'erreur de parse
-          content = content.replace(
-              '    if (!BAddr_Parse2(&socks_server_addrs[_i], options.socks_server_addr[_i], NULL, 0, 0)) {\n        BLog(BLOG_ERROR, "',
-              '    if (!BAddr_Parse2(&socks_server_addrs[_i], options.socks_server_addr[_i], NULL, 0, 0)) {\n        BLog(BLOG_ERROR, "'
-          )
-
-          # 8. Round-robin dans BSocksClient_Init
-          content = content.replace(
-              '        socks_server_addr, socks_auth_info, socks_num_auth_info, addr, /*udp=*/false,',
-              '        socks_server_addrs[atomic_fetch_add(&socks_round_robin, 1) % socks_server_count], socks_auth_info, socks_num_auth_info, addr, /*udp=*/false,'
-          )
-
-          # 9. udpgw aussi
-          content = content.replace(
-              'options.udpgw_connection_buffer_size, UDPGW_KEEPALIVE_TIME, socks_server_addr,',
-              'options.udpgw_connection_buffer_size, UDPGW_KEEPALIVE_TIME, socks_server_addrs[0],'
-          )
-          content = content.replace(
-              'SOCKS_UDP_SEND_BUFFER_PACKETS, UDPGW_KEEPALIVE_TIME, socks_server_addr,',
-              'SOCKS_UDP_SEND_BUFFER_PACKETS, UDPGW_KEEPALIVE_TIME, socks_server_addrs[0],'
-          )
-
+          content = content.replace('#include <system/BAddr.h>', '#include <system/BAddr.h>\n#include <stdatomic.h>\n#define MAX_SOCKS_SERVERS 8')
+          content = content.replace('BAddr socks_server_addr;', 'BAddr socks_server_addrs[MAX_SOCKS_SERVERS];\nint socks_server_count = 0;\nstatic atomic_int socks_round_robin = 0;')
+          content = content.replace('    char *socks_server_addr;', '    char *socks_server_addr[MAX_SOCKS_SERVERS];\n    int socks_server_addr_count;')
+          content = content.replace('    options.socks_server_addr = NULL;', '    options.socks_server_addr_count = 0;\n    for (int _i=0; _i<MAX_SOCKS_SERVERS; _i++) options.socks_server_addr[_i] = NULL;')
+          content = content.replace('            options.socks_server_addr = argv[i + 1];', '            if (options.socks_server_addr_count < MAX_SOCKS_SERVERS) { options.socks_server_addr[options.socks_server_addr_count++] = argv[i + 1]; }')
+          content = content.replace('    if (!options.socks_server_addr) {', '    if (options.socks_server_addr_count == 0) {')
+          content = content.replace('    if (!BAddr_Parse2(&socks_server_addr, options.socks_server_addr, NULL, 0, 0)) {', '    socks_server_count = options.socks_server_addr_count;\n    for (int _i=0; _i<socks_server_count; _i++) { if (!BAddr_Parse2(&socks_server_addrs[_i], options.socks_server_addr[_i], NULL, 0, 0)) { BLog(BLOG_ERROR, "parse failed"); return 0; } }\n    if (0) {')
+          content = content.replace('        socks_server_addr, socks_auth_info, socks_num_auth_info, addr, /*udp=*/false,', '        socks_server_addrs[atomic_fetch_add(&socks_round_robin, 1) % socks_server_count], socks_auth_info, socks_num_auth_info, addr, /*udp=*/false,')
+          content = content.replace('options.udpgw_connection_buffer_size, UDPGW_KEEPALIVE_TIME, socks_server_addr,', 'options.udpgw_connection_buffer_size, UDPGW_KEEPALIVE_TIME, socks_server_addrs[0],')
+          content = content.replace('SOCKS_UDP_SEND_BUFFER_PACKETS, UDPGW_KEEPALIVE_TIME, socks_server_addr,', 'SOCKS_UDP_SEND_BUFFER_PACKETS, UDPGW_KEEPALIVE_TIME, socks_server_addrs[0],')
           open('tun2socks/tun2socks.c', 'w').write(content)
-          print("Patch appliqué!")
+          print("Patch OK!")
           PYEOF
 
       - name: Build armeabi-v7a
@@ -106,7 +51,8 @@ jobs:
             -DANDROID_STL=c++_static \
             -DBUILD_NOTHING_BY_DEFAULT=1 \
             -DBUILD_TUN2SOCKS=1 \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-DBADVPN_THREAD_SAFE=0 -DBADVPN_USE_SELFPIPE -DBADVPN_LINUX"
           make -j$(nproc)
           cp tun2socks/tun2socks ../../libtun2socks.so
 
