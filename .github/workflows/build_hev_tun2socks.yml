@@ -9,9 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get install -y cmake ninja-build
-
       - name: Setup Android NDK
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
@@ -19,25 +16,31 @@ jobs:
           echo "NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
 
       - name: Clone hev-socks5-tunnel
+        run: git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
+
+      - name: Fix fd_set conflict
         run: |
-          git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
-          ls hev-socks5-tunnel/
+          cd hev-socks5-tunnel
+          # Supprimer le typedef fd_set conflictuel
+          sed -i 's/typedef __kernel_fd_set fd_set;//g' \
+            third-part/lwip/src/ports/unix/include/cc.h 2>/dev/null || true
+          find . -name "cc.h" | xargs grep -l "kernel_fd_set" | \
+            xargs sed -i 's/typedef __kernel_fd_set fd_set;//g' 2>/dev/null || true
 
       - name: Build armeabi-v7a
         run: |
           cd hev-socks5-tunnel
-          ls
-          # hev utilise un Makefile avec ANDROID_NDK
-          export ANDROID_NDK=$NDK_HOME
-          make ARCH=arm ANDROID_API=21 \
-            CC=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang \
-            STRIP=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
-          find . -type f -executable | head -10
-          find . -name "*.so" | head -10
+          CC=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang
+          make \
+            CC=$CC \
+            CFLAGS="-D__ANDROID__ -DANDROID -fPIE" \
+            LDFLAGS="-fPIE -pie" \
+            ARCH=arm
+          find . -type f -executable -not -path "*/.git/*" | head -10
 
       - name: Copy binary
         run: |
-          BINARY=$(find hev-socks5-tunnel -type f -executable -not -path "*/.git/*" | head -1)
+          BINARY=$(find hev-socks5-tunnel -type f -executable -not -path "*/.git/*" | grep -v "\.sh" | head -1)
           echo "Binary: $BINARY"
           cp "$BINARY" libtun2socks.so
           ls -lh libtun2socks.so
