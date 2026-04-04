@@ -2,24 +2,37 @@ package com.kighmu.vpn.engines
 
 import android.content.Context
 import android.util.Log
-import hev.htproxy.TProxyService
 import java.io.File
 
 object HevTun2Socks {
     const val TAG = "HevTun2Socks"
+    private var loaded = false
 
-    val isAvailable get() = TProxyService.isAvailable
+    fun init() {
+        if (!loaded) {
+            try {
+                // Enregistrer la classe avant loadLibrary
+                Class.forName("hev.htproxy.TProxyService")
+                hev.htproxy.TProxyService.load()
+                loaded = hev.htproxy.TProxyService.isAvailable
+            } catch (e: Throwable) {
+                Log.e(TAG, "Init failed: ${e.message}")
+            }
+        }
+    }
+
+    val isAvailable get() = loaded
 
     fun start(context: Context, fd: Int, socksPort: Int, mtu: Int = 8500) {
         val config = buildConfig(socksPort, mtu)
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
-        TProxyService.TProxyStartService(configFile.absolutePath, fd)
+        hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
     fun stop() {
-        TProxyService.TProxyStopService()
+        if (loaded) hev.htproxy.TProxyService.TProxyStopService()
     }
 
     private fun buildConfig(socksPort: Int, mtu: Int): String {
