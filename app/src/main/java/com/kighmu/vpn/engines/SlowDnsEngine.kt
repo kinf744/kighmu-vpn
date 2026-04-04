@@ -141,6 +141,18 @@ class SlowDnsEngine(
                     t.start()
                     KighmuLogger.info(TAG, "fd $fd envoye via JNI")
                     return@launch
+                } else if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+                    // Utiliser hev-socks5-tunnel JNI (fallback rapide)
+                    KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
+                    val config = com.kighmu.vpn.engines.HevTun2Socks.buildConfig(fd, targetPort, MTU)
+                    val t = Thread {
+                        com.kighmu.vpn.engines.HevTun2Socks.hev_socks5_tunnel_main_from_str(config, config.length)
+                        KighmuLogger.info(TAG, "hev tun2socks JNI terminé")
+                    }
+                    t.isDaemon = true
+                    t.start()
+                    KighmuLogger.info(TAG, "hev fd $fd démarré via JNI")
+                    return@launch
                 }
                 // Fallback: processus externe
                 val nativeDir = context.applicationInfo.nativeLibraryDir
