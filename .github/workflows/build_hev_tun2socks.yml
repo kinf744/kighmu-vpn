@@ -18,31 +18,22 @@ jobs:
       - name: Clone hev-socks5-tunnel
         run: git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
 
-      - name: Fix fd_set conflict
+      - name: Build with Android.mk
         run: |
           cd hev-socks5-tunnel
-          # Supprimer le typedef fd_set conflictuel
-          sed -i 's/typedef __kernel_fd_set fd_set;//g' \
-            third-part/lwip/src/ports/unix/include/cc.h 2>/dev/null || true
-          find . -name "cc.h" | xargs grep -l "kernel_fd_set" | \
-            xargs sed -i 's/typedef __kernel_fd_set fd_set;//g' 2>/dev/null || true
-
-      - name: Build armeabi-v7a
-        run: |
-          cd hev-socks5-tunnel
-          CC=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang
-          make \
-            CC=$CC \
-            CFLAGS="-D__ANDROID__ -DANDROID -fPIE" \
-            LDFLAGS="-fPIE -pie" \
-            ARCH=arm
-          find . -type f -executable -not -path "*/.git/*" | head -10
+          $NDK_HOME/ndk-build \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=Android.mk \
+            APP_ABI=armeabi-v7a \
+            APP_PLATFORM=android-21 \
+            NDK_OUT=build/obj \
+            NDK_LIBS_OUT=build/libs
+          find build/ -type f | head -20
 
       - name: Copy binary
         run: |
-          BINARY=$(find hev-socks5-tunnel -type f -executable -not -path "*/.git/*" | grep -v "\.sh" | head -1)
-          echo "Binary: $BINARY"
-          cp "$BINARY" libtun2socks.so
+          find hev-socks5-tunnel/build -type f | head -20
+          cp $(find hev-socks5-tunnel/build -type f | head -1) libtun2socks.so
           ls -lh libtun2socks.so
 
       - name: Upload artifact
