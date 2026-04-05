@@ -60,10 +60,10 @@ new_end = '''    /* Support multiple ports: addr can be "host:p1,p2,p3" or port 
             if (udpa)
                 strncpy (srv[srv_count].udp_addr, udpa, 255);
             if (user && pass) {
-                strncpy (_user[srv_count][0], user, 255);
-                strncpy (_pass[srv_count][0], pass, 255);
-                srv[srv_count].user = &_user[srv_count][0];
-                srv[srv_count].pass = &_pass[srv_count][0];
+                strncpy (_user + srv_count * 256, user, 255);
+                strncpy (_pass + srv_count * 256, pass, 255);
+                srv[srv_count].user = _user + srv_count * 256;
+                srv[srv_count].pass = _pass + srv_count * 256;
             }
             if (mark)
                 srv[srv_count].mark = strtoul (mark, NULL, 0);
