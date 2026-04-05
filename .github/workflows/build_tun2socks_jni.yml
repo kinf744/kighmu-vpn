@@ -12,58 +12,72 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
 
-      - name: Setup Android NDK
+      - name: Setup Android SDK
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
           unzip -q android-ndk-r26d-linux.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
+          echo "NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
 
       - name: Install gomobile
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
           gomobile init
 
       - name: Create JNI wrapper
         run: |
           mkdir -p tun2socks_jni
           cat > tun2socks_jni/go.mod << 'GOMOD'
-          module github.com/kighmu/tun2socks_jni
+module github.com/kighmu/tun2socks_jni
 
-          go 1.21
+go 1.23
 
-          require github.com/xjasonlyu/tun2socks/v2 v2.6.0
-          GOMOD
+require (
+    github.com/xjasonlyu/tun2socks/v2 v2.6.0
+    golang.org/x/mobile v0.0.0-20240604190613-2782386b8afd
+)
+GOMOD
 
           cat > tun2socks_jni/tun2socks.go << 'GOCODE'
-          package tun2socks_jni
+package tun2socks_jni
 
-          import (
-            "github.com/xjasonlyu/tun2socks/v2/engine"
-          )
+import (
+    "fmt"
+    "github.com/xjasonlyu/tun2socks/v2/engine"
+)
 
-          // StartTun2Socks starts tun2socks with a TUN fd and SOCKS5 proxy
-          func StartTun2Socks(tunFd int, socksAddr string, mtu int) error {
-            key := &engine.Key{
-              Device: fmt.Sprintf("fd://%d", tunFd),
-              Proxy:  socksAddr,
-              MTU:    mtu,
-            }
-            engine.Insert(key)
-            engine.Start()
-            return nil
-          }
+var started bool
 
-          // StopTun2Socks stops tun2socks
-          func StopTun2Socks() {
-            engine.Stop()
-          }
-          GOCODE
+// StartTun2Socks starts tun2socks with a TUN fd and SOCKS5 proxy
+func StartTun2Socks(tunFd int, socksAddr string, mtu int) error {
+    if started {
+        engine.Stop()
+    }
+    key := &engine.Key{
+        Device: fmt.Sprintf("fd://%d", tunFd),
+        Proxy:  socksAddr,
+        MTU:    mtu,
+    }
+    engine.Insert(key)
+    engine.Start()
+    started = true
+    return nil
+}
+
+// StopTun2Socks stops tun2socks
+func StopTun2Socks() {
+    engine.Stop()
+    started = false
+}
+GOCODE
 
       - name: Build AAR
         run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
           cd tun2socks_jni
           go mod tidy
           gomobile bind \
@@ -76,5 +90,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tun2socks-jni-armeabi-v7a
+          name: tun2socks-jni-aar
           path: tun2socks_jni/tun2socks_jni.aar
