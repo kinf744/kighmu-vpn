@@ -32,6 +32,7 @@ object HevTun2Socks {
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd ports=$socksPorts")
+        Log.i(TAG, "Config YAML:\n$config")
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
