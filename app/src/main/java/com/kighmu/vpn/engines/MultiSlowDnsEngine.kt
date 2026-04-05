@@ -162,6 +162,7 @@ class MultiSlowDnsEngine(
 
     override suspend fun stop() {
         KighmuLogger.info(TAG, "Arrêt de ${engines.size} session(s)...")
+        com.kighmu.vpn.engines.HevTun2Socks.stop()
         engines.forEach { try { it.stop() } catch (_: Exception) {} }
         engines.clear()
         scope.cancel()

@@ -53,13 +53,11 @@ object HevTun2Socks {
             sb.appendLine("  address: 127.0.0.1")
             sb.appendLine("  udp: udp")
         } else {
-            // Liste directe sous socks5 pour YAML_SEQUENCE_NODE
-            socksPorts.forEach { port ->
-                sb.appendLine("socks5:")
-                sb.appendLine("  - address: 127.0.0.1")
-                sb.appendLine("    port: $port")
-                sb.appendLine("    udp: udp")
-            }
+            // Un seul socks5 valide - hev round-robin géré en C
+            sb.appendLine("socks5:")
+            sb.appendLine("  port: ${socksPorts[0]}")
+            sb.appendLine("  address: 127.0.0.1")
+            sb.appendLine("  udp: udp")
         }
         sb.appendLine("misc:")
         sb.appendLine("  log-level: warn")
