@@ -24,17 +24,39 @@ jobs:
           unzip -q android-ndk-r25c-linux.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r25c" >> $GITHUB_ENV
 
-      - name: Clone and build go-tun2socks-android
+      - name: Install gomobile correctly
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
-          git clone https://github.com/eycorsican/go-tun2socks-android.git
-          cd go-tun2socks-android
-          cat Makefile | head -20
-          ls -la
+          # Créer workspace pour gomobile
+          mkdir -p /tmp/gomobile_ws
+          cd /tmp/gomobile_ws
+          go mod init gomobile_ws
+          go get golang.org/x/mobile@v0.0.0-20231127183840-76ac6878050a
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20231127183840-76ac6878050a
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20231127183840-76ac6878050a
+          # Copier bind dans GOPATH
+          cp -r $(go env GOMODCACHE)/golang.org/x/mobile@v0.0.0-20231127183840-76ac6878050a $GOPATH/src/golang.org/x/mobile 2>/dev/null || true
+          gomobile init -v
 
-      - name: Upload source info
+      - name: Build AAR
+        run: |
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOPATH/bin
+          cd tun2socks_jni
+          go mod edit -go=1.21
+          go mod edit -require=github.com/xjasonlyu/tun2socks/v2@v2.5.1
+          go mod tidy
+          gomobile bind \
+            -target=android/arm \
+            -androidapi=21 \
+            -v \
+            -o tun2socks_jni.aar \
+            .
+          ls -lh tun2socks_jni.aar
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: source-info
-          path: go-tun2socks-android/
+          name: tun2socks-jni-aar
+          path: tun2socks_jni/tun2socks_jni.aar
