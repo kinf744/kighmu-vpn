@@ -145,6 +145,7 @@ class MultiSlowDnsEngine(
         tunFd = fd
         val ports = activePorts.ifEmpty { listOf(activePort) }
         KighmuLogger.info(TAG, "hev multi-SOCKS fd=$fd ports=$ports (${ports.size} tunnels)")
+        com.kighmu.vpn.engines.HevTun2Socks.init()
         if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
             // Utiliser hev avec multi-SOCKS natif round-robin
             val firstEngine = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
