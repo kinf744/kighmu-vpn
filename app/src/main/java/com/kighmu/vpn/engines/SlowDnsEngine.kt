@@ -161,46 +161,49 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // xjasonlyu/tun2socks v2
-                // Le fd TUN doit être accessible via /proc/self/fd dans le processus enfant
-                // On utilise le fd directement - Android hérite les fds non-CLOEXEC
-                val pid = android.os.Process.myPid()
-                val fdPath = "/proc/$pid/fd/$fd"
-                KighmuLogger.info(TAG, "fd path: $fdPath exists=${java.io.File(fdPath).exists()}")
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_fd_${profileIndex}.sock"
+                File(sockPath).delete()
                 val cmd = listOf(
                     bin.absolutePath,
-                    "-device", "fd:///proc/$pid/fd/$fd",
-                    "-proxy", "socks5://127.0.0.1:$targetPort",
-                    "-loglevel", "warn"
+                    "--sock-path", sockPath,
+                    "--tunmtu", MTU.toString(),
+                    "--netif-ipaddr", "10.0.0.2",
+                    "--netif-netmask", "255.255.255.0",
+                    "--socks-server-addr", "127.0.0.1:$targetPort",
+                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
+                    "--loglevel", "4"
                 )
-                // Utiliser ProcessBuilder pour mieux contrôler l'héritage des fds
-                val pb = ProcessBuilder(cmd)
-                pb.redirectErrorStream(false)
-                KighmuLogger.info(TAG, "Interface VPN configurée ✓ fd=$fd port=$targetPort")
-                tun2socksProcess = pb.start()
+                KighmuLogger.info(TAG, "Interface VPN configurée ✓")
+                val cmdArray = cmd.toTypedArray()
+                tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
+                // Lire stdout+stderr dans fichier
                 val proc = tun2socksProcess!!
                 Thread {
                     try {
                         proc.errorStream.bufferedReader().forEachLine { line ->
-                            if (running) KighmuLogger.info(TAG, "tun2socks: $line")
+                            if (running) KighmuLogger.info(TAG, "tun2socks stderr: $line")
                         }
                     } catch (_: Exception) {}
                 }.start()
-                Thread {
-                    try {
-                        proc.inputStream.bufferedReader().forEachLine { line ->
-                            if (running) KighmuLogger.info(TAG, "tun2socks: $line")
-                        }
-                    } catch (_: Exception) {}
-                }.start()
-                KighmuLogger.info(TAG, "xjasonlyu tun2socks démarré fd=$fd")
+                // Envoyer le fd via socket Unix a BadVPN
+                delay(500)
                 try {
-                    val exitCode = proc.exitValue()
-                    KighmuLogger.error(TAG, "tun2socks terminé immédiatement: $exitCode")
-                } catch (_: Exception) {
-                    // Normal - processus toujours actif
-                    KighmuLogger.info(TAG, "tun2socks actif")
+                    val localSocket = android.net.LocalSocket()
+                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                    localSocket.outputStream.write(1)
+                    localSocket.outputStream.flush()
+                    localSocket.close()
+                    KighmuLogger.info(TAG, "fd $fd envoye via sock-path")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
+                try {
+                    tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
+                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
+                    }
+                } catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }

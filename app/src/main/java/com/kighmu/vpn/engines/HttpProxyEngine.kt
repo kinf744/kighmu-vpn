@@ -1,6 +1,9 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
+import android.os.ParcelFileDescriptor
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import com.trilead.ssh2.Connection
@@ -233,13 +236,16 @@ class HttpProxyEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
+                val sockPath = "${context.cacheDir}/tun2socks_http.sock"
+                File(sockPath).delete()
                 val cmd = arrayOf(
                     bin.absolutePath,
-                    "--tunfd", "$fd",
+                    "--sock-path", sockPath,
                     "--tunmtu", MTU.toString(),
                     "--netif-ipaddr", "10.0.0.2",
                     "--netif-netmask", "255.255.255.0",
                     "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
+                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
                     "--loglevel", "4"
                 )
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
@@ -264,6 +270,19 @@ class HttpProxyEngine(
                     }
                 }.start()
 
+                delay(500)
+                try {
+                    val localSocket = LocalSocket()
+                    localSocket.connect(LocalSocketAddress(sockPath, LocalSocketAddress.Namespace.FILESYSTEM))
+                    val pfd = ParcelFileDescriptor.fromFd(fd)
+                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                    localSocket.outputStream.write(1)
+                    localSocket.outputStream.flush()
+                    localSocket.close()
+                    KighmuLogger.info(TAG, "fd=$fd envoye OK")
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
+                }
 
                 try {
                     val is2 = proc.inputStream

@@ -31,7 +31,7 @@ jobs:
           mkdir -p app/src/main/jniLibs/arm64-v8a
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/arm64-v8a/libtun2socks_ssc.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/385094917"
           mkdir -p app/libs
-          curl -L -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so "https://github.com/xjasonlyu/tun2socks/releases/download/v2.6.0/tun2socks-linux-armv7.zip" && cd app/src/main/jniLibs/armeabi-v7a && unzip -o libtun2socks.so && mv tun2socks-linux-armv7 libtun2socks.so && cd $GITHUB_WORKSPACE
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libtun2socks.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/378443119"
           ls -la app/src/main/jniLibs/armeabi-v7a/
 
       - name: Create Keystore

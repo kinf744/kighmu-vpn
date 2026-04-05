@@ -45,15 +45,8 @@ socks5:
   port: $socksPort
   address: 127.0.0.1
   udp: udp
-  pipeline: true
 
 misc:
-  task-stack-size: 163840
-  tcp-buffer-size: 131072
-  udp-recv-buffer-size: 1048576
-  max-session-count: 0
-  connect-timeout: 5000
-  tcp-read-write-timeout: 300000
   log-level: warn
 """.trimIndent()
     }
