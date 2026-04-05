@@ -1,0 +1,80 @@
+name: Build hev-socks5-tunnel multi-SOCKS armeabi-v7a
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk-r26d-linux.zip
+          echo "NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
+
+      - name: Clone hev-socks5-tunnel
+        run: git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
+
+      - name: Patch multi-SOCKS round-robin
+        run: |
+          cd hev-socks5-tunnel
+          python3 << 'PYEOF'
+          content = open('src/hev-config.c').read()
+
+          # 1. Ajouter include stdatomic
+          content = content.replace(
+              '#include "hev-config.h"',
+              '#include <stdatomic.h>\n#include "hev-config.h"\n#define MAX_SOCKS_SERVERS 8'
+          )
+
+          # 2. Transformer srv en tableau
+          content = content.replace(
+              'static HevConfigServer srv;',
+              'static HevConfigServer srv[MAX_SOCKS_SERVERS];\nstatic int srv_count = 0;\nstatic atomic_int srv_rr = 0;'
+          )
+
+          # 3. Remplacer les références à srv. par srv[0].
+          content = content.replace('srv.addr', 'srv[0].addr')
+          content = content.replace('srv.port', 'srv[0].port')
+          content = content.replace('srv.user', 'srv[0].user')
+          content = content.replace('srv.pass', 'srv[0].pass')
+          content = content.replace('srv.mark', 'srv[0].mark')
+          content = content.replace('srv.pipeline', 'srv[0].pipeline')
+          content = content.replace('srv.udp_in_udp', 'srv[0].udp_in_udp')
+          content = content.replace('srv.udp_addr', 'srv[0].udp_addr')
+          content = content.replace('&srv)', '&srv[0])')
+          content = content.replace('return &srv;', 'if (srv_count <= 1) return &srv[0];\nreturn &srv[atomic_fetch_add(&srv_rr, 1) % srv_count];')
+
+          open('src/hev-config.c', 'w').write(content)
+
+          # 4. Patcher hev-config.h
+          h = open('src/hev-config.h').read()
+          h = h.replace(
+              'HevConfigServer *hev_config_get_socks5_server (void);',
+              'HevConfigServer *hev_config_get_socks5_server (void);\nint hev_config_get_socks5_server_count (void);'
+          )
+          open('src/hev-config.h', 'w').write(h)
+          print("Patch OK!")
+          PYEOF
+
+      - name: Build with ndk-build
+        run: |
+          cd hev-socks5-tunnel
+          $NDK_HOME/ndk-build \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=Android.mk \
+            APP_ABI=armeabi-v7a \
+            APP_PLATFORM=android-21 \
+            APP_CFLAGS="-DANDROID -DPKGNAME=hev/htproxy -DCLSNAME=TProxyService" \
+            NDK_OUT=build/obj \
+            NDK_LIBS_OUT=build/libs
+          ls -lh build/libs/armeabi-v7a/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hev-multi-socks-armeabi-v7a
+          path: hev-socks5-tunnel/build/libs/armeabi-v7a/
