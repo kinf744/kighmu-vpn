@@ -161,15 +161,12 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // xjasonlyu/tun2socks - syntaxe avec --tunfd
+                // xjasonlyu/tun2socks v2 - syntaxe correcte
                 val cmd = listOf(
                     bin.absolutePath,
-                    "--tunfd", "$fd",
-                    "--tunmtu", "$MTU",
-                    "--netif-ipaddr", "10.0.0.2",
-                    "--netif-netmask", "255.255.255.0",
-                    "--socks-server-addr", "127.0.0.1:$targetPort",
-                    "--loglevel", "4"
+                    "-device", "fd://$fd",
+                    "-proxy", "socks5://127.0.0.1:$targetPort",
+                    "-loglevel", "warning"
                 )
                 KighmuLogger.info(TAG, "Interface VPN configurée ✓ fd=$fd port=$targetPort")
                 val cmdArray = cmd.toTypedArray()
