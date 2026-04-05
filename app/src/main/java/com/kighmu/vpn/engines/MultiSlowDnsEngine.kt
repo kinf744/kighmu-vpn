@@ -149,8 +149,8 @@ class MultiSlowDnsEngine(
             // Utiliser hev avec multi-SOCKS natif round-robin
             val firstEngine = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
             firstEngine?.let { engine ->
-                val context = (engine as? SlowDnsEngine)?.getContext() ?: return
-                com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, ports)
+                val ctx = (engine as? SlowDnsEngine)?.context ?: return
+                com.kighmu.vpn.engines.HevTun2Socks.startMulti(ctx, fd, ports)
             }
         } else {
             // Fallback: premier port uniquement
