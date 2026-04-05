@@ -161,17 +161,23 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // xjasonlyu/tun2socks v2 - passer fd via /proc/PID/fd/
+                // xjasonlyu/tun2socks v2
+                // Le fd TUN doit être accessible via /proc/self/fd dans le processus enfant
+                // On utilise le fd directement - Android hérite les fds non-CLOEXEC
                 val pid = android.os.Process.myPid()
+                val fdPath = "/proc/$pid/fd/$fd"
+                KighmuLogger.info(TAG, "fd path: $fdPath exists=${java.io.File(fdPath).exists()}")
                 val cmd = listOf(
                     bin.absolutePath,
-                    "-device", "fd:///proc/$pid/fd/$fd",
+                    "-device", "fd://$fd",
                     "-proxy", "socks5://127.0.0.1:$targetPort",
                     "-loglevel", "warn"
                 )
+                // Utiliser ProcessBuilder pour mieux contrôler l'héritage des fds
+                val pb = ProcessBuilder(cmd)
+                pb.redirectErrorStream(false)
                 KighmuLogger.info(TAG, "Interface VPN configurée ✓ fd=$fd port=$targetPort")
-                val cmdArray = cmd.toTypedArray()
-                tun2socksProcess = Runtime.getRuntime().exec(cmdArray)
+                tun2socksProcess = pb.start()
                 val proc = tun2socksProcess!!
                 Thread {
                     try {
