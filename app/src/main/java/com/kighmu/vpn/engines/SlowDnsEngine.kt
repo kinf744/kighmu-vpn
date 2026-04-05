@@ -169,7 +169,7 @@ class SlowDnsEngine(
                 KighmuLogger.info(TAG, "fd path: $fdPath exists=${java.io.File(fdPath).exists()}")
                 val cmd = listOf(
                     bin.absolutePath,
-                    "-device", "fd://$fd",
+                    "-device", "fd:///proc/$pid/fd/$fd",
                     "-proxy", "socks5://127.0.0.1:$targetPort",
                     "-loglevel", "warn"
                 )
