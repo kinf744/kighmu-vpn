@@ -27,16 +27,29 @@ jobs:
 
       - name: Install gomobile
         run: |
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOPATH/bin
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
           go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
-          export PATH=$PATH:$(go env GOPATH)/bin
+          # Vérifier que gomobile est installé
+          which gomobile
+          gomobile version
+
+      - name: Setup gomobile
+        run: |
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOPATH/bin
+          cd tun2socks_jni
+          # Ajouter mobile comme dépendance explicite
+          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
+          go mod tidy
           gomobile init -v
 
       - name: Build AAR
         run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOPATH/bin
           cd tun2socks_jni
-          go mod tidy
           gomobile bind \
             -target=android/arm \
             -androidapi=21 \
