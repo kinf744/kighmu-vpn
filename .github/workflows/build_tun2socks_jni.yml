@@ -5,6 +5,7 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'tun2socks_jni/**'
       - '.github/workflows/build_tun2socks_jni.yml'
 
 jobs:
@@ -31,53 +32,6 @@ jobs:
           export PATH=$PATH:$(go env GOPATH)/bin
           gomobile init -v
 
-      - name: Create JNI wrapper
-        run: |
-          mkdir -p tun2socks_jni
-          cat > tun2socks_jni/go.mod << 'GOMOD'
-module github.com/kighmu/tun2socks_jni
-
-go 1.23
-
-require (
-    github.com/xjasonlyu/tun2socks/v2 v2.6.0
-    golang.org/x/mobile v0.0.0-20240604190613-2782386b8afd
-)
-GOMOD
-
-          cat > tun2socks_jni/tun2socks.go << 'GOCODE'
-package tun2socks_jni
-
-import (
-    "fmt"
-    "github.com/xjasonlyu/tun2socks/v2/engine"
-)
-
-var started bool
-
-// StartTun2Socks starts tun2socks with tunFd and socks5 proxy
-func StartTun2Socks(tunFd int, socksAddr string, mtu int) error {
-    if started {
-        engine.Stop()
-    }
-    key := &engine.Key{
-        Device: fmt.Sprintf("fd://%d", tunFd),
-        Proxy:  socksAddr,
-        MTU:    mtu,
-    }
-    engine.Insert(key)
-    engine.Start()
-    started = true
-    return nil
-}
-
-// StopTun2Socks stops tun2socks
-func StopTun2Socks() {
-    engine.Stop()
-    started = false
-}
-GOCODE
-
       - name: Build AAR
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
@@ -92,9 +46,7 @@ GOCODE
           ls -lh tun2socks_jni.aar
 
       - name: Upload artifact
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tun2socks-jni-aar
           path: tun2socks_jni/tun2socks_jni.aar
-# updated
