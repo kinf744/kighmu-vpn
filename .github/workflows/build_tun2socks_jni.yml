@@ -25,20 +25,22 @@ jobs:
           unzip -q android-ndk-r25c-linux.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r25c" >> $GITHUB_ENV
 
-      - name: Install gomobile
+      - name: Install gomobile in workspace
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
-          go install golang.org/x/mobile/cmd/gomobile@latest
-          go install golang.org/x/mobile/cmd/gobind@latest
-          gomobile init
+          # Cloner mobile source pour avoir bind disponible
+          git clone --depth=1 https://go.googlesource.com/mobile $GOPATH/src/golang.org/x/mobile
+          cd $GOPATH/src/golang.org/x/mobile
+          go install ./cmd/gomobile
+          go install ./cmd/gobind
+          gomobile init -v
 
       - name: Build AAR
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
           cd tun2socks_jni
-          # Utiliser version compatible Go 1.21
           go mod edit -go=1.21
           go mod edit -require=github.com/xjasonlyu/tun2socks/v2@v2.5.1
           go mod tidy
