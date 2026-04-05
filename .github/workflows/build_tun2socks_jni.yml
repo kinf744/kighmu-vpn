@@ -14,10 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Go 1.21
+      - name: Setup Go 1.19
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.19'
 
       - name: Setup Android NDK
         run: |
@@ -25,12 +25,15 @@ jobs:
           unzip -q android-ndk-r25c-linux.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r25c" >> $GITHUB_ENV
 
-      - name: Install gomobile in workspace
+      - name: Setup GOPATH and gomobile
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
-          # Cloner mobile source pour avoir bind disponible
+          export GO111MODULE=off
+          mkdir -p $GOPATH/src/golang.org/x
           git clone --depth=1 https://go.googlesource.com/mobile $GOPATH/src/golang.org/x/mobile
+          git clone --depth=1 https://go.googlesource.com/sys $GOPATH/src/golang.org/x/sys
+          git clone --depth=1 https://go.googlesource.com/tools $GOPATH/src/golang.org/x/tools
           cd $GOPATH/src/golang.org/x/mobile
           go install ./cmd/gomobile
           go install ./cmd/gobind
@@ -40,8 +43,9 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=on
           cd tun2socks_jni
-          go mod edit -go=1.21
+          go mod edit -go=1.19
           go mod edit -require=github.com/xjasonlyu/tun2socks/v2@v2.5.1
           go mod tidy
           gomobile bind \
