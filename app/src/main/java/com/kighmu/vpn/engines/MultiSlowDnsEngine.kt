@@ -23,6 +23,7 @@ class MultiSlowDnsEngine(
     private val engines = mutableListOf<SlowDnsEngine>()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var activePort = 10800
+    private var activePorts: List<Int> = emptyList()
     private var tunFd: Int = -1
     private var socksBalancer: SocksBalancer? = null
 
@@ -86,15 +87,14 @@ class MultiSlowDnsEngine(
             throw Exception("Aucune session SlowDNS connectée sur ${selected.size} tentatives")
         }
 
-        // STEP 3 : Démarrer le balancer sur tous les ports SOCKS connectés
+        // STEP 3 : Stocker les ports pour hev multi-SOCKS natif
         val connectedPorts = successPorts.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
+        activePorts = connectedPorts
 
         KighmuLogger.info(TAG, "Ports SOCKS actifs: $connectedPorts")
-        val balancer = SocksBalancer(connectedPorts)
-        balancer.start()
-        socksBalancer = balancer
-        activePort = SocksBalancer.BALANCER_PORT
-        KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port=$activePort, ${successPorts.size} tunnels actifs ===")
+        // Pas de SocksBalancer Kotlin - hev gère le round-robin nativement
+        activePort = connectedPorts.first()
+        KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - ports=$connectedPorts, ${successPorts.size} tunnels actifs ===")
 
         // Surveiller les sessions en background
         monitorSessions(selected)
@@ -143,15 +143,19 @@ class MultiSlowDnsEngine(
 
     override fun startTun2Socks(fd: Int) {
         tunFd = fd
-        // Utiliser le premier engine mais avec le port du balancer
-        // Le balancer distribue le trafic sur tous les tunnels actifs
-        val firstConnected = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
-        if (firstConnected != null) {
-            KighmuLogger.info(TAG, "tun2socks → Balancer:${SocksBalancer.BALANCER_PORT} (${engines.count { it.isRunning() }} tunnels)")
-            // Passer le port du balancer à tun2socks via le premier engine
-            firstConnected.startTun2SocksOnPort(fd, SocksBalancer.BALANCER_PORT)
+        val ports = activePorts.ifEmpty { listOf(activePort) }
+        KighmuLogger.info(TAG, "hev multi-SOCKS fd=$fd ports=$ports (${ports.size} tunnels)")
+        if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+            // Utiliser hev avec multi-SOCKS natif round-robin
+            val firstEngine = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
+            firstEngine?.let { engine ->
+                val context = (engine as? SlowDnsEngine)?.getContext() ?: return
+                com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, ports)
+            }
         } else {
-            KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
+            // Fallback: premier port uniquement
+            val firstConnected = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
+            firstConnected?.startTun2SocksOnPort(fd, ports.first())
         }
     }
 

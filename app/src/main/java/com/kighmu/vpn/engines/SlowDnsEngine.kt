@@ -10,7 +10,7 @@ import java.io.File
 
 class SlowDnsEngine(
     private val config: KighmuConfig,
-    private val context: Context,
+    val context: Context,
     private val vpnService: android.net.VpnService? = null,
     private val profileIndex: Int = 0
 ) : TunnelEngine {

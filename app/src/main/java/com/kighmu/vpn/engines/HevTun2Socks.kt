@@ -24,10 +24,14 @@ object HevTun2Socks {
     val isAvailable get() = loaded
 
     fun start(context: Context, fd: Int, socksPort: Int, mtu: Int = 8500) {
-        val config = buildConfig(socksPort, mtu)
+        startMulti(context, fd, listOf(socksPort), mtu)
+    }
+
+    fun startMulti(context: Context, fd: Int, socksPorts: List<Int>, mtu: Int = 8500) {
+        val config = buildConfigMulti(socksPorts, mtu)
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
-        Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
+        Log.i(TAG, "Démarrage hev fd=$fd ports=$socksPorts")
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
@@ -35,19 +39,22 @@ object HevTun2Socks {
         if (loaded) hev.htproxy.TProxyService.TProxyStopService()
     }
 
-    private fun buildConfig(socksPort: Int, mtu: Int): String {
-        return """
-tunnel:
-  mtu: $mtu
-  ipv4: 198.18.0.1
-
-socks5:
-  port: $socksPort
-  address: 127.0.0.1
-  udp: udp
-
-misc:
-  log-level: warn
-""".trimIndent()
+    private fun buildConfigMulti(socksPorts: List<Int>, mtu: Int): String {
+        val sb = StringBuilder()
+        sb.appendLine("tunnel:")
+        sb.appendLine("  mtu: $mtu")
+        sb.appendLine("  ipv4: 198.18.0.1")
+        sb.appendLine()
+        // hev patché supporte plusieurs blocs socks5
+        socksPorts.forEach { port ->
+            sb.appendLine("socks5:")
+            sb.appendLine("  port: $port")
+            sb.appendLine("  address: 127.0.0.1")
+            sb.appendLine("  udp: udp")
+            sb.appendLine()
+        }
+        sb.appendLine("misc:")
+        sb.appendLine("  log-level: warn")
+        return sb.toString()
     }
 }
