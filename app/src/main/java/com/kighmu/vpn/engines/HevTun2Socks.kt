@@ -47,17 +47,18 @@ object HevTun2Socks {
         sb.appendLine("  ipv4: 198.18.0.1")
         sb.appendLine()
         // hev patché supporte liste de serveurs socks5
-        sb.appendLine("socks5:")
         if (socksPorts.size == 1) {
+            sb.appendLine("socks5:")
             sb.appendLine("  port: ${socksPorts[0]}")
             sb.appendLine("  address: 127.0.0.1")
             sb.appendLine("  udp: udp")
         } else {
-            sb.appendLine("  servers:")
+            // Liste directe sous socks5 pour YAML_SEQUENCE_NODE
             socksPorts.forEach { port ->
-                sb.appendLine("    - address: 127.0.0.1")
-                sb.appendLine("      port: $port")
-                sb.appendLine("      udp: udp")
+                sb.appendLine("socks5:")
+                sb.appendLine("  - address: 127.0.0.1")
+                sb.appendLine("    port: $port")
+                sb.appendLine("    udp: udp")
             }
         }
         sb.appendLine("misc:")
