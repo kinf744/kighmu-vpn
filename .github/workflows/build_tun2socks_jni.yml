@@ -1,0 +1,80 @@
+name: Build xjasonlyu tun2socks JNI armeabi-v7a
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Setup Android NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk-r26d-linux.zip
+          echo "ANDROID_NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
+
+      - name: Install gomobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          gomobile init
+
+      - name: Create JNI wrapper
+        run: |
+          mkdir -p tun2socks_jni
+          cat > tun2socks_jni/go.mod << 'GOMOD'
+          module github.com/kighmu/tun2socks_jni
+
+          go 1.21
+
+          require github.com/xjasonlyu/tun2socks/v2 v2.6.0
+          GOMOD
+
+          cat > tun2socks_jni/tun2socks.go << 'GOCODE'
+          package tun2socks_jni
+
+          import (
+            "github.com/xjasonlyu/tun2socks/v2/engine"
+          )
+
+          // StartTun2Socks starts tun2socks with a TUN fd and SOCKS5 proxy
+          func StartTun2Socks(tunFd int, socksAddr string, mtu int) error {
+            key := &engine.Key{
+              Device: fmt.Sprintf("fd://%d", tunFd),
+              Proxy:  socksAddr,
+              MTU:    mtu,
+            }
+            engine.Insert(key)
+            engine.Start()
+            return nil
+          }
+
+          // StopTun2Socks stops tun2socks
+          func StopTun2Socks() {
+            engine.Stop()
+          }
+          GOCODE
+
+      - name: Build AAR
+        run: |
+          cd tun2socks_jni
+          go mod tidy
+          gomobile bind \
+            -target=android/arm \
+            -androidapi=21 \
+            -o tun2socks_jni.aar \
+            .
+          ls -lh tun2socks_jni.aar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tun2socks-jni-armeabi-v7a
+          path: tun2socks_jni/tun2socks_jni.aar
