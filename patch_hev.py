@@ -8,50 +8,81 @@ open('hev-socks5-tunnel/src/hev-config.h', 'w').write(h)
 
 # hev-config.c
 c = open('hev-socks5-tunnel/src/hev-config.c').read()
-c = c.replace('#include "hev-config.h"', '#include <stdatomic.h>\n#include "hev-config.h"')
+
+# 1. stdatomic
+c = c.replace('#include "hev-config.h"', '#include <stdatomic.h>\n#include <string.h>\n#include "hev-config.h"')
+
+# 2. srv tableau
 c = c.replace('static HevConfigServer srv;',
     'static HevConfigServer srv[HEV_MAX_SOCKS_SERVERS];\nstatic int srv_count = 0;\nstatic atomic_int srv_rr = 0;')
-c = c.replace('    strncpy (srv.addr,', '    strncpy (srv[srv_count].addr,')
-c = c.replace('    srv.port =', '    srv[srv_count].port =')
-c = c.replace('    srv.pipeline =', '    srv[srv_count].pipeline =')
-c = c.replace('    srv.udp_in_udp =', '    srv[srv_count].udp_in_udp =')
-c = c.replace('    strncpy (srv.udp_addr,', '    strncpy (srv[srv_count].udp_addr,')
-c = c.replace('        srv.user =', '        srv[srv_count].user =')
-c = c.replace('        srv.pass =', '        srv[srv_count].pass =')
-c = c.replace('    srv.mark =', '    srv[srv_count].mark =')
-c = c.replace(
-    '    if (mark)\n        srv.mark = strtoul (mark, NULL, 0);',
-    '    if (mark)\n        srv[srv_count].mark = strtoul (mark, NULL, 0);\n    if (srv_count < HEV_MAX_SOCKS_SERVERS - 1) srv_count++;'
-)
+
+# 3. Variables user/pass en tableau
 c = c.replace(
     'static char _user[256];\nstatic char _pass[256];',
     'static char _user[HEV_MAX_SOCKS_SERVERS][256];\nstatic char _pass[HEV_MAX_SOCKS_SERVERS][256];'
 )
-c = c.replace(
-    '        strncpy (_user, user, 256 - 1);\n        strncpy (_pass, pass, 256 - 1);\n        srv.user = _user;\n        srv.pass = _pass;',
-    '        strncpy (_user[srv_count], user, 256 - 1);\n        strncpy (_pass[srv_count], pass, 256 - 1);\n        srv[srv_count].user = _user[srv_count];\n        srv[srv_count].pass = _pass[srv_count];'
-)
+
+# 4. Remplacer la fin de parse_socks5 pour supporter ports multiples
+old_end = '''    strncpy (srv.addr, addr, 256 - 1);
+    srv.port = strtoul (port, NULL, 10);
+
+    if (pipe && (strcasecmp (pipe, "true") == 0))
+        srv.pipeline = 1;
+
+    if (udpm && (strcasecmp (udpm, "udp") == 0))
+        srv.udp_in_udp = 1;
+
+    if (udpa)
+        strncpy (srv.udp_addr, udpa, 256 - 1);
+
+    if (user && pass) {
+        strncpy (_user, user, 256 - 1);
+        strncpy (_pass, pass, 256 - 1);
+        srv.user = _user;
+        srv.pass = _pass;
+    }
+
+    if (mark)
+        srv.mark = strtoul (mark, NULL, 0);'''
+
+new_end = '''    /* Support multiple ports: addr can be "host:p1,p2,p3" or port field "p1,p2,p3" */
+    {
+        char port_buf[256];
+        strncpy (port_buf, port, 255);
+        char *tok = strtok (port_buf, ",");
+        while (tok && srv_count < HEV_MAX_SOCKS_SERVERS) {
+            strncpy (srv[srv_count].addr, addr, 255);
+            srv[srv_count].port = strtoul (tok, NULL, 10);
+            if (pipe && (strcasecmp (pipe, "true") == 0))
+                srv[srv_count].pipeline = 1;
+            if (udpm && (strcasecmp (udpm, "udp") == 0))
+                srv[srv_count].udp_in_udp = 1;
+            if (udpa)
+                strncpy (srv[srv_count].udp_addr, udpa, 255);
+            if (user && pass) {
+                strncpy (_user[srv_count], user, 255);
+                strncpy (_pass[srv_count], pass, 255);
+                srv[srv_count].user = _user[srv_count];
+                srv[srv_count].pass = _pass[srv_count];
+            }
+            if (mark)
+                srv[srv_count].mark = strtoul (mark, NULL, 0);
+            srv_count++;
+            tok = strtok (NULL, ",");
+        }
+    }'''
+
+if old_end in c:
+    c = c.replace(old_end, new_end)
+    print("Patch end OK!")
+else:
+    print("ERROR: end pattern not found!")
+
+# 5. round-robin
 c = c.replace(
     'hev_config_get_socks5_server (void)\n{\n    return &srv;\n}',
-    'hev_config_get_socks5_server (void)\n{\n    if (srv_count <= 0) return &srv[0];\n    int idx = atomic_fetch_add (&srv_rr, 1) % (srv_count + 1);\n    return &srv[idx];\n}\n\nint\nhev_config_get_socks5_server_count (void)\n{\n    return srv_count + 1;\n}'
+    'hev_config_get_socks5_server (void)\n{\n    if (srv_count <= 1) return &srv[0];\n    int idx = atomic_fetch_add (&srv_rr, 1) % srv_count;\n    return &srv[idx];\n}\n\nint\nhev_config_get_socks5_server_count (void)\n{\n    return srv_count;\n}'
 )
-
-# Ajouter parsing liste servers
-old_parse = '        else if (0 == strcmp (key, "socks5"))\n            res = hev_config_parse_socks5 (doc, node);'
-new_parse = '''        else if (0 == strcmp (key, "socks5")) {
-            if (node->type == YAML_SEQUENCE_NODE) {
-                yaml_node_item_t *item;
-                for (item = node->data.sequence.items.start;
-                     item < node->data.sequence.items.top; item++) {
-                    yaml_node_t *snode = yaml_document_get_node (doc, *item);
-                    res = hev_config_parse_socks5 (doc, snode);
-                    if (res < 0) break;
-                }
-            } else {
-                res = hev_config_parse_socks5 (doc, node);
-            }
-        }'''
-c = c.replace(old_parse, new_parse)
 
 open('hev-socks5-tunnel/src/hev-config.c', 'w').write(c)
 print("Patch OK! srv_count:", c.count("srv_count"))
