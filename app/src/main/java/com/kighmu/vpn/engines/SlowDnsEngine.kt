@@ -166,7 +166,7 @@ class SlowDnsEngine(
                     bin.absolutePath,
                     "-device", "fd://$fd",
                     "-proxy", "socks5://127.0.0.1:$targetPort",
-                    "-loglevel", "warning"
+                    "-loglevel", "warn"
                 )
                 KighmuLogger.info(TAG, "Interface VPN configurée ✓ fd=$fd port=$targetPort")
                 val cmdArray = cmd.toTypedArray()
