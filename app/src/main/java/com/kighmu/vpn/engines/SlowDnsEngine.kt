@@ -195,12 +195,6 @@ class SlowDnsEngine(
                     // Normal - processus toujours actif
                     KighmuLogger.info(TAG, "tun2socks actif")
                 }
-                }
-                try {
-                    tun2socksProcess!!.inputStream.bufferedReader().forEachLine { line ->
-                        if (running) KighmuLogger.info(TAG, "tun2socks: $line")
-                    }
-                } catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
