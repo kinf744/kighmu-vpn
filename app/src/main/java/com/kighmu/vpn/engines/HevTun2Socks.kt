@@ -1,7 +1,7 @@
 package com.kighmu.vpn.engines
 
 import android.content.Context
-import android.util.Log
+import com.kighmu.vpn.utils.KighmuLogger
 import java.io.File
 
 object HevTun2Socks {
@@ -16,7 +16,7 @@ object HevTun2Socks {
                 hev.htproxy.TProxyService.load()
                 loaded = hev.htproxy.TProxyService.isAvailable
             } catch (e: Throwable) {
-                Log.e(TAG, "Init failed: ${e.message}")
+                KighmuLogger.error(TAG, "Init failed: ${e.message}")
             }
         }
     }
@@ -31,8 +31,8 @@ object HevTun2Socks {
         val config = buildConfigMulti(socksPorts, mtu)
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
-        Log.i(TAG, "Démarrage hev fd=$fd ports=$socksPorts")
-        Log.i(TAG, "Config YAML:\n$config")
+        KighmuLogger.info(TAG, "Démarrage hev fd=$fd ports=$socksPorts")
+        KighmuLogger.info(TAG, "Config YAML:\n$config")
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
