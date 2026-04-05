@@ -45,13 +45,19 @@ object HevTun2Socks {
         sb.appendLine("  mtu: $mtu")
         sb.appendLine("  ipv4: 198.18.0.1")
         sb.appendLine()
-        // hev patché supporte plusieurs blocs socks5
-        socksPorts.forEach { port ->
-            sb.appendLine("socks5:")
-            sb.appendLine("  port: $port")
+        // hev patché supporte liste de serveurs socks5
+        sb.appendLine("socks5:")
+        if (socksPorts.size == 1) {
+            sb.appendLine("  port: ${socksPorts[0]}")
             sb.appendLine("  address: 127.0.0.1")
             sb.appendLine("  udp: udp")
-            sb.appendLine()
+        } else {
+            sb.appendLine("  servers:")
+            socksPorts.forEach { port ->
+                sb.appendLine("    - address: 127.0.0.1")
+                sb.appendLine("      port: $port")
+                sb.appendLine("      udp: udp")
+            }
         }
         sb.appendLine("misc:")
         sb.appendLine("  log-level: warn")
