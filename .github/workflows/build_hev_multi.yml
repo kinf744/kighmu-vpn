@@ -2,6 +2,11 @@ name: Build hev-socks5-tunnel multi-SOCKS armeabi-v7a
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'patch_hev.py'
+      - '.github/workflows/build_hev_multi.yml'
 
 jobs:
   build:
@@ -19,72 +24,7 @@ jobs:
         run: git clone --depth=1 --recurse-submodules https://github.com/heiher/hev-socks5-tunnel.git
 
       - name: Patch multi-SOCKS
-        run: |
-          cd hev-socks5-tunnel
-          python3 << 'PYEOF'
-import re
-
-# ── hev-config.h ──────────────────────────────────────────────
-h = open('src/hev-config.h').read()
-h = h.replace(
-    'HevConfigServer *hev_config_get_socks5_server (void);',
-    '''#define HEV_MAX_SOCKS_SERVERS 8
-HevConfigServer *hev_config_get_socks5_server (void);
-int hev_config_get_socks5_server_count (void);'''
-)
-open('src/hev-config.h', 'w').write(h)
-
-# ── hev-config.c ──────────────────────────────────────────────
-c = open('src/hev-config.c').read()
-
-# 1. Ajouter stdatomic
-c = c.replace(
-    '#include "hev-config.h"',
-    '#include <stdatomic.h>\n#include "hev-config.h"'
-)
-
-# 2. srv singulier → tableau
-c = c.replace(
-    'static HevConfigServer srv;',
-    'static HevConfigServer srv[HEV_MAX_SOCKS_SERVERS];\nstatic int srv_count = 0;\nstatic atomic_int srv_rr = 0;'
-)
-
-# 3. Corriger les références srv. → srv[srv_count].
-c = c.replace('    strncpy (srv.addr,', '    strncpy (srv[srv_count].addr,')
-c = c.replace('    srv.port =', '    srv[srv_count].port =')
-c = c.replace('    srv.pipeline =', '    srv[srv_count].pipeline =')
-c = c.replace('    srv.udp_in_udp =', '    srv[srv_count].udp_in_udp =')
-c = c.replace('    strncpy (srv.udp_addr,', '    strncpy (srv[srv_count].udp_addr,')
-c = c.replace('        srv.user =', '        srv[srv_count].user =')
-c = c.replace('        srv.pass =', '        srv[srv_count].pass =')
-c = c.replace('    srv.mark =', '    srv[srv_count].mark =')
-
-# 4. Incrémenter srv_count après chaque parsing socks5
-c = c.replace(
-    '    if (mark)\n        srv.mark = strtoul (mark, NULL, 0);',
-    '    if (mark)\n        srv[srv_count].mark = strtoul (mark, NULL, 0);\n    srv_count++;'
-)
-
-# 5. Variables statiques user/pass → tableau
-c = c.replace(
-    'static char _user[256];\nstatic char _pass[256];',
-    'static char _user[HEV_MAX_SOCKS_SERVERS][256];\nstatic char _pass[HEV_MAX_SOCKS_SERVERS][256];'
-)
-c = c.replace(
-    '        strncpy (_user, user, 256 - 1);\n        strncpy (_pass, pass, 256 - 1);\n        srv.user = _user;\n        srv.pass = _pass;',
-    '        strncpy (_user[srv_count], user, 256 - 1);\n        strncpy (_pass[srv_count], pass, 256 - 1);\n        srv[srv_count].user = _user[srv_count];\n        srv[srv_count].pass = _pass[srv_count];'
-)
-
-# 6. hev_config_get_socks5_server → round-robin
-c = c.replace(
-    'hev_config_get_socks5_server (void)\n{\n    return &srv;\n}',
-    'hev_config_get_socks5_server (void)\n{\n    if (srv_count <= 1) return &srv[0];\n    int idx = atomic_fetch_add (&srv_rr, 1) % srv_count;\n    return &srv[idx];\n}\n\nint\nhev_config_get_socks5_server_count (void)\n{\n    return srv_count;\n}'
-)
-
-open('src/hev-config.c', 'w').write(c)
-print("Patch OK!")
-print("srv_count occurrences:", c.count("srv_count"))
-          PYEOF
+        run: python3 patch_hev.py
 
       - name: Build with ndk-build
         run: |
