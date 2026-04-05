@@ -161,10 +161,10 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // xjasonlyu/tun2socks v2 - syntaxe correcte
+                // xjasonlyu/tun2socks v2 - passer fd via /proc/self/fd/
                 val cmd = listOf(
                     bin.absolutePath,
-                    "-device", "fd://$fd",
+                    "-device", "fd:///proc/self/fd/$fd",
                     "-proxy", "socks5://127.0.0.1:$targetPort",
                     "-loglevel", "warn"
                 )
