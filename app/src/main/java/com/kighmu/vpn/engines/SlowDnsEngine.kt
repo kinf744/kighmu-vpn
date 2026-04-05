@@ -161,10 +161,11 @@ class SlowDnsEngine(
                     return@launch
                 }
                 bin.setExecutable(true)
-                // xjasonlyu/tun2socks v2 - passer fd via /proc/self/fd/
+                // xjasonlyu/tun2socks v2 - passer fd via /proc/PID/fd/
+                val pid = android.os.Process.myPid()
                 val cmd = listOf(
                     bin.absolutePath,
-                    "-device", "fd:///proc/self/fd/$fd",
+                    "-device", "fd:///proc/$pid/fd/$fd",
                     "-proxy", "socks5://127.0.0.1:$targetPort",
                     "-loglevel", "warn"
                 )
