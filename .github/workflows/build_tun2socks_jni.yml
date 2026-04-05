@@ -25,24 +25,19 @@ jobs:
           unzip -q android-ndk-r26d-linux.zip
           echo "ANDROID_NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
 
-      - name: Install gomobile
+      - name: Install and init gomobile
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
+          # Créer un module temporaire pour installer gomobile avec ses dépendances
+          mkdir -p /tmp/gomobile_setup
+          cd /tmp/gomobile_setup
+          go mod init gomobile_setup
+          go get golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
+          go get golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
+          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
           go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
-          # Vérifier que gomobile est installé
-          which gomobile
-          gomobile version
-
-      - name: Setup gomobile
-        run: |
-          export GOPATH=$HOME/go
-          export PATH=$PATH:$GOPATH/bin
-          cd tun2socks_jni
-          # Ajouter mobile comme dépendance explicite
-          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
-          go mod tidy
           gomobile init -v
 
       - name: Build AAR
@@ -50,6 +45,8 @@ jobs:
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
           cd tun2socks_jni
+          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
+          go mod tidy
           gomobile bind \
             -target=android/arm \
             -androidapi=21 \
