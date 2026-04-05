@@ -14,38 +14,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Go 1.23
+      - name: Setup Go 1.21
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.21'
 
       - name: Setup Android NDK
         run: |
-          wget -q https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
-          unzip -q android-ndk-r26d-linux.zip
-          echo "ANDROID_NDK_HOME=$PWD/android-ndk-r26d" >> $GITHUB_ENV
+          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip -q android-ndk-r25c-linux.zip
+          echo "ANDROID_NDK_HOME=$PWD/android-ndk-r25c" >> $GITHUB_ENV
 
-      - name: Install and init gomobile
+      - name: Install gomobile
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
-          # Créer un module temporaire pour installer gomobile avec ses dépendances
-          mkdir -p /tmp/gomobile_setup
-          cd /tmp/gomobile_setup
-          go mod init gomobile_setup
-          go get golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go get golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
-          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
-          gomobile init -v
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          gomobile init
 
       - name: Build AAR
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
           cd tun2socks_jni
-          go get golang.org/x/mobile/bind@v0.0.0-20240604190613-2782386b8afd
+          # Utiliser version compatible Go 1.21
+          go mod edit -go=1.21
+          go mod edit -require=github.com/xjasonlyu/tun2socks/v2@v2.5.1
           go mod tidy
           gomobile bind \
             -target=android/arm \
