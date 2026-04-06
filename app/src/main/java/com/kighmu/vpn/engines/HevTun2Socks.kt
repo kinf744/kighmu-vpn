@@ -51,3 +51,40 @@ misc:
 """.trimIndent()
     }
 }
+
+    fun startMulti(context: Context, fd: Int, ports: List<Int>, mtu: Int = 8500) {
+        if (ports.isEmpty()) return
+        
+        Log.i(TAG, "Démarrage hev multi-SOCKS fd=$fd ports=$ports")
+        
+        // Utiliser le premier port comme port principal
+        val mainPort = ports.first()
+        val config = buildConfigMulti(mainPort, ports, mtu)
+        
+        val configFile = File(context.cacheDir, "hev_config_multi.yaml")
+        configFile.writeText(config)
+        
+        Log.i(TAG, "Config multi sauvegardée: ${configFile.absolutePath}")
+        hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
+    }
+
+    private fun buildConfigMulti(mainPort: Int, ports: List<Int>, mtu: Int): String {
+        // Configuration pour round-robin multi-SOCKS
+        return """
+tunnel:
+  mtu: $mtu
+  ipv4: 198.18.0.1
+
+socks5:
+  port: $mainPort
+  address: 127.0.0.1
+  udp: udp
+
+# Ports additionnels pour round-robin
+multi:
+  ports: ${ports.joinToString(", ")}
+
+misc:
+  log-level: warn
+""".trimIndent()
+    }
