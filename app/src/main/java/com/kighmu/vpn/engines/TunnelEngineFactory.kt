@@ -15,7 +15,7 @@ object TunnelEngineFactory {
             TunnelMode.SLOW_DNS      -> MultiSlowDnsEngine(config, context, vpnService)
             TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
-            TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context)
+            TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context, vpnService = vpnService)
             TunnelMode.V2RAY_SLOWDNS -> MultiXraySlowDnsEngine(config, context, vpnService)
             TunnelMode.HYSTERIA_UDP  -> HysteriaEngine(config, context, vpnService)
         }

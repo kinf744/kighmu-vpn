@@ -13,6 +13,7 @@ import java.io.*
 import java.net.*
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
+import android.net.VpnService
 import java.security.SecureRandom
 import java.util.concurrent.LinkedBlockingQueue
 import javax.net.ssl.*
@@ -153,7 +154,8 @@ class XrayEngine(
     private val config: KighmuConfig,
     private val context: Context,
     var dnsttProxyPort: Int = 0,  // Si > 0, Xray route via dnstt sur ce port
-    private val instanceId: Int = 0
+    private val instanceId: Int = 0,
+    private val vpnService: VpnService? = null
 ) : TunnelEngine {
     private var _socksPort: Int = 0
     private val LOCAL_SOCKS_PORT: Int get() {
