@@ -11,6 +11,8 @@ import okhttp3.*
 import okio.ByteString
 import java.io.*
 import java.net.*
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import java.security.SecureRandom
 import java.util.concurrent.LinkedBlockingQueue
 import javax.net.ssl.*
