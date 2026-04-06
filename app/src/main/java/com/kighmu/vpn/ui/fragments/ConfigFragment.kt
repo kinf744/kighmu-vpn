@@ -14,6 +14,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import com.kighmu.vpn.ui.adapters.SlowDnsProfileAdapter
+import com.kighmu.vpn.profiles.V2rayDnsProfileRepository
+import com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter
+import com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog
 import com.kighmu.vpn.profiles.SlowDnsProfile
 import com.kighmu.vpn.profiles.ProfileRepository
 import com.kighmu.vpn.ui.MainViewModel
