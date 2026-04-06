@@ -37,58 +37,87 @@ class MultiXraySlowDnsEngine(
 
         KighmuLogger.info(TAG, "=== Démarrage séquentiel de ${selected.size} tunnels V2ray+DNS ===")
 
-        // Connexion séquentielle stricte (comme SSH SlowDNS)
+        // Connexion séquentielle stricte avec Retry (comme SSH SlowDNS)
         for (idx in selected.indices) {
             val profile = selected[idx]
-            KighmuLogger.info(TAG, "Profil [${idx + 1}/${selected.size}] démarrage: ${profile.profileName}")
-            
-            try {
-                // 1. Démarrer DNSTT pour ce profil
-                val dnsttCfg = baseConfig.copy(
-                    slowDns = baseConfig.slowDns.copy(
-                        dnsServer = profile.dnsServer,
-                        dnsPort = profile.dnsPort,
-                        nameserver = profile.nameserver,
-                        publicKey = profile.publicKey
+            var connected = false
+            var attempts = 0
+            val maxAttempts = 3 // Nombre de tentatives par profil
+
+            while (!connected && attempts < maxAttempts) {
+                attempts++
+                KighmuLogger.info(TAG, "Profil [${idx + 1}/${selected.size}] tentative $attempts/$maxAttempts: ${profile.profileName}")
+                
+                try {
+                    // Nettoyer les moteurs précédents pour cet index en cas de retry
+                    synchronized(dnsttEngines) {
+                        if (dnsttEngines.size > idx) {
+                            val oldDnstt = dnsttEngines[idx]
+                            scope.launch { try { oldDnstt.stop() } catch (_: Exception) {} }
+                        }
+                    }
+                    synchronized(xrayEngines) {
+                        if (xrayEngines.size > idx) {
+                            val oldXray = xrayEngines[idx]
+                            scope.launch { try { oldXray.stop() } catch (_: Exception) {} }
+                        }
+                    }
+                    if (attempts > 1) delay(2000) // Petite pause entre les retries
+
+                    // 1. Démarrer DNSTT pour ce profil
+                    val dnsttCfg = baseConfig.copy(
+                        slowDns = baseConfig.slowDns.copy(
+                            dnsServer = profile.dnsServer,
+                            dnsPort = profile.dnsPort,
+                            nameserver = profile.nameserver,
+                            publicKey = profile.publicKey
+                        )
                     )
-                )
-                val dnstt = SlowDnsEngine(dnsttCfg, context, null, idx)
-                synchronized(dnsttEngines) { dnsttEngines.add(dnstt) }
-                val dnsttPort = dnstt.startDnsttOnly()
-                
-                // 2. Démarrer Xray routé vers ce DNSTT
-                val xrayCfg = baseConfig.copy(
-                    xray = baseConfig.xray.copy(
-                        jsonConfig = profile.xrayJsonConfig,
-                        protocol = profile.protocol,
-                        serverAddress = profile.serverAddress,
-                        serverPort = profile.serverPort,
-                        uuid = profile.uuid,
-                        encryption = profile.encryption,
-                        transport = profile.transport,
-                        wsPath = profile.wsPath,
-                        wsHost = profile.wsHost,
-                        tls = profile.tls,
-                        sni = profile.sni,
-                        allowInsecure = profile.allowInsecure
+                    val dnstt = SlowDnsEngine(dnsttCfg, context, null, idx)
+                    synchronized(dnsttEngines) { 
+                        if (dnsttEngines.size > idx) dnsttEngines[idx] = dnstt else dnsttEngines.add(dnstt)
+                    }
+                    val dnsttPort = dnstt.startDnsttOnly()
+                    
+                    // 2. Démarrer Xray routé vers ce DNSTT
+                    val xrayCfg = baseConfig.copy(
+                        xray = baseConfig.xray.copy(
+                            jsonConfig = profile.xrayJsonConfig,
+                            protocol = profile.protocol,
+                            serverAddress = profile.serverAddress,
+                            serverPort = profile.serverPort,
+                            uuid = profile.uuid,
+                            encryption = profile.encryption,
+                            transport = profile.transport,
+                            wsPath = profile.wsPath,
+                            wsHost = profile.wsHost,
+                            tls = profile.tls,
+                            sni = profile.sni,
+                            allowInsecure = profile.allowInsecure
+                        )
                     )
-                )
-                val xray = XrayEngine(xrayCfg, context, dnsttProxyPort = dnsttPort, instanceId = idx)
-                synchronized(xrayEngines) { xrayEngines.add(xray) }
-                
-                // Attendre que Xray soit prêt avant de passer au profil suivant
-                val xrayPort = withTimeout(30000L) { xray.start() }
-                
-                if (xrayPort > 0) {
-                    activeXrayPorts.add(xrayPort)
-                    KighmuLogger.info(TAG, "Profil [${idx + 1}] CONNECTÉ ✓ (Xray=$xrayPort)")
-                } else {
-                    throw Exception("Xray n'a pas retourné de port valide")
+                    val xray = XrayEngine(xrayCfg, context, dnsttProxyPort = dnsttPort, instanceId = idx)
+                    synchronized(xrayEngines) { 
+                        if (xrayEngines.size > idx) xrayEngines[idx] = xray else xrayEngines.add(xray)
+                    }
+                    
+                    // Attendre que Xray soit prêt
+                    val xrayPort = withTimeout(30000L) { xray.start() }
+                    
+                    if (xrayPort > 0) {
+                        activeXrayPorts.add(xrayPort)
+                        KighmuLogger.info(TAG, "Profil [${idx + 1}] CONNECTÉ ✓ (Xray=$xrayPort)")
+                        connected = true
+                    } else {
+                        throw Exception("Xray n'a pas retourné de port valide")
+                    }
+                } catch (e: Exception) {
+                    KighmuLogger.warning(TAG, "Profil [${idx + 1}] tentative $attempts échouée: ${e.message}")
+                    if (attempts >= maxAttempts) {
+                        KighmuLogger.error(TAG, "Profil [${idx + 1}] ÉCHEC définitif après $maxAttempts tentatives")
+                        throw Exception("Échec critique du profil ${profile.profileName}: ${e.message}")
+                    }
                 }
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "Profil [${idx + 1}] ÉCHEC ✗: ${e.message}")
-                // Arrêt immédiat si un profil échoue (principe SSH SlowDNS)
-                throw Exception("Échec du profil ${profile.profileName}: ${e.message}")
             }
         }
 
