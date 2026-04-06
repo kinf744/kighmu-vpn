@@ -11,7 +11,6 @@ object HevTun2Socks {
     fun init() {
         if (!loaded) {
             try {
-                // Enregistrer la classe avant loadLibrary
                 Class.forName("hev.htproxy.TProxyService")
                 hev.htproxy.TProxyService.load()
                 loaded = hev.htproxy.TProxyService.isAvailable
@@ -28,6 +27,21 @@ object HevTun2Socks {
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
+        hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
+    }
+
+    fun startMulti(context: Context, fd: Int, ports: List<Int>, mtu: Int = 8500) {
+        if (ports.isEmpty()) return
+        
+        Log.i(TAG, "Démarrage hev multi-SOCKS fd=$fd ports=$ports")
+        
+        val mainPort = ports.first()
+        val config = buildConfigMulti(mainPort, ports, mtu)
+        
+        val configFile = File(context.cacheDir, "hev_config_multi.yaml")
+        configFile.writeText(config)
+        
+        Log.i(TAG, "Config multi sauvegardée: ${configFile.absolutePath}")
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
@@ -50,26 +64,8 @@ misc:
   log-level: warn
 """.trimIndent()
     }
-}
-
-    fun startMulti(context: Context, fd: Int, ports: List<Int>, mtu: Int = 8500) {
-        if (ports.isEmpty()) return
-        
-        Log.i(TAG, "Démarrage hev multi-SOCKS fd=$fd ports=$ports")
-        
-        // Utiliser le premier port comme port principal
-        val mainPort = ports.first()
-        val config = buildConfigMulti(mainPort, ports, mtu)
-        
-        val configFile = File(context.cacheDir, "hev_config_multi.yaml")
-        configFile.writeText(config)
-        
-        Log.i(TAG, "Config multi sauvegardée: ${configFile.absolutePath}")
-        hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
-    }
 
     private fun buildConfigMulti(mainPort: Int, ports: List<Int>, mtu: Int): String {
-        // Configuration pour round-robin multi-SOCKS
         return """
 tunnel:
   mtu: $mtu
@@ -80,7 +76,6 @@ socks5:
   address: 127.0.0.1
   udp: udp
 
-# Ports additionnels pour round-robin
 multi:
   ports: ${ports.joinToString(", ")}
 
@@ -88,3 +83,4 @@ misc:
   log-level: warn
 """.trimIndent()
     }
+}
