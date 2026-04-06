@@ -444,14 +444,27 @@ class XrayEngine(
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {
+                // 1. Tenter d'utiliser le JNI (comme SlowDnsEngine) pour une performance maximale et éviter les erreurs de socket Unix
+                if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+                    KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI pour Xray (port=$socksPort)")
+                    val t = Thread {
+                        vpnService?.protect(fd)
+                        vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, socksPort, it, 1500) }
+                        KighmuLogger.info(TAG, "HevTun2Socks JNI terminé")
+                    }
+                    t.isDaemon = true
+                    t.start()
+                    KighmuLogger.info(TAG, "fd $fd démarré via JNI")
+                    return@launch
+                }
+
+                // 2. Fallback: Processus externe libtun2socks.so (si JNI indisponible)
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
                 if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
                 bin.setExecutable(true)
                 
-                // Utiliser le répertoire des fichiers internes pour plus de fiabilité
-                val sockFile = File(context.filesDir, "tun2socks_xray_$instanceId.sock")
-                val sockPath = sockFile.absolutePath
-                if (sockFile.exists()) sockFile.delete()
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_xray_$instanceId.sock"
+                File(sockPath).delete()
                 
                 val cmd = listOf(
                     bin.absolutePath,
@@ -467,20 +480,8 @@ class XrayEngine(
                 KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
                 val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
                 
-                // Attendre que le binaire crée le socket (max 5s)
-                var socketCreated = false
-                for (i in 1..50) {
-                    if (sockFile.exists()) {
-                        socketCreated = true
-                        break
-                    }
-                    delay(100)
-                }
-                
-                if (!socketCreated) {
-                    KighmuLogger.error(TAG, "tun2socks n'a pas créé le socket à temps")
-                    return@launch
-                }
+                // Attendre que le binaire crée le socket (max 2s)
+                delay(500)
 
                 try {
                     val localSocket = android.net.LocalSocket()
@@ -490,12 +491,11 @@ class XrayEngine(
                     localSocket.outputStream.write(1)
                     localSocket.outputStream.flush()
                     localSocket.close()
-                    KighmuLogger.info(TAG, "fd $fd envoyé avec succès via $sockPath")
+                    KighmuLogger.info(TAG, "fd $fd envoyé via $sockPath")
                 } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "Erreur envoi FD: ${e.message}")
+                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
                 
-                // Logger la sortie pour debug
                 proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") }
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
