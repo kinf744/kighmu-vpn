@@ -448,61 +448,33 @@ class XrayEngine(
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {
-                // 1. Tenter d'utiliser le JNI (comme SlowDnsEngine) pour une performance maximale et éviter les erreurs de socket Unix
+                // Initialiser HevTun2Socks explicitement pour s'assurer que isAvailable est vrai
+                com.kighmu.vpn.engines.HevTun2Socks.init()
+                
                 if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
                     KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI pour Xray (port=$socksPort)")
                     val t = Thread {
-                        vpnService?.protect(fd)
-                        vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, socksPort, it, 1500) }
-                        KighmuLogger.info(TAG, "HevTun2Socks JNI terminé")
+                        try {
+                            vpnService?.protect(fd)
+                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, socksPort, it, 1500) }
+                            KighmuLogger.info(TAG, "HevTun2Socks JNI démarré avec succès")
+                        } catch (e: Exception) {
+                            KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")
+                        }
                     }
                     t.isDaemon = true
                     t.start()
-                    KighmuLogger.info(TAG, "fd $fd démarré via JNI")
-                    return@launch
-                }
-
-                // 2. Fallback: Processus externe libtun2socks.so (si JNI indisponible)
-                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
-                bin.setExecutable(true)
-                
-                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_xray_$instanceId.sock"
-                File(sockPath).delete()
-                
-                val cmd = listOf(
-                    bin.absolutePath,
-                    "--sock-path", sockPath,
-                    "--tunmtu", "1500",
-                    "--netif-ipaddr", "10.0.0.2",
-                    "--netif-netmask", "255.255.255.0",
-                    "--socks-server-addr", "127.0.0.1:$socksPort",
-                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
-                    "--loglevel", "4"
-                )
-                
-                KighmuLogger.info(TAG, "tun2socks cmd: ${cmd.joinToString(" ")}")
-                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
-                
-                // Attendre que le binaire crée le socket (max 2s)
-                delay(500)
-
-                try {
-                    val localSocket = android.net.LocalSocket()
-                    localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                    KighmuLogger.info(TAG, "fd $fd routé via JNI (HevTun2Socks)")
+                } else {
+                    KighmuLogger.error(TAG, "HevTun2Socks JNI non disponible après initialisation")
+                    // Fallback vers le relay Kotlin interne (plus stable que libtun2socks.so externe)
+                    KighmuLogger.info(TAG, "Utilisation du relay Kotlin interne (fallback)")
                     val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                    localSocket.outputStream.write(1)
-                    localSocket.outputStream.flush()
-                    localSocket.close()
-                    KighmuLogger.info(TAG, "fd $fd envoyé via $sockPath")
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
+                    val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", socksPort)
+                    relay.start()
                 }
-                
-                proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") }
             } catch (e: Exception) {
-                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+                KighmuLogger.error(TAG, "Erreur critique startTun2Socks: ${e.message}")
             }
         }
     }
