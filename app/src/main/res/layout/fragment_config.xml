@@ -95,7 +95,6 @@
                 </LinearLayout>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Appui long sur un profil pour le modifier, cloner ou supprimer" android:textColor="#666666" android:textSize="11sp" android:layout_marginBottom="8dp"/>
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_v2dns_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
-            </LinearLayout>
                 <EditText android:id="@+id/et_v2dns_json" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Config JSON V2Ray+DNS (généré automatiquement)" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:minLines="8" android:gravity="top" android:fontFamily="monospace" android:textSize="11sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
 
