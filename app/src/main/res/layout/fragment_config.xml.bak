@@ -89,13 +89,15 @@
 
             <!-- V2Ray+SlowDNS Panel -->
             <LinearLayout android:id="@+id/panel_v2dns" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="V2RAY+DNS PROFILES" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true"/>
-                    <Button android:id="@+id/btn_add_v2dns_profile" android:layout_width="36dp" android:layout_height="36dp" android:text="+" android:textSize="20sp" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:padding="0dp"/>
-                </LinearLayout>
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Appui long sur un profil pour le modifier, cloner ou supprimer" android:textColor="#666666" android:textSize="11sp" android:layout_marginBottom="8dp"/>
-                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_v2dns_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
-            </LinearLayout>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SLOWDNS TRANSPORT" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
+                <EditText android:id="@+id/et_v2dns_dns_server" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="DNS Server (ex: 8.8.8.8)" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
+                <EditText android:id="@+id/et_v2dns_dns_port" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="DNS Port (ex: 53)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
+                <EditText android:id="@+id/et_v2dns_nameserver" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nameserver" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
+                <EditText android:id="@+id/et_v2dns_pubkey" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Public Key" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="V2RAY / XRAY CLIENT" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginTop="16dp" android:layout_marginBottom="8dp"/>
+                <EditText android:id="@+id/et_v2dns_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="vmess:// vless:// trojan:// socks://" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
+                <TextView android:id="@+id/tv_v2dns_link_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textColor="#FF5252" android:textSize="12sp" android:layout_marginTop="4dp"/>
+                <Button android:id="@+id/btn_parse_v2dns_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="PARSE LINK" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:layout_marginTop="8dp"/>
                 <EditText android:id="@+id/et_v2dns_json" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Config JSON V2Ray+DNS (généré automatiquement)" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:minLines="8" android:gravity="top" android:fontFamily="monospace" android:textSize="11sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
 
