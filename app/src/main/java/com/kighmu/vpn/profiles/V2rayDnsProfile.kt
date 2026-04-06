@@ -9,6 +9,7 @@ data class V2rayDnsProfile(
     var profileName: String = "",
     
     // Xray/V2Ray config
+    var xrayLink: String = "",
     var xrayJsonConfig: String = "",
     var protocol: String = "vmess",
     var serverAddress: String = "",
