@@ -144,21 +144,25 @@ class SlowDnsEngine(
                     t.start()
                     KighmuLogger.info(TAG, "fd $fd envoye via JNI")
                     return@launch
-                } else if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+                } else if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && vpnService != null) {
                     // Utiliser hev-socks5-tunnel JNI (fallback rapide)
                     KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
                     val t = Thread {
-                        vpnService?.protect(fd)
-                        vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, MTU) }
-                        KighmuLogger.info(TAG, "hev tun2socks JNI terminé")
+                        try {
+                            vpnService.protect(fd)
+                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, MTU)
+                            KighmuLogger.info(TAG, "hev tun2socks JNI terminé")
+                        } catch (e: Exception) {
+                            KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")
+                        }
                     }
                     t.isDaemon = true
                     t.start()
                     KighmuLogger.info(TAG, "hev fd $fd démarré via JNI")
                     return@launch
                 } else {
-                    // Fallback de secours: Relay Kotlin pur (pas de socket Unix instable)
-                    KighmuLogger.info(TAG, "Fallback: Démarrage tunnel via Relay Kotlin (port=$targetPort)")
+                    // Fallback de secours: Relay Kotlin pur (si vpnService null ou JNI indisponible)
+                    KighmuLogger.info(TAG, "Fallback: Démarrage tunnel via Relay Kotlin (port=$targetPort, vpnService=${vpnService != null})")
                     val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                     val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
                     relay.start()

@@ -32,7 +32,7 @@ class MultiSlowDnsEngine(
 
         if (selected.isEmpty()) {
             KighmuLogger.info(TAG, "Aucun profil sélectionné → config par défaut")
-            val engine = SlowDnsEngine(baseConfig, context, null, 0)
+            val engine = SlowDnsEngine(baseConfig, context, vpnService, 0)
             synchronized(engines) { engines.add(engine) }
             return engine.start()
         }
@@ -56,7 +56,7 @@ class MultiSlowDnsEngine(
         val results = mutableListOf<Pair<Int, Int>>()
         selected.forEachIndexed { idx, profile ->
             KighmuLogger.info(TAG, "Session[${idx+1}/${selected.size}] démarrage: ${profile.profileName}")
-            val engine = SlowDnsEngine(buildConfig(profile), context, null, idx)
+            val engine = SlowDnsEngine(buildConfig(profile), context, vpnService, idx)
             synchronized(engines) { engines.add(engine) }
             val port = try {
                 withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
@@ -143,6 +143,13 @@ class MultiSlowDnsEngine(
 
     override fun startTun2Socks(fd: Int) {
         tunFd = fd
+        // Protéger le descripteur de fichier au niveau orchestrateur
+        try {
+            vpnService?.protect(fd)
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "Erreur protection FD: ${e.message}")
+        }
+        
         // Utiliser le premier engine mais avec le port du balancer
         // Le balancer distribue le trafic sur tous les tunnels actifs
         val firstConnected = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
