@@ -333,7 +333,6 @@ class SlowDnsEngine(
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $dnsttPort/tcp 2>/dev/null")) } catch (_: Exception) {}
         dnsttProcess = null
         engineScope.cancel()
-        kotlinx.coroutines.delay(3000)
         KighmuLogger.info(TAG, "SlowDNS arrete")
     }
 

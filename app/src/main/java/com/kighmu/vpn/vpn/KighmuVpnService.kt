@@ -302,11 +302,11 @@ class KighmuVpnService : VpnService() {
                 // Tuer TOUS les processus natifs qui pourraient tenir le FD de l'interface TUN
                 KighmuLogger.info(TAG, "Nettoyage des processus natifs...")
                 val killCmd = "killall -9 libtun2socks.so xray hysteria libhysteria.so dnstt"
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor()
+                try { Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor() } catch (_: Exception) {}
                 
-                // Sécurité supplémentaire : tuer tout processus occupant les ports SOCKS
+                // Sécurité supplémentaire : tuer tout processus occupant les ports SOCKS (10800-10900)
                 try {
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 1080/tcp 10808/tcp")).waitFor()
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 10800/tcp 10801/tcp 10802/tcp 10808/tcp 10900/tcp")).waitFor()
                 } catch (_: Exception) {}
                 
                 // Délai de grâce pour laisser le noyau Linux libérer les ressources
