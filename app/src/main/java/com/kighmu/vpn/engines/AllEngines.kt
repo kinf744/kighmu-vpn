@@ -444,35 +444,52 @@ class XrayEngine(
         startTun2SocksInternal(fd, LOCAL_SOCKS_PORT)
     }
 
-    private fun startTun2SocksInternal(fd: Int, socksPort: Int) {
-        KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
+    private fun startTun2SocksInternal(fd: Int, targetPort: Int) {
+        KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$targetPort")
         engineScope.launch(Dispatchers.IO) {
             try {
-                // Initialiser HevTun2Socks explicitement pour s'assurer que isAvailable est vrai
+                // 1. Priorité 1 : Tun2Socks JNI (Standard SSH SlowDNS)
+                if (com.kighmu.vpn.engines.Tun2Socks.isAvailable) {
+                    KighmuLogger.info(TAG, "Utilisation de Tun2Socks JNI (Standard SSH) fd=$fd port=$targetPort")
+                    val t = Thread {
+                        val result = com.kighmu.vpn.engines.Tun2Socks.runTun2Socks(
+                            fd, 1500, "10.0.0.2", "255.255.255.0",
+                            "127.0.0.1:$targetPort", "127.0.0.1:7300",
+                            false, 3
+                        )
+                        KighmuLogger.info(TAG, "Tun2Socks JNI terminé: $result")
+                    }
+                    t.isDaemon = true
+                    t.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
+                    t.start()
+                    KighmuLogger.info(TAG, "fd $fd routé via Tun2Socks JNI")
+                    return@launch
+                }
+
+                // 2. Priorité 2 : HevTun2Socks JNI (Fallback JNI)
                 com.kighmu.vpn.engines.HevTun2Socks.init()
-                
                 if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
-                    KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI pour Xray (port=$socksPort)")
+                    KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI fd=$fd port=$targetPort")
                     val t = Thread {
                         try {
                             vpnService?.protect(fd)
-                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, socksPort, it, 1500) }
-                            KighmuLogger.info(TAG, "HevTun2Socks JNI démarré avec succès")
+                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, 1500) }
+                            KighmuLogger.info(TAG, "HevTun2Socks JNI démarré")
                         } catch (e: Exception) {
                             KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")
                         }
                     }
                     t.isDaemon = true
                     t.start()
-                    KighmuLogger.info(TAG, "fd $fd routé via JNI (HevTun2Socks)")
-                } else {
-                    KighmuLogger.error(TAG, "HevTun2Socks JNI non disponible après initialisation")
-                    // Fallback vers le relay Kotlin interne (plus stable que libtun2socks.so externe)
-                    KighmuLogger.info(TAG, "Utilisation du relay Kotlin interne (fallback)")
-                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", socksPort)
-                    relay.start()
+                    KighmuLogger.info(TAG, "fd $fd routé via HevTun2Socks JNI")
+                    return@launch
                 }
+
+                // 3. Fallback : Relay Kotlin (Dernier recours)
+                KighmuLogger.warning(TAG, "Aucun moteur JNI disponible - Utilisation du Relay Kotlin")
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
+                relay.start()
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "Erreur critique startTun2Socks: ${e.message}")
             }
