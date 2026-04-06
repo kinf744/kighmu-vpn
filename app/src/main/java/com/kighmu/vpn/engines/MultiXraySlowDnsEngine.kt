@@ -14,8 +14,9 @@ class MultiXraySlowDnsEngine(
     private val TAG = "MultiXraySlowDns"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dnsttEngines = mutableListOf<SlowDnsEngine>()
-    private val xray = XrayEngine(baseConfig, context)
-    private var activePorts = listOf<Int>()
+    private val xrayEngines = mutableListOf<XrayEngine>()
+    private var balancer: SocksBalancer? = null
+    private var activeXrayPorts = mutableListOf<Int>()
 
     override suspend fun start(): Int {
         val repo = V2rayDnsProfileRepository(context)
@@ -25,25 +26,36 @@ class MultiXraySlowDnsEngine(
             KighmuLogger.info(TAG, "Aucun profil V2ray+DNS → config par défaut")
             val dnstt = SlowDnsEngine(baseConfig, context, null, 0)
             dnsttEngines.add(dnstt)
-            val port = dnstt.startDnsttOnly()
-            xray.dnsttProxyPort = port
-            activePorts = listOf(port)
-            return xray.start()
+            val dnsttPort = dnstt.startDnsttOnly()
+            val xray = XrayEngine(baseConfig, context)
+            xray.dnsttProxyPort = dnsttPort
+            xrayEngines.add(xray)
+            val xrayPort = xray.start()
+            activeXrayPorts = mutableListOf(xrayPort)
+            return xrayPort
         }
 
-        KighmuLogger.info(TAG, "=== Démarrage ${selected.size} tunnels V2ray+DNS ===")
+        KighmuLogger.info(TAG, "=== Démarrage ${selected.size} tunnels V2ray+DNS (Multi-Instance) ===")
 
-        // Lancer tous les dnstt en parallèle
+        // Lancer chaque paire DNSTT + Xray en parallèle
         val results = selected.mapIndexed { idx, profile ->
             scope.async {
                 try {
-                    val cfg = baseConfig.copy(
+                    // 1. Démarrer DNSTT pour ce profil
+                    val dnsttCfg = baseConfig.copy(
                         slowDns = baseConfig.slowDns.copy(
                             dnsServer = profile.dnsServer,
                             dnsPort = profile.dnsPort,
                             nameserver = profile.nameserver,
                             publicKey = profile.publicKey
-                        ),
+                        )
+                    )
+                    val dnstt = SlowDnsEngine(dnsttCfg, context, null, idx)
+                    synchronized(dnsttEngines) { dnsttEngines.add(dnstt) }
+                    val dnsttPort = dnstt.startDnsttOnly()
+                    
+                    // 2. Démarrer Xray routé vers ce DNSTT
+                    val xrayCfg = baseConfig.copy(
                         xray = baseConfig.xray.copy(
                             jsonConfig = profile.xrayJsonConfig,
                             protocol = profile.protocol,
@@ -59,11 +71,13 @@ class MultiXraySlowDnsEngine(
                             allowInsecure = profile.allowInsecure
                         )
                     )
-                    val engine = SlowDnsEngine(cfg, context, null, idx)
-                    synchronized(dnsttEngines) { dnsttEngines.add(engine) }
-                    val port = engine.startDnsttOnly()
-                    KighmuLogger.info(TAG, "V2ray+DNS[$idx] ${profile.profileName} prêt port=$port")
-                    port
+                    val xray = XrayEngine(xrayCfg, context)
+                    xray.dnsttProxyPort = dnsttPort
+                    synchronized(xrayEngines) { xrayEngines.add(xray) }
+                    val xrayPort = xray.start()
+                    
+                    KighmuLogger.info(TAG, "V2ray+DNS[$idx] ${profile.profileName} prêt: DNSTT=$dnsttPort, Xray=$xrayPort")
+                    xrayPort
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "V2ray+DNS[$idx] ${profile.profileName} ÉCHEC: ${e.message}")
                     -1
@@ -72,38 +86,46 @@ class MultiXraySlowDnsEngine(
         }.awaitAll()
 
         val successPorts = results.filter { it > 0 }
-        if (successPorts.isEmpty()) throw Exception("Aucun tunnel V2ray+DNS connecté")
+        if (successPorts.isEmpty()) throw Exception("Aucun tunnel V2ray+DNS n'a pu démarrer")
 
-        activePorts = successPorts
-        KighmuLogger.info(TAG, "=== STEP 2: ${successPorts.size}/${selected.size} connectées ===")
-        KighmuLogger.info(TAG, "Ports dnstt actifs: $activePorts")
-
-        // Xray utilise le premier port dnstt
-        xray.dnsttProxyPort = successPorts.first()
-        return xray.start()
+        activeXrayPorts = successPorts.toMutableList()
+        KighmuLogger.info(TAG, "=== STEP 2: ${successPorts.size}/${selected.size} instances connectées ===")
+        
+        // Démarrer le balancer local pour répartir sur tous les Xray
+        balancer = SocksBalancer(activeXrayPorts)
+        balancer?.start()
+        
+        return SocksBalancer.BALANCER_PORT
     }
 
     override fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "hev multi-SOCKS fd=$fd ports=$activePorts")
+        val targetPort = SocksBalancer.BALANCER_PORT
+        KighmuLogger.info(TAG, "Démarrage tunnel interface via Balancer (port=$targetPort)")
+        
         com.kighmu.vpn.engines.HevTun2Socks.init()
-        if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && activePorts.size > 1) {
-            // Multi-SOCKS via hev pour plusieurs tunnels
-            com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activePorts)
+        if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+            // Utiliser hev-socks5-tunnel JNI (très rapide)
+            KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
+            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort)
         } else {
-            xray.startTun2Socks(fd)
+            // Fallback: utiliser le premier Xray engine pour démarrer tun2socks (qui pointera vers le balancer)
+            xrayEngines.firstOrNull()?.startTun2Socks(fd)
         }
     }
 
     override suspend fun stop() {
         com.kighmu.vpn.engines.HevTun2Socks.stop()
-        xray.dnsttProxyPort = 0
-        xray.stop()
+        balancer?.stop()
+        xrayEngines.forEach { try { it.stop() } catch (_: Exception) {} }
         dnsttEngines.forEach { try { it.stop() } catch (_: Exception) {} }
+        xrayEngines.clear()
         dnsttEngines.clear()
         scope.cancel()
     }
 
-    override suspend fun sendData(data: ByteArray, length: Int) = xray.sendData(data, length)
-    override suspend fun receiveData(): ByteArray? = xray.receiveData()
-    override fun isRunning() = xray.isRunning()
+    override suspend fun sendData(data: ByteArray, length: Int) {
+        xrayEngines.firstOrNull()?.sendData(data, length)
+    }
+    override suspend fun receiveData(): ByteArray? = xrayEngines.firstOrNull()?.receiveData()
+    override fun isRunning() = xrayEngines.any { it.isRunning() }
 }
