@@ -42,7 +42,7 @@ class MultiXraySlowDnsEngine(
             val profile = selected[idx]
             var connected = false
             var attempts = 0
-            val maxAttempts = 3 // Nombre de tentatives par profil
+            val maxAttempts = 20 // Nombre de tentatives par profil (robustesse maximale)
 
             while (!connected && attempts < maxAttempts) {
                 attempts++
