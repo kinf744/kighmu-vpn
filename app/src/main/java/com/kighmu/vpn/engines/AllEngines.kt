@@ -150,7 +150,8 @@ class SshSslEngine(
 class XrayEngine(
     private val config: KighmuConfig,
     private val context: Context,
-    var dnsttProxyPort: Int = 0  // Si > 0, Xray route via dnstt sur ce port
+    var dnsttProxyPort: Int = 0,  // Si > 0, Xray route via dnstt sur ce port
+    private val instanceId: Int = 0
 ) : TunnelEngine {
     private var _socksPort: Int = 0
     private val LOCAL_SOCKS_PORT: Int get() {
@@ -293,7 +294,8 @@ class XrayEngine(
             KighmuLogger.error(TAG, "JSON cleanup error: ${e.message}")
         }
         KighmuLogger.info(TAG, "Xray config prête (${jsonConfig.length} chars)")
-        val file = File(context.filesDir, "xray_config.json")
+        val fileName = if (instanceId == 0) "xray_config.json" else "xray_config_$instanceId.json"
+        val file = File(context.filesDir, fileName)
         file.writeText(jsonConfig)
         return file
     }

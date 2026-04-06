@@ -28,8 +28,7 @@ class MultiXraySlowDnsEngine(
             val dnstt = SlowDnsEngine(baseConfig, context, null, 0)
             dnsttEngines.add(dnstt)
             val dnsttPort = dnstt.startDnsttOnly()
-            val xray = XrayEngine(baseConfig, context)
-            xray.dnsttProxyPort = dnsttPort
+            val xray = XrayEngine(baseConfig, context, dnsttProxyPort = dnsttPort, instanceId = 0)
             xrayEngines.add(xray)
             val xrayPort = xray.start()
             activeXrayPorts = mutableListOf(xrayPort)
@@ -72,8 +71,7 @@ class MultiXraySlowDnsEngine(
                             allowInsecure = profile.allowInsecure
                         )
                     )
-                    val xray = XrayEngine(xrayCfg, context)
-                    xray.dnsttProxyPort = dnsttPort
+                    val xray = XrayEngine(xrayCfg, context, dnsttProxyPort = dnsttPort, instanceId = idx)
                     synchronized(xrayEngines) { xrayEngines.add(xray) }
                     val xrayPort = xray.start()
                     
