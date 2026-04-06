@@ -102,21 +102,17 @@ class MultiXraySlowDnsEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        com.kighmu.vpn.engines.HevTun2Socks.init()
-        if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
-            // Utiliser hev-socks5-tunnel JNI avec multi-SOCKS natif (Round-Robin)
-            // On passe directement la liste des ports actifs au moteur natif
-            KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd avec ${activeXrayPorts.size} ports (Round-Robin natif)")
+        // Aligné sur SSH SlowDNS : Utiliser exclusivement le SocksBalancer Kotlin
+        val targetPort = SocksBalancer.BALANCER_PORT
+        KighmuLogger.info(TAG, "tun2socks → Balancer Kotlin:$targetPort (${activeXrayPorts.size} tunnels)")
+        
+        // On utilise le premier moteur Xray pour lancer tun2socks, mais dirigé vers le port du balancer
+        val firstXray = xrayEngines.firstOrNull()
+        if (firstXray != null) {
             vpnService?.protect(fd)
-            vpnService?.let { 
-                com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activeXrayPorts, it) 
-            }
+            firstXray.startTun2SocksOnPort(fd, targetPort)
         } else {
-            // Fallback: utiliser le balancer Java/Kotlin si JNI n'est pas dispo
-            val targetPort = SocksBalancer.BALANCER_PORT
-            KighmuLogger.info(TAG, "Fallback: Démarrage tunnel via Balancer Kotlin (port=$targetPort)")
-            vpnService?.protect(fd)
-            xrayEngines.firstOrNull()?.startTun2Socks(fd)
+            KighmuLogger.error(TAG, "Aucune instance Xray disponible pour tun2socks!")
         }
     }
 

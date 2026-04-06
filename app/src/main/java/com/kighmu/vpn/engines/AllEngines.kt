@@ -432,15 +432,22 @@ class XrayEngine(
     }
 
 
+    fun startTun2SocksOnPort(fd: Int, port: Int) {
+        startTun2SocksInternal(fd, port)
+    }
+
     override fun startTun2Socks(fd: Int) {
-        val socksPort = LOCAL_SOCKS_PORT
+        startTun2SocksInternal(fd, LOCAL_SOCKS_PORT)
+    }
+
+    private fun startTun2SocksInternal(fd: Int, socksPort: Int) {
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$socksPort")
         engineScope.launch(Dispatchers.IO) {
             try {
                 val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
                 if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
                 bin.setExecutable(true)
-                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_xray.sock"
+                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_xray_$instanceId.sock"
                 File(sockPath).delete()
                 val cmd = listOf(
                     bin.absolutePath,
@@ -470,12 +477,12 @@ class XrayEngine(
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "sock-path error: ${e.message}")
                 }
-                try { proc.inputStream.bufferedReader().forEachLine { KighmuLogger.info(TAG, "[tun2socks] $it") } } catch (_: Exception) {}
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
         }
     }
+
     override suspend fun stop() {
         running = false
         KighmuLogger.info(TAG, "Arrêt forcé de Xray...")
