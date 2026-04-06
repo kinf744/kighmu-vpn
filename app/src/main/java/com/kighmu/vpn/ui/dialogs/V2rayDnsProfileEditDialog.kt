@@ -82,7 +82,7 @@ object V2rayDnsProfileEditDialog {
             setTextColor(0xFF000000.toInt())
             setHintTextColor(0xFF888888.toInt())
             isSingleLine = false
-            lines = 3
+            setLines(3)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 }
             layout.addView(this)
         }

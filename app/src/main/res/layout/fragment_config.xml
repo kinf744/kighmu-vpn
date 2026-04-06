@@ -109,13 +109,6 @@
                 <EditText android:id="@+id/et_hys_port_hopping" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Port Hopping Range (ex: 20000-50000)" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp" android:inputType="text"/>
             </LinearLayout>
             <Button android:id="@+id/btn_save_config" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SAVE CONFIG" android:backgroundTint="#2196F3" android:textColor="#FFFFFF" android:layout_marginTop="24dp"/>
-                </LinearLayout>
-
-
-            <!-- V2Ray+DNS Profiles Panel -->
-
-
-
-
         </LinearLayout>
     </ScrollView>
+</LinearLayout>

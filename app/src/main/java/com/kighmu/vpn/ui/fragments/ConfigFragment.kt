@@ -167,27 +167,7 @@ class ConfigFragment : Fragment() {
             view.findViewById<EditText>(R.id.et_xray_json).selectAll()
         }
 
-        // Parse V2DNS link
-        view.findViewById<Button>(R.id.btn_parse_v2dns_link).setOnClickListener {
-            val link = view.findViewById<EditText>(R.id.et_v2dns_link).text.toString()
-            val status = view.findViewById<TextView>(R.id.tv_v2dns_link_status)
-            try {
-                val json = parseLinkToJson(link)
-                if (json != null) {
-                    parsedJsonFromV2dnsLink = json
-                    view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(json)
-                    status.text = "✓ Config générée avec succès"
-                    status.setTextColor(0xFF00C853.toInt())
-                    saveConfig(view)
-                } else {
-                    status.text = "❌ Format invalide"
-                    status.setTextColor(0xFFFF5252.toInt())
-                }
-            } catch (e: Exception) {
-                status.text = "❌ Erreur: ${e.message}"
-                status.setTextColor(0xFFFF5252.toInt())
-            }
-        }
+        // V2DNS link parsing a été supprimé ou déplacé
 
         // SlowDNS profiles
         val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
@@ -205,6 +185,9 @@ class ConfigFragment : Fragment() {
         view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
             showAddProfileDialog()
         }
+
+        // V2ray+DNS profiles
+        setupV2rayDnsProfiles(view)
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
 
@@ -265,11 +248,7 @@ class ConfigFragment : Fragment() {
             "link" -> { rgRestore.check(R.id.rb_xray_link); pLink.visibility = View.VISIBLE; pJson.visibility = View.GONE }
             "json" -> { rgRestore.check(R.id.rb_xray_json); pJson.visibility = View.VISIBLE; pLink.visibility = View.GONE }
         }
-        // V2DNS
-        view.findViewById<EditText>(R.id.et_v2dns_dns_server).setText(c.slowDns.dnsServer)
-        view.findViewById<EditText>(R.id.et_v2dns_dns_port).setText(c.slowDns.dnsPort.toString())
-        view.findViewById<EditText>(R.id.et_v2dns_nameserver).setText(c.slowDns.nameserver)
-        view.findViewById<EditText>(R.id.et_v2dns_pubkey).setText(c.slowDns.publicKey)
+        // V2DNS config is now handled by V2rayDnsProfileRepository
         // Hysteria
         view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
         view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
@@ -310,12 +289,7 @@ class ConfigFragment : Fragment() {
             sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass).text.toString(),
         )
 
-        val dns = c.slowDns.copy(
-            dnsServer = view.findViewById<EditText>(R.id.et_v2dns_dns_server).text.toString().trim(),
-            dnsPort = view.findViewById<EditText>(R.id.et_v2dns_dns_port).text.toString().toIntOrNull() ?: 53,
-            nameserver = view.findViewById<EditText>(R.id.et_v2dns_nameserver).text.toString().trim(),
-            publicKey = view.findViewById<EditText>(R.id.et_v2dns_pubkey).text.toString().trim()
-        )
+        val dns = c.slowDns
 
         val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
@@ -566,13 +540,12 @@ class ConfigFragment : Fragment() {
             .show()
     }
 
-}
-
     private fun setupV2rayDnsProfiles(view: View) {
         val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
         val profiles = v2dnsRepo.getAll().toMutableList()
         
-        val adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
+        lateinit var adapter: com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter
+        adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
             profiles,
             onSelectionChanged = { id, selected ->
                 v2dnsRepo.updateSelection(id, selected)
@@ -613,6 +586,4 @@ class ConfigFragment : Fragment() {
             }
         }
     }
-
-        // V2ray+DNS profiles
-        setupV2rayDnsProfiles(view)
+}
