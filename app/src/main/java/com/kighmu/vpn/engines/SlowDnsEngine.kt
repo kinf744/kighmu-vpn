@@ -145,7 +145,8 @@ class SlowDnsEngine(
                     // Utiliser hev-socks5-tunnel JNI (fallback rapide)
                     KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
                     val t = Thread {
-                        com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, MTU)
+                        vpnService?.protect(fd)
+                        vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, MTU) }
                         KighmuLogger.info(TAG, "hev tun2socks JNI terminé")
                     }
                     t.isDaemon = true

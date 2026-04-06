@@ -8,7 +8,8 @@ import kotlinx.coroutines.*
 
 class MultiXraySlowDnsEngine(
     private val baseConfig: KighmuConfig,
-    private val context: Context
+    private val context: Context,
+    private val vpnService: android.net.VpnService?
 ) : TunnelEngine {
 
     private val TAG = "MultiXraySlowDns"
@@ -106,9 +107,11 @@ class MultiXraySlowDnsEngine(
         if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
             // Utiliser hev-socks5-tunnel JNI (très rapide)
             KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
-            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort)
+            vpnService?.protect(fd)
+            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it) }
         } else {
             // Fallback: utiliser le premier Xray engine pour démarrer tun2socks (qui pointera vers le balancer)
+            vpnService?.protect(fd)
             xrayEngines.firstOrNull()?.startTun2Socks(fd)
         }
     }

@@ -22,15 +22,16 @@ object HevTun2Socks {
 
     val isAvailable get() = loaded
 
-    fun start(context: Context, fd: Int, socksPort: Int, mtu: Int = 8500) {
+    fun start(context: Context, fd: Int, socksPort: Int, vpnService: android.net.VpnService, mtu: Int = 8500) {
         val config = buildConfig(socksPort, mtu)
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
+        vpnService.protect(fd)
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
-    fun startMulti(context: Context, fd: Int, ports: List<Int>, mtu: Int = 8500) {
+    fun startMulti(context: Context, fd: Int, ports: List<Int>, vpnService: android.net.VpnService, mtu: Int = 8500) {
         if (ports.isEmpty()) return
         
         Log.i(TAG, "Démarrage hev multi-SOCKS fd=$fd ports=$ports")
@@ -42,6 +43,7 @@ object HevTun2Socks {
         configFile.writeText(config)
         
         Log.i(TAG, "Config multi sauvegardée: ${configFile.absolutePath}")
+        vpnService.protect(fd)
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
