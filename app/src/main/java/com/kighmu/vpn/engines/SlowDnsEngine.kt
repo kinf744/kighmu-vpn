@@ -292,10 +292,17 @@ class SlowDnsEngine(
             dnsttProcess?.destroyForcibly()
             dnsttProcess?.destroy()
         } catch (_: Exception) {}
+        
+        // Principe du build #736 : Nettoyage ciblé du port dnstt
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "kill -9 \$(lsof -ti:$dnsttPort) 2>/dev/null")) } catch (_: Exception) {}
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $dnsttPort/tcp 2>/dev/null")) } catch (_: Exception) {}
+        
         dnsttProcess = null
         engineScope.cancel()
+        
+        // Principe du build #736 : Délai de grâce critique pour libérer les sockets noyau
+        kotlinx.coroutines.delay(3000)
+        
         KighmuLogger.info(TAG, "SlowDNS arrete")
     }
 

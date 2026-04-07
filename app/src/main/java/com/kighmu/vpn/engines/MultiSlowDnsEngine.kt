@@ -41,14 +41,25 @@ class MultiSlowDnsEngine(
         KighmuLogger.info(TAG, "Nettoyage engines précédents (${engines.size})...")
         synchronized(engines) {
             engines.forEach { e ->
-                try { scope.launch { e.stop() } } catch (_: Exception) {}
+                // Utilisation de runBlocking pour forcer l'arrêt synchrone avant de continuer
+                try { runBlocking { e.stop() } } catch (_: Exception) {}
             }
             engines.clear()
         }
+        
+        // Principe du build #736 : Nettoyage préventif agressif des ports SOCKS et DNSTT
+        try {
+            val portsToKill = (10800..10810).joinToString(" ") { "$it/tcp" } + " " +
+                             (7000..7010).joinToString(" ") { "$it/tcp" } + " 10900/tcp"
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $portsToKill")).waitFor()
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "pkill -9 -f dnstt")).waitFor()
+        } catch (_: Exception) {}
+
         socksBalancer?.stop()
         socksBalancer = null
-        // Attendre que les ports soient libérés
-        delay(2500)
+        
+        // Principe du build #736 : Attendre impérativement la libération des ressources noyau
+        delay(3000)
 
         KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle ${selected.size} session(s) ===")
 

@@ -293,8 +293,8 @@ class KighmuVpnService : VpnService() {
         stats = VpnStats()
 
         // 3. Arrêter le moteur et tuer les processus natifs de manière SYNCHRONE
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-        scope.launch {
+        // Utilisation de runBlocking pour garantir le nettoyage avant l'arrêt du service
+        runBlocking(Dispatchers.IO) {
             try {
                 KighmuLogger.info(TAG, "Arrêt du moteur...")
                 engineRef?.stop()
@@ -316,7 +316,7 @@ class KighmuVpnService : VpnService() {
                 } catch (_: Exception) {}
                 
                 // Délai de grâce pour laisser le noyau Linux libérer les ressources
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(1000)
                 
                 // 4. Fermer VPN interface - C'est l'étape CRITIQUE pour la clé VPN
                 try {
@@ -328,7 +328,7 @@ class KighmuVpnService : VpnService() {
                 vpnInterface = null
 
                 // 5. Retirer notification et arrêter le service
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     try {
                         stopForeground(STOP_FOREGROUND_REMOVE)
                     } catch (_: Exception) {
