@@ -300,8 +300,8 @@ class SlowDnsEngine(
         dnsttProcess = null
         engineScope.cancel()
         
-        // Principe du build #736 : Délai de grâce critique pour libérer les sockets noyau
-        kotlinx.coroutines.delay(3000)
+        // Délai de grâce optimisé (500ms) pour libérer les sockets noyau sans ralentir l'UI
+        kotlinx.coroutines.delay(500)
         
         KighmuLogger.info(TAG, "SlowDNS arrete")
     }

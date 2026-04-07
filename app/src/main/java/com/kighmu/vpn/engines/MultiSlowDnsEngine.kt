@@ -58,8 +58,8 @@ class MultiSlowDnsEngine(
         socksBalancer?.stop()
         socksBalancer = null
         
-        // Principe du build #736 : Attendre impérativement la libération des ressources noyau
-        delay(3000)
+        // Attendre la libération des ressources noyau (500ms)
+        delay(500)
 
         KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle ${selected.size} session(s) ===")
 
