@@ -34,13 +34,16 @@ class Tun2SocksRelay(
 
     private suspend fun readLoop() = withContext(Dispatchers.IO) {
         val inp = FileInputStream(tunFd)
-        val buf = ByteArray(65536)
+        // Buffer optimisé pour le débit streaming
+        val buf = ByteArray(131072) // 128KB
         while (isActive) {
             try {
                 val len = inp.read(buf)
                 if (len < 0) break
                 if (len < 20) continue
-                launch { handlePacket(buf.copyOf(len)) }
+                
+                // Traitement immédiat pour réduire la latence
+                handlePacket(buf.copyOf(len))
             } catch (e: java.io.InterruptedIOException) {
                 break // VPN deconnecte normalement
             } catch (e: Exception) {
@@ -224,7 +227,8 @@ class Tun2SocksRelay(
 
         suspend fun startReading(onData: (ByteArray) -> Unit) = withContext(Dispatchers.IO) {
             val sock = socket ?: return@withContext
-            val buf = ByteArray(32768)
+            // Buffer de lecture agrandi pour le streaming
+            val buf = ByteArray(65536) // 64KB
             try {
                 while (true) {
                     val n = sock.getInputStream().read(buf)

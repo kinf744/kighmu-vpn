@@ -304,13 +304,17 @@ class XrayEngine(
         return file
     }
     private fun buildXrayConfigFromFields(xc: com.kighmu.vpn.models.XrayConfig): String {
+        // Optimisation StreamSettings: Mux activé pour la stabilité du flux streaming
+        val muxSettings = """ "mux": { "enabled": true, "concurrency": 8 } """
+        
         val transport = when (xc.transport) {
             "ws" -> """
                 "streamSettings": {
                     "network": "ws",
                     "security": "${if (xc.tls) "tls" else "none"}",
                     "wsSettings": { "path": "${xc.wsPath}", "headers": { "Host": "${xc.wsHost}" } },
-                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} }
+                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} },
+                    "sockopt": { "tcpFastOpen": true }
                 }
             """.trimIndent()
             "grpc" -> """
@@ -318,21 +322,44 @@ class XrayEngine(
                     "network": "grpc",
                     "security": "${if (xc.tls) "tls" else "none"}",
                     "grpcSettings": { "serviceName": "${xc.wsPath}" },
-                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} }
+                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} },
+                    "sockopt": { "tcpFastOpen": true }
                 }
             """.trimIndent()
-            else -> ""
+            else -> """ "streamSettings": { "sockopt": { "tcpFastOpen": true } } """
         }
 
         val transportJson = if (transport.isNotBlank()) ", $transport" else ""
         val outbound = when (xc.protocol) {
-            "vmess" -> """{ "protocol": "vmess", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }] }$transportJson }"""
-            "vless" -> """{ "protocol": "vless", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }] }$transportJson }"""
-            "trojan" -> """{ "protocol": "trojan", "settings": { "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }] }$transportJson }"""
+            "vmess" -> """{ "protocol": "vmess", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }] }, "streamSettings": { "sockopt": { "mark": 255 } } $transportJson, "mux": { "enabled": true, "concurrency": 8 } }"""
+            "vless" -> """{ "protocol": "vless", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }] }, "streamSettings": { "sockopt": { "mark": 255 } } $transportJson, "mux": { "enabled": true, "concurrency": 8 } }"""
+            "trojan" -> """{ "protocol": "trojan", "settings": { "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }] }, "streamSettings": { "sockopt": { "mark": 255 } } $transportJson, "mux": { "enabled": true, "concurrency": 8 } }"""
             else -> """{ "protocol": "${xc.protocol}", "settings": {} }"""
         }
 
-        return """{ "log": { "loglevel": "warning" }, "inbounds": [{ "port": $LOCAL_SOCKS_PORT, "protocol": "socks", "settings": { "udp": true } }, { "port": $LOCAL_HTTP_PORT, "protocol": "http" }], "outbounds": [$outbound], "routing": { "rules": [] } }"""
+        // Optimisation Inbound: Sniffing activé pour un meilleur routage DNS/HTTP
+        val inbounds = """
+            [
+                { 
+                    "port": $LOCAL_SOCKS_PORT, 
+                    "protocol": "socks", 
+                    "settings": { "udp": true, "auth": "noauth" },
+                    "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+                },
+                { 
+                    "port": $LOCAL_HTTP_PORT, 
+                    "protocol": "http",
+                    "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+                }
+            ]
+        """.trimIndent()
+
+        return """{ 
+            "log": { "loglevel": "warning" }, 
+            "inbounds": $inbounds, 
+            "outbounds": [$outbound, { "protocol": "freedom", "tag": "direct" }], 
+            "routing": { "domainStrategy": "AsIs", "rules": [{ "type": "field", "outboundTag": "direct", "domain": ["geosite:google"] }] } 
+        }"""
     }
 
     private fun extractXrayBinary(): File? {

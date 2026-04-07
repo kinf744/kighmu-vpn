@@ -91,14 +91,15 @@ class SocksBalancer(private val ports: List<Int>) {
     }
 
     private fun pipe(inp: InputStream, out: OutputStream) {
-        val buf = ByteArray(65536) // 64KB buffer pour meilleur débit
+        // Buffer agrandi (128KB) pour maximiser le débit streaming
+        val buf = ByteArray(131072)
         var n: Int
         try {
             while (true) {
                 n = inp.read(buf)
                 if (n == -1) break
                 out.write(buf, 0, n)
-                // flush seulement si pas de données en attente
+                // flush intelligent: seulement si le flux semble se calmer
                 if (inp.available() == 0) out.flush()
             }
         } catch (_: Exception) {}
