@@ -292,9 +292,9 @@ class KighmuVpnService : VpnService() {
         tun2socksRelay = null
         stats = VpnStats()
 
-        // 3. Arrêter le moteur et tuer les processus natifs de manière SYNCHRONE
-        // Utilisation de runBlocking pour garantir le nettoyage avant l'arrêt du service
-        runBlocking(Dispatchers.IO) {
+        // 3. Arrêter le moteur et tuer les processus natifs de manière ASYNCHRONE (scope dédié)
+        // On n'utilise PLUS runBlocking pour éviter de figer l'UI
+        serviceScope.launch(Dispatchers.IO) {
             try {
                 KighmuLogger.info(TAG, "Arrêt du moteur...")
                 engineRef?.stop()
@@ -309,14 +309,13 @@ class KighmuVpnService : VpnService() {
                 
                 // Sécurité supplémentaire : tuer tout processus occupant les ports SOCKS (10800-10900)
                 try {
-                    // Nettoyage agressif des ports SOCKS et DNSTT (7000+)
                     val portsToKill = (10800..10810).joinToString(" ") { "$it/tcp" } + " " +
                                      (7000..7010).joinToString(" ") { "$it/tcp" } + " 10900/tcp 10808/tcp"
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $portsToKill")).waitFor()
                 } catch (_: Exception) {}
                 
                 // Délai de grâce pour laisser le noyau Linux libérer les ressources
-                kotlinx.coroutines.delay(1000)
+                delay(1000)
                 
                 // 4. Fermer VPN interface - C'est l'étape CRITIQUE pour la clé VPN
                 try {
@@ -330,7 +329,10 @@ class KighmuVpnService : VpnService() {
                 // 5. Retirer notification et arrêter le service
                 withContext(Dispatchers.Main) {
                     try {
+                        // Forcer la suppression de la notification
                         stopForeground(STOP_FOREGROUND_REMOVE)
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        nm.cancel(NOTIFICATION_ID)
                     } catch (_: Exception) {
                         try { @Suppress("DEPRECATION") stopForeground(true) } catch (_: Exception) {}
                     }
@@ -340,10 +342,9 @@ class KighmuVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "Erreur lors de la déconnexion: ${e.message}")
-                // Fallback de secours : fermer l'interface quoi qu'il arrive
                 try { vpnInterface?.close() } catch (_: Exception) {}
                 vpnInterface = null
-                stopSelf()
+                withContext(Dispatchers.Main) { stopSelf() }
             }
         }
     }

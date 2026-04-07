@@ -131,11 +131,16 @@ class MultiXraySlowDnsEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        // Aligné sur SSH SlowDNS : Utiliser exclusivement le SocksBalancer Kotlin
-        val targetPort = SocksBalancer.BALANCER_PORT
-        KighmuLogger.info(TAG, "tun2socks → Balancer Kotlin:$targetPort (${activeXrayPorts.size} tunnels)")
+        // Si un seul profil, on peut router directement vers Xray pour plus de stabilité
+        // Sinon, on passe par le Balancer
+        val targetPort = if (activeXrayPorts.size == 1) {
+            activeXrayPorts[0]
+        } else {
+            SocksBalancer.BALANCER_PORT
+        }
         
-        // On utilise le premier moteur Xray pour lancer tun2socks, mais dirigé vers le port du balancer
+        KighmuLogger.info(TAG, "tun2socks → Port:$targetPort (${if (activeXrayPorts.size == 1) "Direct" else "Balancer"})")
+        
         val firstXray = xrayEngines.firstOrNull()
         if (firstXray != null) {
             vpnService?.protect(fd)
