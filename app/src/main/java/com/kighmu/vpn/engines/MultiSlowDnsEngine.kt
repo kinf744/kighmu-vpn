@@ -164,10 +164,28 @@ class MultiSlowDnsEngine(
 
     override suspend fun stop() {
         KighmuLogger.info(TAG, "Arrêt de ${engines.size} session(s)...")
-        engines.forEach { try { it.stop() } catch (_: Exception) {} }
+        
+        // 1. Arrêter le SocksBalancer d'abord
+        try {
+            socksBalancer?.stop()
+            socksBalancer = null
+        } catch (_: Exception) {}
+
+        // 2. Arrêter HevTun2Socks JNI globalement
+        try {
+            com.kighmu.vpn.engines.HevTun2Socks.stop()
+        } catch (_: Exception) {}
+
+        // 3. Arrêter chaque moteur individuellement (SSH, DNSTT)
+        engines.forEach { engine ->
+            try { engine.stop() } catch (_: Exception) {}
+        }
         engines.clear()
+        
+        // 4. Annuler les jobs de monitoring
         scope.cancel()
-        KighmuLogger.info(TAG, "Toutes les sessions arrêtées")
+        
+        KighmuLogger.info(TAG, "Toutes les ressources MultiSlowDNS libérées")
     }
 
     override suspend fun sendData(data: ByteArray, length: Int) {

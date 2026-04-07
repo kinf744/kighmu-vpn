@@ -301,12 +301,18 @@ class KighmuVpnService : VpnService() {
                 
                 // Tuer TOUS les processus natifs qui pourraient tenir le FD de l'interface TUN
                 KighmuLogger.info(TAG, "Nettoyage des processus natifs...")
-                val killCmd = "killall -9 libtun2socks.so xray hysteria libhysteria.so dnstt"
-                try { Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor() } catch (_: Exception) {}
+                val killCmd = "killall -9 libtun2socks.so xray hysteria libhysteria.so dnstt libdnstt.so"
+                try { 
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", killCmd)).waitFor()
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "pkill -9 -f dnstt")).waitFor()
+                } catch (_: Exception) {}
                 
                 // Sécurité supplémentaire : tuer tout processus occupant les ports SOCKS (10800-10900)
                 try {
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 10800/tcp 10801/tcp 10802/tcp 10808/tcp 10900/tcp")).waitFor()
+                    // Nettoyage agressif des ports SOCKS et DNSTT (7000+)
+                    val portsToKill = (10800..10810).joinToString(" ") { "$it/tcp" } + " " +
+                                     (7000..7010).joinToString(" ") { "$it/tcp" } + " 10900/tcp 10808/tcp"
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $portsToKill")).waitFor()
                 } catch (_: Exception) {}
                 
                 // Délai de grâce pour laisser le noyau Linux libérer les ressources
