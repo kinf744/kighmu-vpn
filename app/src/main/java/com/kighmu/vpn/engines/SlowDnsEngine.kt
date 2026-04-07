@@ -201,12 +201,12 @@ class SlowDnsEngine(
 
 
     private fun startDnsttProcess(bin: File) {
-        // Optimisation DNSTT: augmentation du buffer et réduction du délai pour le streaming
+        // DNSTT ne supporte pas le flag -mtu en ligne de commande. 
+        // La stabilité sera gérée par les buffers Xray et Tun2SocksRelay.
         val cmd = listOf(
             bin.absolutePath,
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
             "-pubkey", cleanPublicKey,
-            "-mtu", "1100", // MTU réduit pour éviter la fragmentation sur SlowDNS
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
