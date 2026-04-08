@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id 'com.google.gms.google-services' // Google Services plugin
 }
 
 android {
@@ -111,4 +112,8 @@ dependencies {
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
     testImplementation 'junit:junit:4.13.2'
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.7.4')
+    implementation 'com.google.firebase:firebase-storage-ktx'
 }

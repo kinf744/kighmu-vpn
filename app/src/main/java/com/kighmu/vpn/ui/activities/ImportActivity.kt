@@ -16,11 +16,16 @@ import com.kighmu.vpn.models.ExportConfig
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.ui.MainViewModel
 import kotlinx.coroutines.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCancellableCoroutine
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
 
 class ImportActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private lateinit var storageRef: StorageReference
     private val configManager by lazy { com.kighmu.vpn.config.ConfigManager(this) }
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -30,6 +35,7 @@ class ImportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_import)
+        storageRef = FirebaseStorage.getInstance().reference
 
         // Bouton importer fichier
         findViewById<Button>(R.id.btn_import_file).setOnClickListener {
@@ -187,28 +193,23 @@ class ImportActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun fetchCloudConfig(code: String): String? {
-        // Récupérer depuis GitHub repo
+    private suspend fun fetchCloudConfig(code: String): String? = suspendCancellableCoroutine {\n        continuation ->
         val cleanCode = code.trim()
-        val url = "https://raw.githubusercontent.com/kinf744/kighmu-vpn/cloud-configs/configs/$cleanCode.json"
-        return try {
-            val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 15000
-            conn.readTimeout = 15000
-            val p1 = "ghp_T7OhZRkIQDOpq0l"
-            val p2 = "EjcICIC1AmOrL6l4Sq8ck"
-            conn.setRequestProperty("Authorization", "token " + p1 + p2)
-            val responseCode = conn.responseCode
-            if (responseCode == 200) {
-                val response = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                if (response.contains("config") && response.contains("security")) response else null
-            } else {
-                conn.disconnect()
-                null
+        val configRef = storageRef.child("configs/$cleanCode.json")
+
+        configRef.getBytes(1024 * 1024) // Max 1MB for config file
+            .addOnSuccessListener { bytes ->
+                val json = String(bytes, Charsets.UTF_8)
+                if (json.contains("config") && json.contains("security")) {
+                    continuation.resume(json) { /* handle cancellation */ }
+                } else {
+                    continuation.resume(null) { /* handle cancellation */ }
+                }
             }
-        } catch (_: Exception) { null }
+            .addOnFailureListener { exception ->
+                showError("Erreur de téléchargement: ${exception.message}")
+                continuation.resume(null) { /* handle cancellation */ }
+            }
     }
 
     private fun showError(msg: String) {
