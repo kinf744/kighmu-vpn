@@ -16,19 +16,13 @@ import com.kighmu.vpn.models.ExportConfig
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.ui.MainViewModel
 import kotlinx.coroutines.*
-import kotlin.coroutines.resume
-import kotlinx.coroutines.suspendCancellableCoroutine
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageReference
-
-
+import java.net.HttpURLConnection
+import java.net.URL
 
 class ImportActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private lateinit var storageRef: StorageReference
-
     private val configManager by lazy { com.kighmu.vpn.config.ConfigManager(this) }
 
     private val filePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -38,20 +32,15 @@ class ImportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_import)
-        storageRef = FirebaseStorage.getInstance().reference
 
-
-        // Bouton importer fichier
         findViewById<Button>(R.id.btn_import_file).setOnClickListener {
             filePicker.launch("*/*")
         }
 
-        // Bouton importer via code cloud
         findViewById<Button>(R.id.btn_import_cloud).setOnClickListener {
             importFromCloud()
         }
 
-        // Handle intent ACTION_VIEW (.kighmu file)
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.data?.let { importFromFile(it) }
         }
@@ -96,7 +85,6 @@ class ImportActivity : AppCompatActivity() {
             val config = Gson().fromJson(configJson, KighmuConfig::class.java)
             val security = Gson().fromJson(securityJson, ExportConfig::class.java)
 
-            // Vérifier code d'accès si requis
             if (security.accessCode.isNotBlank()) {
                 promptAccessCode(config, security)
                 return
@@ -130,13 +118,11 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun validateAndImport(config: KighmuConfig, security: ExportConfig) {
-        // Vérifier expiration
         if (security.expiresAt > 0 && System.currentTimeMillis() > security.expiresAt) {
             showError("Cette configuration a expiré")
             return
         }
 
-        // Vérifier device lock
         if (security.lockDeviceId && security.hardwareId.isNotEmpty()) {
             val currentHwId = ConfigEncryption.getHardwareId(this)
             if (security.hardwareId != currentHwId) {
@@ -145,7 +131,6 @@ class ImportActivity : AppCompatActivity() {
             }
         }
 
-        // Vérifier opérateur
         if (security.lockOperator && security.operatorName.isNotEmpty()) {
             val tm = getSystemService(TELEPHONY_SERVICE) as android.telephony.TelephonyManager
             if (tm.networkOperatorName != security.operatorName) {
@@ -154,13 +139,11 @@ class ImportActivity : AppCompatActivity() {
             }
         }
 
-        // Appliquer la security à la config importée (garder toutes les données)
         val finalConfig = config.copy(
             exportConfig = security,
             hardwareId = if (security.lockDeviceId) security.hardwareId else config.hardwareId
         )
 
-        // Burn après import
         if (security.burnAfterImport) {
             showConfirmBurn(finalConfig, security)
             return
@@ -175,7 +158,6 @@ class ImportActivity : AppCompatActivity() {
             .setMessage("Cette configuration sera détruite après importation. Continuer?")
             .setPositiveButton("Importer") { _, _ ->
                 applyImport(config)
-                // Marquer comme brûlée - ne peut plus être réimportée
                 Toast.makeText(this, "Config importée et brûlée", Toast.LENGTH_LONG).show()
             }
             .setNegativeButton("Annuler", null)
@@ -183,37 +165,32 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun applyImport(config: KighmuConfig) {
-        // Sauvegarder via ConfigManager pour persister
         configManager.saveCurrentConfig(config)
-        // Aussi via viewModel pour mettre à jour l'UI
         viewModel.saveConfig(config)
         Toast.makeText(this, "✓ Configuration importée avec succès!", Toast.LENGTH_LONG).show()
         setResult(RESULT_OK)
-        // Relancer MainActivity pour recharger la config
-        val intent = android.content.Intent(this, MainActivity::class.java).apply {
-            flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
         }
         startActivity(intent)
         finish()
     }
 
-    private suspend fun fetchCloudConfig(code: String): String? = suspendCancellableCoroutine { continuation ->
-        val cleanCode = code.trim()
-        val configRef = storageRef.child("configs/$cleanCode.json")
-
-        configRef.getBytes(1024 * 1024) // Max 1MB for config file
-            .addOnSuccessListener { bytes ->
-                val json = String(bytes, Charsets.UTF_8)
-                if (json.contains("config") && json.contains("security")) {
-                    continuation.resume(json) { /* handle cancellation */ }
-                } else {
-                    continuation.resume(null) { /* handle cancellation */ }
-                }
-            }
-            .addOnFailureListener { exception ->
-                showError("Erreur de téléchargement: ${exception.message}")
-                continuation.resume(null) { /* handle cancellation */ }
-            }
+    private suspend fun fetchCloudConfig(code: String): String? {
+        return try {
+            // Supporte à la fois le code seul ou l'URL complète
+            val urlString = if (code.startsWith("http")) code else "https://hastebin.com/raw/$code"
+            val url = URL(urlString)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            
+            if (conn.responseCode == 200) {
+                val json = conn.inputStream.bufferedReader().readText()
+                if (json.contains("config") && json.contains("security")) json else null
+            } else null
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun showError(msg: String) {
