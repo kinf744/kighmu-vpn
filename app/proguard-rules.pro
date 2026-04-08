@@ -141,3 +141,4 @@
 -dontwarn java.lang.invoke.**
 -dontwarn javax.annotation.**
 -dontwarn org.codehaus.mojo.**
+-dontwarn sun.net.spi.nameservice.NameServiceDescriptor
