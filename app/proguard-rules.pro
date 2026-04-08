@@ -88,10 +88,17 @@
 
 # ─── dnsjava (org.xbill.DNS) ──────────────────────────────────────────────────
 # La classe sun.net.spi.nameservice.NameServiceDescriptor n'existe pas sur Android.
-# DNSJavaNameServiceDescriptor la référence via le SPI Java SE uniquement.
-# On supprime l'avertissement et on ignore la classe manquante.
 -dontwarn sun.net.spi.nameservice.**
+# dnsjava utilise JNA pour certaines fonctions sur Windows, non applicable sur Android.
+-dontwarn com.sun.jna.**
+# dnsjava utilise JNDI pour certaines fonctions, non disponible sur Android.
+-dontwarn javax.naming.**
+# dnsjava contient des providers spécifiques à Windows.
 -dontwarn org.xbill.DNS.spi.**
+-dontwarn org.xbill.DNS.config.IPHlpAPI
+-dontwarn org.xbill.DNS.config.WindowsResolverConfigProvider**
+-dontwarn org.xbill.DNS.config.JndiContextResolverConfigProvider**
+
 -keep class org.xbill.DNS.** { *; }
 
 # ─── Kotlin coroutines ────────────────────────────────────────────────────────
