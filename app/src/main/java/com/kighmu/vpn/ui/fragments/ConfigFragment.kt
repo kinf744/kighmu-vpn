@@ -223,7 +223,6 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_ssl_ssh_port).setText(c.sshSsl.sshPort.toString())
         view.findViewById<EditText>(R.id.et_ssl_ssh_user).setText(c.sshSsl.sshUser)
         view.findViewById<EditText>(R.id.et_ssl_ssh_pass).setText(c.sshSsl.sshPass)
-        view.findViewById<EditText>(R.id.et_ssl_sni).setText(c.sshSsl.sni)
         view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
         // Xray - initialiser les variables mémoire depuis la config sauvegardée
         if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.xrayLinkJson
@@ -288,7 +287,7 @@ class ConfigFragment : Fragment() {
             sshPort = view.findViewById<EditText>(R.id.et_ssl_ssh_port).text.toString().toIntOrNull() ?: 22,
             sshUser = view.findViewById<EditText>(R.id.et_ssl_ssh_user).text.toString(),
             sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass).text.toString(),
-            sni = view.findViewById<EditText>(R.id.et_ssl_sni).text.toString()
+            sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
         )
 
         val dns = c.slowDns
