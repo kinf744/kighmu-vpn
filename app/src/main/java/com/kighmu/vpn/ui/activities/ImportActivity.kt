@@ -17,7 +17,7 @@ import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.ui.MainViewModel
 import kotlinx.coroutines.*
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 
