@@ -160,8 +160,8 @@ class HysteriaEngine(
             try {
                 val bin = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
                 if (!bin.exists()) { log("libtun2socks.so introuvable"); return@Thread }
-                val sockPath = "${context.dataDir.absolutePath}/sock_path"
-                java.io.File(sockPath).let { if (!it.exists()) it.createNewFile() }
+                // Utiliser un socket abstrait pour éviter les problèmes de permissions filesystem
+                val sockPath = "kighmu_tun_sock"
 
                 val cmd = "${bin.absolutePath}" +
                     " --netif-ipaddr 10.0.0.2" +
@@ -169,7 +169,7 @@ class HysteriaEngine(
                     " --socks-server-addr 127.0.0.1:$socksPort" +
                     " --tunmtu 1500" +
                     " --tunfd $fd" +
-                    " --sock-path $sockPath" +
+                    " --sock-path @$sockPath" + // @ indique un socket abstrait pour tun2socks
                     " --loglevel 3" +
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
 
@@ -192,7 +192,8 @@ class HysteriaEngine(
                     if (!sent) try {
                         try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
                         val s = android.net.LocalSocket()
-                        s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                        // Utiliser Namespace.ABSTRACT pour correspondre au @sockPath
+                        s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.ABSTRACT))
                         s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                         s.outputStream.write(42)
                         s.shutdownOutput(); s.close()
