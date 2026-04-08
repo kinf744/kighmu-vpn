@@ -43,7 +43,7 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -storepass KighmuStore2024! \
-            -keypass KighmuKey2024! \
+            -keypass KighmuStore2024! \
             -dname "CN=KIGHMU VPN, OU=Mobile, O=KIGHMU, L=Unknown, S=Unknown, C=US"
           keytool -list -keystore kighmu.keystore -storepass KighmuStore2024! | head -3
 
@@ -54,7 +54,7 @@ jobs:
           KEYSTORE_PATH: kighmu.keystore
           KEYSTORE_PASSWORD: KighmuStore2024!
           KEY_ALIAS: kighmu_key
-          KEY_PASSWORD: KighmuKey2024!
+          KEY_PASSWORD: KighmuStore2024!
 
       - uses: actions/upload-artifact@v4
         with:
