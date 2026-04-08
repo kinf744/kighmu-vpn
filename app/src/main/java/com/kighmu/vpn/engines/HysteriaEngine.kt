@@ -176,30 +176,53 @@ class HysteriaEngine(
                 log("tun2socks démarré fd=$fd port=$socksPort ✓")
                 tun2socksProcess = Runtime.getRuntime().exec(cmd)
 
-                val t2sIn = Thread { try { tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                // Capturer les logs de tun2socks pour le diagnostic
+                val t2sIn = Thread { 
+                    try { 
+                        tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
+                            log("[tun2socks] $line")
+                        } 
+                    } catch (_: Exception) {} 
+                }
                 t2sIn.isDaemon = true
-                t2sIn.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
                 t2sIn.start()
-                val t2sErr = Thread { try { tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { } } catch (_: Exception) {} }
+                
+                val t2sErr = Thread { 
+                    try { 
+                        tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
+                            log("[tun2socks-err] $line")
+                        } 
+                    } catch (_: Exception) {} 
+                }
                 t2sErr.isDaemon = true
-                t2sErr.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
                 t2sErr.start()
 
                 vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
                 val pfd = vpnPfd!!
                 var sent = false
-                repeat(10) {
+                
+                // Attendre un peu plus longtemps pour que tun2socks initialise le socket
+                log("Attente initialisation socket tun2socks...")
+                
+                repeat(15) { i ->
                     if (!sent) try {
-                        try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
+                        Thread.sleep(800)
                         val s = android.net.LocalSocket()
-                        // Utiliser Namespace.ABSTRACT pour correspondre au @sockPath
-                        s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.ABSTRACT))
-                        s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                        s.outputStream.write(42)
-                        s.shutdownOutput(); s.close()
-                        sent = true
-                        log("fd=$fd envoyé ✅")
-                    } catch (e: Exception) { log("sendFd: ${e.message}") }
+                        try {
+                            s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.ABSTRACT))
+                            s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
+                            s.outputStream.write(42)
+                            s.outputStream.flush()
+                            sent = true
+                            log("fd=$fd envoyé avec succès au socket abstrait ✅ (tentative ${i+1})")
+                        } catch (e: Exception) {
+                            log("sendFd tentative ${i+1}: ${e.message}")
+                        } finally {
+                            try { s.close() } catch (_: Exception) {}
+                        }
+                    } catch (e: Exception) { 
+                        log("Erreur boucle sendFd: ${e.message}") 
+                    }
                 }
                 if (!sent) log("ERREUR: fd non envoyé")
                 try { tun2socksProcess?.waitFor() } catch (_: Exception) {}
