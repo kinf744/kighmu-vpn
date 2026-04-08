@@ -73,7 +73,11 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Application réinitialisée", Toast.LENGTH_SHORT).show()
                 true
             }
-else -> super.onOptionsItemSelected(item)
+            R.id.action_license -> {
+                startActivity(Intent(this, LicenseActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 

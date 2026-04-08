@@ -67,17 +67,36 @@
                 android:textColor="#333333" android:paddingStart="8dp"/>
             <LinearLayout android:id="@+id/layout_expiry"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="16dp" android:paddingEnd="16dp"
                 android:paddingBottom="8dp" android:visibility="gone">
-                <TextView android:id="@+id/tv_expiry_date"
-                    android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="Aucune date sélectionnée"
-                    android:textColor="#888888" android:textSize="13sp"/>
-                <Button android:id="@+id/btn_pick_date"
-                    android:layout_width="wrap_content" android:layout_height="36dp"
-                    android:text="📅 Choisir" android:backgroundTint="#009688"
-                    android:textColor="#FFFFFF" android:textSize="11sp"/>
+                <!-- Ligne : sélection de la date -->
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+                    <TextView android:id="@+id/tv_expiry_date"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Aucune date sélectionnée"
+                        android:textColor="#888888" android:textSize="13sp"/>
+                    <Button android:id="@+id/btn_pick_date"
+                        android:layout_width="wrap_content" android:layout_height="36dp"
+                        android:text="📅 Date" android:backgroundTint="#009688"
+                        android:textColor="#FFFFFF" android:textSize="11sp"/>
+                </LinearLayout>
+                <!-- Ligne : sélection de l'heure et des minutes -->
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/tv_expiry_time"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Heure : 23:59"
+                        android:textColor="#888888" android:textSize="13sp"/>
+                    <Button android:id="@+id/btn_pick_time"
+                        android:layout_width="wrap_content" android:layout_height="36dp"
+                        android:text="⏰ Heure" android:backgroundTint="#00796B"
+                        android:textColor="#FFFFFF" android:textSize="11sp"/>
+                </LinearLayout>
             </LinearLayout>
             <CheckBox android:id="@+id/cb_disable_override"
                 android:layout_width="match_parent" android:layout_height="48dp"

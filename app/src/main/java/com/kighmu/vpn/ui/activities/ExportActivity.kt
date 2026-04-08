@@ -2,6 +2,7 @@ package com.kighmu.vpn.ui.activities
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -49,25 +50,48 @@ class ExportActivity : AppCompatActivity() {
         val cbExpiry = findViewById<CheckBox>(R.id.cb_set_expiry)
         val layoutExpiry = findViewById<View>(R.id.layout_expiry)
         val tvDate = findViewById<TextView>(R.id.tv_expiry_date)
-
+        val tvTime = findViewById<TextView>(R.id.tv_expiry_time)
+        // Calendrier interne pour conserver date + heure sélectionnées
+        val expiryCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+        }
         cbExpiry.setOnCheckedChangeListener { _, checked ->
             layoutExpiry.visibility = if (checked) View.VISIBLE else View.GONE
             if (!checked) expiresAt = 0L
         }
-
+        // Sélection de la date
         findViewById<Button>(R.id.btn_pick_date).setOnClickListener {
-            val cal = Calendar.getInstance()
             DatePickerDialog(this,
                 { _, year, month, day ->
-                    cal.set(year, month, day, 23, 59, 59)
-                    expiresAt = cal.timeInMillis
+                    expiryCalendar.set(Calendar.YEAR, year)
+                    expiryCalendar.set(Calendar.MONTH, month)
+                    expiryCalendar.set(Calendar.DAY_OF_MONTH, day)
+                    expiresAt = expiryCalendar.timeInMillis
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    tvDate.text = sdf.format(cal.time)
+                    tvDate.text = sdf.format(expiryCalendar.time)
                     tvDate.setTextColor(0xFF009688.toInt())
                 },
-                cal.get(Calendar.YEAR),
-                cal.get(Calendar.MONTH),
-                cal.get(Calendar.DAY_OF_MONTH)
+                expiryCalendar.get(Calendar.YEAR),
+                expiryCalendar.get(Calendar.MONTH),
+                expiryCalendar.get(Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+        // Sélection de l'heure et des minutes
+        findViewById<Button>(R.id.btn_pick_time).setOnClickListener {
+            TimePickerDialog(this,
+                { _, hourOfDay, minute ->
+                    expiryCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    expiryCalendar.set(Calendar.MINUTE, minute)
+                    expiryCalendar.set(Calendar.SECOND, 0)
+                    expiresAt = expiryCalendar.timeInMillis
+                    tvTime.text = String.format("Heure : %02d:%02d", hourOfDay, minute)
+                    tvTime.setTextColor(0xFF009688.toInt())
+                },
+                expiryCalendar.get(Calendar.HOUR_OF_DAY),
+                expiryCalendar.get(Calendar.MINUTE),
+                true // Format 24h
             ).show()
         }
     }

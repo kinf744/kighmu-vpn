@@ -57,6 +57,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".ui.activities.ExportActivity" android:exported="false"/>
+        <activity
+            android:name=".ui.activities.LicenseActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.activities.MainActivity"/>
 
         <activity
             android:name=".ui.activities.SettingsActivity"

@@ -4,4 +4,5 @@
     <item android:id="@+id/action_import" android:title="Importer config" app:showAsAction="never"/>
     <item android:id="@+id/action_export" android:title="Exporter config" app:showAsAction="never"/>
     <item android:id="@+id/action_reset" android:title="Réinitialiser" app:showAsAction="never"/>
+    <item android:id="@+id/action_license" android:title="Licence" app:showAsAction="never"/>
 </menu>
