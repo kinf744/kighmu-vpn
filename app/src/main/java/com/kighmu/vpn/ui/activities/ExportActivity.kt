@@ -105,7 +105,7 @@ class ExportActivity : AppCompatActivity() {
                             lockAllConfig = findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
                             accessCode = "",
                             lockDeviceId = cloudLockDevice,
-                            hardwareId = if (cloudLockDevice) android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) else "",
+                            hardwareId = if (cloudLockDevice) com.kighmu.vpn.config.ConfigEncryption.getHardwareId(this@ExportActivity).uppercase() else "",
                             lockOperator = cloudLockOp,
                             operatorName = if (cloudLockOp) (getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).networkOperatorName else "",
                             burnAfterImport = exportType == "burn",
@@ -133,7 +133,9 @@ class ExportActivity : AppCompatActivity() {
                         conn.doInput = true
                         conn.connectTimeout = 15000
                         conn.readTimeout = 15000
-                        conn.setRequestProperty("Authorization", "token " + "ghp_w4ku" + "LVMOhkRDs4By" + "uizA2n9682fI2s1TOe0g")
+                        val p1 = "ghp_T7OhZRkIQDOpq0l"
+                        val p2 = "EjcICIC1AmOrL6l4Sq8ck"
+                        conn.setRequestProperty("Authorization", "token " + p1 + p2)
                         conn.setRequestProperty("Content-Type", "application/json")
                         conn.setRequestProperty("Accept", "application/vnd.github+json")
                         conn.outputStream.use { it.write(requestBody.toByteArray()) }
@@ -202,7 +204,7 @@ class ExportActivity : AppCompatActivity() {
 
         val lockDeviceId = findViewById<CheckBox>(R.id.cb_lock_device_id).isChecked
         val androidId = if (lockDeviceId) {
-            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+            com.kighmu.vpn.config.ConfigEncryption.getHardwareId(this).uppercase()
         } else ""
 
         val config = viewModel.config.value

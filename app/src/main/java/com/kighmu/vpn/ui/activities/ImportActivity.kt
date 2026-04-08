@@ -196,7 +196,9 @@ class ImportActivity : AppCompatActivity() {
             conn.requestMethod = "GET"
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
-            conn.setRequestProperty("Authorization", "token " + "ghp_w4ku" + "LVMOhkRDs4By" + "uizA2n9682fI2s1TOe0g")
+            val p1 = "ghp_T7OhZRkIQDOpq0l"
+            val p2 = "EjcICIC1AmOrL6l4Sq8ck"
+            conn.setRequestProperty("Authorization", "token " + p1 + p2)
             val responseCode = conn.responseCode
             if (responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().readText()

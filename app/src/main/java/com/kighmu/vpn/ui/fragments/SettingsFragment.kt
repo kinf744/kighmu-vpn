@@ -37,9 +37,7 @@ class SettingsFragment : Fragment() {
         val prefs = requireContext().getSharedPreferences("kighmu_prefs", Context.MODE_PRIVATE)
 
         // Hardware ID
-        val androidId = Settings.Secure.getString(requireContext().contentResolver, Settings.Secure.ANDROID_ID)
-        val fingerprint = android.os.Build.FINGERPRINT
-        val hardwareId = "$androidId|$fingerprint".take(64)
+        val hardwareId = com.kighmu.vpn.config.ConfigEncryption.getHardwareId(requireContext()).uppercase()
         view.findViewById<TextView>(R.id.tv_hardware_id).text = hardwareId
 
         view.findViewById<Button>(R.id.btn_copy_hwid).setOnClickListener {
