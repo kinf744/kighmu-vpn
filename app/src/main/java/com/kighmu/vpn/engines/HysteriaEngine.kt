@@ -156,88 +156,33 @@ class HysteriaEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        Thread {
-            try {
-                val bin = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-                if (!bin.exists()) { log("libtun2socks.so introuvable"); return@Thread }
-                // Restaurer le principe stable du build #736 : socket filesystem dans dataDir
-                val sockPath = "${context.dataDir.absolutePath}/sock_path"
-                try {
-                    val sockFile = java.io.File(sockPath)
-                    if (sockFile.exists()) sockFile.delete()
-                } catch (_: Exception) {}
-
-                val cmd = "${bin.absolutePath}" +
-                    " --netif-ipaddr 10.0.0.2" +
-                    " --netif-netmask 255.255.255.0" +
-                    " --socks-server-addr 127.0.0.1:$socksPort" +
-                    " --tunmtu 1500" +
-                    " --tunfd $fd" +
-                    " --sock-path $sockPath" +
-                    " --loglevel 3" +
-                    " --udpgw-remote-server-addr 127.0.0.1:7300"
-
-                log("tun2socks démarré fd=$fd port=$socksPort ✓")
-                tun2socksProcess = Runtime.getRuntime().exec(cmd)
-
-                // Capturer les logs de tun2socks pour le diagnostic
-                val t2sIn = Thread { 
-                    try { 
-                        tun2socksProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
-                            log("[tun2socks] $line")
-                        } 
-                    } catch (_: Exception) {} 
-                }
-                t2sIn.isDaemon = true
-                t2sIn.start()
-                
-                val t2sErr = Thread { 
-                    try { 
-                        tun2socksProcess?.errorStream?.bufferedReader()?.forEachLine { line ->
-                            log("[tun2socks-err] $line")
-                        } 
-                    } catch (_: Exception) {} 
-                }
-                t2sErr.isDaemon = true
-                t2sErr.start()
-
-                vpnPfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                val pfd = vpnPfd!!
-                var sent = false
-                
-                // Attendre un peu plus longtemps pour que tun2socks initialise le socket
-                log("Attente initialisation socket tun2socks...")
-                
-                repeat(15) { i ->
-                    if (!sent) try {
-                        Thread.sleep(800)
-                        val s = android.net.LocalSocket()
-                        try {
-                            s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                            s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                            s.outputStream.write(42)
-                            s.outputStream.flush()
-                            sent = true
-                            log("fd=$fd envoyé avec succès au socket filesystem ✅ (tentative ${i+1})")
-                        } catch (e: Exception) {
-                            log("sendFd tentative ${i+1}: ${e.message}")
-                        } finally {
-                            try { s.close() } catch (_: Exception) {}
-                        }
-                    } catch (e: Exception) { 
-                        log("Erreur boucle sendFd: ${e.message}") 
-                    }
-                }
-                if (!sent) log("ERREUR: fd non envoyé")
-                try { tun2socksProcess?.waitFor() } catch (_: Exception) {}
-            } catch (e: Exception) { log("tun2socks error: ${e.message}") }
-        }.start()
+        try {
+            if (vpnService == null) {
+                log("ERREUR: VpnService est null, impossible de démarrer HevTun2Socks")
+                return
+            }
+            log("Démarrage HevTun2Socks (Principe Build #736) fd=$fd port=$socksPort")
+            HevTun2Socks.init()
+            if (HevTun2Socks.isAvailable) {
+                HevTun2Socks.start(context, fd, socksPort, vpnService, mtu = 1500)
+                log("HevTun2Socks démarré avec succès ✅")
+            } else {
+                log("ERREUR: HevTun2Socks non disponible (libtun2socks.so non chargée)")
+            }
+        } catch (e: Exception) {
+            log("Erreur HevTun2Socks: ${e.message}")
+        }
     }
 
     override suspend fun stop() {
         running = false
         serverConnected = false
         log("Arrêt forcé de Hysteria et tun2socks...")
+        
+        try {
+            HevTun2Socks.stop()
+            log("HevTun2Socks arrêté")
+        } catch (_: Exception) {}
         
         try {
             tun2socksProcess?.let { p ->
