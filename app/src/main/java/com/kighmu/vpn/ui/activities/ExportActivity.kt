@@ -69,8 +69,6 @@ class ExportActivity : AppCompatActivity() {
         val rgCloud = findViewById<android.widget.RadioGroup>(R.id.rg_cloud_type)
         val layoutDuration = findViewById<android.view.View>(R.id.layout_cloud_duration)
         val layoutResult = findViewById<android.view.View>(R.id.layout_cloud_result)
-        val tvCloudCode = findViewById<android.widget.TextView>(R.id.tv_cloud_code)
-        val btnCopyCode = findViewById<android.widget.Button>(R.id.btn_copy_cloud_code)
 
         rgCloud.setOnCheckedChangeListener { _, id ->
             layoutDuration.visibility = if (id == R.id.rb_cloud_limited) 
@@ -152,29 +150,24 @@ class ExportActivity : AppCompatActivity() {
                             btn.isEnabled = true
                             btn.text = "☁️ Exporter vers le cloud"
                             if (responseCode == 201 || responseCode == 200) {
-                                tvCloudCode.text = "Code: $code"
-                                val ehiLink = "https://ehi.link/$code"
                                 val kighmuLink = "https://kighmu.link/$code"
-                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_ehi).text = "EHI: $ehiLink"
-                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_kighmu).text = "Kighmu: $kighmuLink"
+                                findViewById<android.view.View>(R.id.layout_cloud_result).visibility = android.view.View.VISIBLE
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_code_only).text = code
                                 
-                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link_ehi).setOnClickListener {
-                                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    cm.setPrimaryClip(android.content.ClipData.newPlainText("link", ehiLink))
-                                    android.widget.Toast.makeText(this, "Lien EHI copié!", android.widget.Toast.LENGTH_SHORT).show()
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link).setOnClickListener {
+                                    copyToClipboard("Lien", kighmuLink)
                                 }
-                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link_kighmu).setOnClickListener {
-                                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    cm.setPrimaryClip(android.content.ClipData.newPlainText("link", kighmuLink))
-                                    android.widget.Toast.makeText(this, "Lien Kighmu copié!", android.widget.Toast.LENGTH_SHORT).show()
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_code_only).setOnClickListener {
+                                    copyToClipboard("Code", code)
+                                }
+                                findViewById<android.widget.Button>(R.id.btn_copy_all_cloud).setOnClickListener {
+                                    copyToClipboard("Lien & Code", "Lien: $kighmuLink\nCode: $code")
                                 }
                                 
-                                layoutResult.visibility = android.view.View.VISIBLE
-                                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-                                android.widget.Toast.makeText(this, "✓ Code copié: $code", android.widget.Toast.LENGTH_LONG).show()
+                                android.widget.Toast.makeText(this@ExportActivity, "✓ Export Cloud Réussi", android.widget.Toast.LENGTH_SHORT).show()
                             } else {
-                                android.widget.Toast.makeText(this, "Erreur $responseCode: $responseBody", android.widget.Toast.LENGTH_LONG).show()
+                                android.widget.Toast.makeText(this@ExportActivity, "Erreur $responseCode: $responseBody", android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
                     } catch (e: Exception) {
@@ -188,12 +181,6 @@ class ExportActivity : AppCompatActivity() {
             }
         }
 
-        btnCopyCode.setOnClickListener {
-            val code = tvCloudCode.text.toString().removePrefix("Code: ")
-            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-            android.widget.Toast.makeText(this, "Code copié!", android.widget.Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun setupExportButtons() {
@@ -299,6 +286,12 @@ class ExportActivity : AppCompatActivity() {
     private fun generateCode(length: Int): String {
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
         return (1..length).map { chars.random() }.joinToString("")
+    }
+
+    private fun copyToClipboard(label: String, text: String) {
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(this, "$label copié !", Toast.LENGTH_SHORT).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
