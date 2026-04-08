@@ -38,332 +38,369 @@ class ConfigFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        profileRepo = ProfileRepository(requireContext())
+        try {
+            profileRepo = ProfileRepository(requireContext())
 
-        val tabs = listOf(
-            view.findViewById<Button>(R.id.tab_slowdns),
-            view.findViewById<Button>(R.id.tab_http),
-            view.findViewById<Button>(R.id.tab_ssl),
-            view.findViewById<Button>(R.id.tab_xray),
-            view.findViewById<Button>(R.id.tab_v2dns),
-            view.findViewById<Button>(R.id.tab_hysteria),
-        )
+            val tabs = listOf(
+                view.findViewById<Button>(R.id.tab_slowdns),
+                view.findViewById<Button>(R.id.tab_http),
+                view.findViewById<Button>(R.id.tab_ssl),
+                view.findViewById<Button>(R.id.tab_xray),
+                view.findViewById<Button>(R.id.tab_v2dns),
+                view.findViewById<Button>(R.id.tab_hysteria),
+            ).filterNotNull()
 
-        val panels = listOf(
-            view.findViewById<LinearLayout>(R.id.panel_slowdns),
-            view.findViewById<LinearLayout>(R.id.panel_http),
-            view.findViewById<LinearLayout>(R.id.panel_ssl),
-            view.findViewById<LinearLayout>(R.id.panel_xray),
-            view.findViewById<LinearLayout>(R.id.panel_v2dns),
-            view.findViewById<LinearLayout>(R.id.panel_hysteria),
-        )
+            val panels = listOf(
+                view.findViewById<LinearLayout>(R.id.panel_slowdns),
+                view.findViewById<LinearLayout>(R.id.panel_http),
+                view.findViewById<LinearLayout>(R.id.panel_ssl),
+                view.findViewById<LinearLayout>(R.id.panel_xray),
+                view.findViewById<LinearLayout>(R.id.panel_v2dns),
+                view.findViewById<LinearLayout>(R.id.panel_hysteria),
+            ).filterNotNull()
 
-        fun selectTab(index: Int) {
-            val etJson = view.findViewById<EditText>(R.id.et_xray_json)
-            val etLink = view.findViewById<EditText>(R.id.et_xray_link)
-            currentTab = index
-            if (index == 4) {
-                val xray = viewModel.config.value?.xray
-                val mode = xray?.inputMode ?: "json"
-                // Toujours charger les deux champs indépendamment
-                etJson.setText(xray?.jsonConfig ?: "")
-                etLink.setText(xray?.xrayLink ?: "")
-                // Désactiver listener pendant le check pour éviter boucle
-                val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-                val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
-                val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-                rgRestore.setOnCheckedChangeListener(null)
-                if (mode == "link") {
-                    rgRestore.check(R.id.rb_xray_link)
-                    pLink.visibility = android.view.View.VISIBLE
-                    pJson.visibility = android.view.View.GONE
-                } else {
-                    rgRestore.check(R.id.rb_xray_json)
-                    pJson.visibility = android.view.View.VISIBLE
-                    pLink.visibility = android.view.View.GONE
-                }
-                // Réactiver le listener après check
-                rgRestore.setOnCheckedChangeListener { _, id ->
-                    view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning).visibility = android.view.View.GONE
-                    when (id) {
-                        R.id.rb_xray_link -> {
-                            val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
-                            if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
-                            pLink.visibility = android.view.View.VISIBLE
-                            pJson.visibility = android.view.View.GONE
-                        }
-                        R.id.rb_xray_json -> {
-                            val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-                            if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
-                            pJson.visibility = android.view.View.VISIBLE
-                            pLink.visibility = android.view.View.GONE
+            fun selectTab(index: Int) {
+                if (index < 0 || index >= panels.size) return
+                
+                val etJson = view.findViewById<EditText>(R.id.et_xray_json)
+                val etLink = view.findViewById<EditText>(R.id.et_xray_link)
+                currentTab = index
+                
+                // Tab V2Ray/Xray (index 3)
+                if (index == 3) {
+                    val xray = viewModel.config.value?.xray
+                    val mode = xray?.inputMode ?: "json"
+                    etJson?.setText(xray?.jsonConfig ?: "")
+                    etLink?.setText(xray?.xrayLink ?: "")
+                    
+                    val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+                    val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+                    val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+                    
+                    rgRestore?.setOnCheckedChangeListener(null)
+                    if (mode == "link") {
+                        rgRestore?.check(R.id.rb_xray_link)
+                        pLink?.visibility = android.view.View.VISIBLE
+                        pJson?.visibility = android.view.View.GONE
+                    } else {
+                        rgRestore?.check(R.id.rb_xray_json)
+                        pJson?.visibility = android.view.View.VISIBLE
+                        pLink?.visibility = android.view.View.GONE
+                    }
+                    
+                    rgRestore?.setOnCheckedChangeListener { _, id ->
+                        view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)?.visibility = android.view.View.GONE
+                        when (id) {
+                            R.id.rb_xray_link -> {
+                                val currentJson = etJson?.text?.toString() ?: ""
+                                if (currentJson.isNotBlank()) { 
+                                    val c = viewModel.config.value
+                                    if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) 
+                                }
+                                pLink?.visibility = android.view.View.VISIBLE
+                                pJson?.visibility = android.view.View.GONE
+                            }
+                            R.id.rb_xray_json -> {
+                                val currentLink = etLink?.text?.toString() ?: ""
+                                if (currentLink.isNotBlank()) { 
+                                    val c = viewModel.config.value
+                                    if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) 
+                                }
+                                pJson?.visibility = android.view.View.VISIBLE
+                                pLink?.visibility = android.view.View.GONE
+                            }
                         }
                     }
+                } else if (index == 4) { // Tab V2Ray+DNS (index 4)
+                    view.findViewById<android.widget.EditText>(R.id.et_v2dns_json)?.setText(
+                        if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
+                        else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
                 }
-            } else if (index == 5) {
-                view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(
-                    if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
-                    else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
+                
+                tabs.forEachIndexed { i, btn ->
+                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                        if (i == index) 0xFF2196F3.toInt() else 0xFF333344.toInt()
+                    )
+                }
+                panels.forEachIndexed { i, panel ->
+                    panel.visibility = if (i == index) View.VISIBLE else View.GONE
+                }
             }
-            tabs.forEachIndexed { i, btn ->
-                btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    if (i == index) 0xFF2196F3.toInt() else 0xFF333344.toInt()
+
+            tabs.forEachIndexed { index, btn -> btn.setOnClickListener { selectTab(index) } }
+
+            // Parse Xray link
+            view.findViewById<Button>(R.id.btn_parse_link)?.setOnClickListener {
+                val link = view.findViewById<EditText>(R.id.et_xray_link)?.text?.toString() ?: ""
+                val statusView = view.findViewById<TextView>(R.id.tv_link_status)
+                val json = parseLinkToJson(link)
+                if (json != null) {
+                    parsedJsonFromLink = json
+                    saveConfig(view)
+                    statusView?.text = "✓ Lien valide - config sauvegardée"
+                    statusView?.setTextColor(0xFF00C853.toInt())
+                } else {
+                    statusView?.text = "❌ Format invalide"
+                    statusView?.setTextColor(0xFFFF5252.toInt())
+                }
+            }
+
+            // JSON buttons
+            view.findViewById<Button>(R.id.btn_paste_json)?.setOnClickListener {
+                val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val text = cm.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+                view.findViewById<EditText>(R.id.et_xray_json)?.setText(text)
+            }
+            view.findViewById<Button>(R.id.btn_copy_json)?.setOnClickListener {
+                val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val text = view.findViewById<EditText>(R.id.et_xray_json)?.text?.toString() ?: ""
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("json", text))
+                Toast.makeText(requireContext(), "Copié!", Toast.LENGTH_SHORT).show()
+            }
+            view.findViewById<Button>(R.id.btn_format_json)?.setOnClickListener {
+                try {
+                    val text = view.findViewById<EditText>(R.id.et_xray_json)?.text?.toString() ?: ""
+                    val formatted = org.json.JSONObject(text).toString(2)
+                    view.findViewById<EditText>(R.id.et_xray_json)?.setText(formatted)
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "JSON invalide", Toast.LENGTH_SHORT).show()
+                }
+            }
+            view.findViewById<Button>(R.id.btn_select_all_json)?.setOnClickListener {
+                view.findViewById<EditText>(R.id.et_xray_json)?.selectAll()
+            }
+
+            // SlowDNS profiles
+            val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
+            if (rv != null) {
+                rv.layoutManager = LinearLayoutManager(requireContext())
+                dnsProfiles.clear()
+                try { dnsProfiles.addAll(profileRepo.getAll()) } catch (_: Exception) {}
+                slowDnsProfileAdapter = SlowDnsProfileAdapter(
+                    dnsProfiles,
+                    onSelectionChanged = { _, _ -> },
+                    onEdit = { p -> showAddProfileDialog(p) },
+                    onDelete = { p -> dnsProfiles.remove(p); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) },
+                    onClone = { p -> dnsProfiles.add(p.copy(id = java.util.UUID.randomUUID().toString())); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) }
                 )
+                rv.adapter = slowDnsProfileAdapter
             }
-            panels.forEachIndexed { i, panel ->
-                panel.visibility = if (i == index) View.VISIBLE else View.GONE
+
+            view.findViewById<Button>(R.id.btn_add_dns_profile)?.setOnClickListener {
+                showAddProfileDialog()
             }
-        }
 
-        tabs.forEachIndexed { index, btn -> btn.setOnClickListener { selectTab(index) } }
+            // V2ray+DNS profiles
+            setupV2rayDnsProfiles(view)
 
-        // RadioGroup Xray
-        val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
-        val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-        val tvWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
+            view.findViewById<Button>(R.id.btn_save_config)?.setOnClickListener { saveConfig(view) }
 
-
-
-        // Parse Xray link
-        view.findViewById<Button>(R.id.btn_parse_link).setOnClickListener {
-            val link = view.findViewById<EditText>(R.id.et_xray_link).text.toString()
-            val statusView = view.findViewById<TextView>(R.id.tv_link_status)
-            val json = parseLinkToJson(link)
-            if (json != null) {
-                parsedJsonFromLink = json
-                // Sauvegarder immédiatement pour persistance
-                saveConfig(view)
-                statusView.text = "✓ Lien valide - config sauvegardée"
-                statusView.setTextColor(0xFF00C853.toInt())
-            } else {
-                statusView.text = "❌ Format invalide"
-                statusView.setTextColor(0xFFFF5252.toInt())
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewModel.config.collect { c -> loadConfig(view, c) }
             }
+
+            selectTab(currentTab)
+        } catch (e: Exception) {
+            android.util.Log.e("ConfigFragment", "Error in onViewCreated", e)
+            Toast.makeText(context, "Erreur d'affichage: ${e.message}", Toast.LENGTH_LONG).show()
         }
-
-        // JSON buttons
-        view.findViewById<Button>(R.id.btn_paste_json).setOnClickListener {
-            val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val text = cm.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-            view.findViewById<EditText>(R.id.et_xray_json).setText(text)
-        }
-        view.findViewById<Button>(R.id.btn_copy_json).setOnClickListener {
-            val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val text = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("json", text))
-            Toast.makeText(requireContext(), "Copié!", Toast.LENGTH_SHORT).show()
-        }
-        view.findViewById<Button>(R.id.btn_format_json).setOnClickListener {
-            try {
-                val text = view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-                val formatted = org.json.JSONObject(text).toString(2)
-                view.findViewById<EditText>(R.id.et_xray_json).setText(formatted)
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "JSON invalide", Toast.LENGTH_SHORT).show()
-            }
-        }
-        view.findViewById<Button>(R.id.btn_select_all_json).setOnClickListener {
-            view.findViewById<EditText>(R.id.et_xray_json).selectAll()
-        }
-
-        // V2DNS link parsing a été supprimé ou déplacé
-
-        // SlowDNS profiles
-        val rv = view.findViewById<RecyclerView>(R.id.rv_dns_profiles)
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        dnsProfiles.clear(); dnsProfiles.addAll(profileRepo.getAll())
-        slowDnsProfileAdapter = SlowDnsProfileAdapter(
-            dnsProfiles,
-            onSelectionChanged = { _, _ -> },
-            onEdit = { p -> showAddProfileDialog(p) },
-            onDelete = { p -> dnsProfiles.remove(p); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) },
-            onClone = { p -> dnsProfiles.add(p.copy(id = java.util.UUID.randomUUID().toString())); slowDnsProfileAdapter?.notifyDataSetChanged(); saveConfig(view) }
-        )
-        rv.adapter = slowDnsProfileAdapter
-
-        view.findViewById<Button>(R.id.btn_add_dns_profile).setOnClickListener {
-            showAddProfileDialog()
-        }
-
-        // V2ray+DNS profiles
-        setupV2rayDnsProfiles(view)
-
-        view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.config.collect { c -> loadConfig(view, c) }
-        }
-
-        selectTab(currentTab)
     }
 
     private fun loadConfig(view: View, c: com.kighmu.vpn.models.KighmuConfig) {
-        // Verrouiller config si lockAllConfig = true
-        val isLocked = c.exportConfig?.lockAllConfig == true
-        applyConfigLock(view, isLocked)
-        // Recharger profils SlowDNS
-        val savedProfiles = profileRepo.getAll()
-        if (savedProfiles.isNotEmpty() || dnsProfiles.isEmpty()) {
-            dnsProfiles.clear()
-            dnsProfiles.addAll(savedProfiles)
-            slowDnsProfileAdapter?.notifyDataSetChanged()
-        }
-        // HTTP
-        view.findViewById<EditText>(R.id.et_http_ssh_host).setText(c.httpProxy.sshHost)
-        view.findViewById<EditText>(R.id.et_http_ssh_port).setText(c.httpProxy.sshPort.toString())
-        view.findViewById<EditText>(R.id.et_http_ssh_user).setText(c.httpProxy.sshUser)
-        view.findViewById<EditText>(R.id.et_http_ssh_pass).setText(c.httpProxy.sshPass)
-        view.findViewById<EditText>(R.id.et_proxy_host).setText(c.httpProxy.proxyHost)
-        view.findViewById<EditText>(R.id.et_proxy_port).setText(c.httpProxy.proxyPort.toString())
-        view.findViewById<EditText>(R.id.et_payload).setText(c.httpProxy.customPayload)
+        try {
+            // Verrouiller config si lockAllConfig = true
+            val isLocked = c.exportConfig?.lockAllConfig == true
+            applyConfigLock(view, isLocked)
+            
+            // Recharger profils SlowDNS
+            try {
+                val savedProfiles = profileRepo.getAll()
+                if (savedProfiles.isNotEmpty() || dnsProfiles.isEmpty()) {
+                    dnsProfiles.clear()
+                    dnsProfiles.addAll(savedProfiles)
+                    slowDnsProfileAdapter?.notifyDataSetChanged()
+                }
+            } catch (_: Exception) {}
+            
+            // HTTP
+            view.findViewById<EditText>(R.id.et_http_ssh_host)?.setText(c.httpProxy.sshHost)
+            view.findViewById<EditText>(R.id.et_http_ssh_port)?.setText(c.httpProxy.sshPort.toString())
+            view.findViewById<EditText>(R.id.et_http_ssh_user)?.setText(c.httpProxy.sshUser)
+            view.findViewById<EditText>(R.id.et_http_ssh_pass)?.setText(c.httpProxy.sshPass)
+            view.findViewById<EditText>(R.id.et_proxy_host)?.setText(c.httpProxy.proxyHost)
+            view.findViewById<EditText>(R.id.et_proxy_port)?.setText(c.httpProxy.proxyPort.toString())
+            view.findViewById<EditText>(R.id.et_payload)?.setText(c.httpProxy.customPayload)
 
-        // SSL
-        view.findViewById<EditText>(R.id.et_ssl_ssh_host).setText(c.sshSsl.sshHost)
-        view.findViewById<EditText>(R.id.et_ssl_ssh_port).setText(c.sshSsl.sshPort.toString())
-        view.findViewById<EditText>(R.id.et_ssl_ssh_user).setText(c.sshSsl.sshUser)
-        view.findViewById<EditText>(R.id.et_ssl_ssh_pass).setText(c.sshSsl.sshPass)
-        view.findViewById<EditText>(R.id.et_sni).setText(c.sshSsl.sni)
-        // Xray - initialiser les variables mémoire depuis la config sauvegardée
-        if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.xrayLinkJson
-        if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
-        // Charger la config JSON selon le tab et le mode
-        if (currentTab == 5) {
-            view.findViewById<EditText>(R.id.et_v2dns_json).setText(
-                if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
-                else c.xray.v2dnsJsonConfig)
-        } else if (c.xray.inputMode == "json") {
-            // Mode JSON : charger seulement jsonConfig dans et_xray_json
-            view.findViewById<EditText>(R.id.et_xray_json).setText(c.xray.jsonConfig)
-        } else {
-            // Mode Lien : et_xray_json reste vide, et_xray_link contient le lien
-            view.findViewById<EditText>(R.id.et_xray_json).setText("")
-            view.findViewById<EditText>(R.id.et_xray_link).setText(c.xray.xrayLink)
+            // SSL
+            view.findViewById<EditText>(R.id.et_ssl_ssh_host)?.setText(c.sshSsl.sshHost)
+            view.findViewById<EditText>(R.id.et_ssl_ssh_port)?.setText(c.sshSsl.sshPort.toString())
+            view.findViewById<EditText>(R.id.et_ssl_ssh_user)?.setText(c.sshSsl.sshUser)
+            view.findViewById<EditText>(R.id.et_ssl_ssh_pass)?.setText(c.sshSsl.sshPass)
+            view.findViewById<EditText>(R.id.et_sni)?.setText(c.sshSsl.sni)
+            
+            // Xray - initialiser les variables mémoire depuis la config sauvegardée
+            if (parsedJsonFromLink.isBlank()) parsedJsonFromLink = c.xray.xrayLinkJson
+            if (parsedJsonFromV2dnsLink.isBlank()) parsedJsonFromV2dnsLink = c.xray.v2dnsJsonConfig
+            
+            // Charger la config JSON selon le tab et le mode
+            if (currentTab == 4) { // V2Ray+DNS
+                view.findViewById<EditText>(R.id.et_v2dns_json)?.setText(
+                    if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
+                    else c.xray.v2dnsJsonConfig)
+            } else if (c.xray.inputMode == "json") {
+                // Mode JSON : charger seulement jsonConfig dans et_xray_json
+                view.findViewById<EditText>(R.id.et_xray_json)?.setText(c.xray.jsonConfig)
+            } else {
+                // Mode Lien : et_xray_json reste vide, et_xray_link contient le lien
+                view.findViewById<EditText>(R.id.et_xray_json)?.setText("")
+                view.findViewById<EditText>(R.id.et_xray_link)?.setText(c.xray.xrayLink)
+            }
+            
+            val savedMode = c.xray.inputMode
+            val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+            val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
+            val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
+            
+            when (savedMode) {
+                "link" -> { 
+                    rgRestore?.check(R.id.rb_xray_link)
+                    pLink?.visibility = View.VISIBLE
+                    pJson?.visibility = View.GONE 
+                }
+                "json" -> { 
+                    rgRestore?.check(R.id.rb_xray_json)
+                    pJson?.visibility = View.VISIBLE
+                    pLink?.visibility = View.GONE 
+                }
+            }
+            
+            // Hysteria
+            view.findViewById<EditText>(R.id.et_hys_host)?.setText(c.hysteria.serverAddress)
+            view.findViewById<EditText>(R.id.et_hys_auth)?.setText(c.hysteria.authPassword)
+            view.findViewById<EditText>(R.id.et_hys_upload)?.setText(c.hysteria.uploadMbps.toString())
+            view.findViewById<EditText>(R.id.et_hys_download)?.setText(c.hysteria.downloadMbps.toString())
+            view.findViewById<EditText>(R.id.et_hys_obfs)?.setText(c.hysteria.obfsPassword)
+            view.findViewById<EditText>(R.id.et_hys_port_hopping)?.setText(c.hysteria.portHopping)
+            
+            // Tab
+            val tabIndex = when (c.tunnelMode) {
+                com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
+                com.kighmu.vpn.models.TunnelMode.HTTP_PROXY -> 1
+                com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 2
+                com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 3
+                com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 4
+                com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 5
+                else -> 0
+            }
+            currentTab = tabIndex
+        } catch (e: Exception) {
+            android.util.Log.e("ConfigFragment", "Error in loadConfig", e)
         }
-        val savedMode = c.xray.inputMode
-        val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
-        val pJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-        when (savedMode) {
-            "link" -> { rgRestore.check(R.id.rb_xray_link); pLink.visibility = View.VISIBLE; pJson.visibility = View.GONE }
-            "json" -> { rgRestore.check(R.id.rb_xray_json); pJson.visibility = View.VISIBLE; pLink.visibility = View.GONE }
-        }
-        // V2DNS config is now handled by V2rayDnsProfileRepository
-        // Hysteria
-        view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
-        view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
-        view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
-        view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
-        view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
-        view.findViewById<EditText>(R.id.et_hys_port_hopping).setText(c.hysteria.portHopping)
-        // Tab
-        val tabIndex = when (c.tunnelMode) {
-            com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
-            com.kighmu.vpn.models.TunnelMode.HTTP_PROXY -> 1
-            com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS -> 2
-            com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 3
-            com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 4
-            com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 5
-            else -> 0
-        }
-        currentTab = tabIndex
     }
 
     private fun saveConfig(view: View) {
-        val c = viewModel.config.value ?: return
+        try {
+            val c = viewModel.config.value ?: return
 
-        val http = c.httpProxy.copy(
-            sshHost = view.findViewById<EditText>(R.id.et_http_ssh_host).text.toString(),
-            sshPort = view.findViewById<EditText>(R.id.et_http_ssh_port).text.toString().toIntOrNull() ?: 22,
-            sshUser = view.findViewById<EditText>(R.id.et_http_ssh_user).text.toString(),
-            sshPass = view.findViewById<EditText>(R.id.et_http_ssh_pass).text.toString(),
-            proxyHost = view.findViewById<EditText>(R.id.et_proxy_host).text.toString(),
-            proxyPort = view.findViewById<EditText>(R.id.et_proxy_port).text.toString().toIntOrNull() ?: 8080,
-            customPayload = view.findViewById<EditText>(R.id.et_payload).text.toString()
-        )
-
-        val ssl = c.sshSsl.copy(
-            sshHost = view.findViewById<EditText>(R.id.et_ssl_ssh_host).text.toString(),
-            sshPort = view.findViewById<EditText>(R.id.et_ssl_ssh_port).text.toString().toIntOrNull() ?: 22,
-            sshUser = view.findViewById<EditText>(R.id.et_ssl_ssh_user).text.toString(),
-            sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass).text.toString(),
-            sni = view.findViewById<EditText>(R.id.et_sni).text.toString()
-        )
-
-        val dns = c.slowDns
-
-        val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
-        if (currentTab == 4 && rgXray.checkedRadioButtonId == -1) {
-            tvXrayWarning.visibility = View.VISIBLE
-            return
-        }
-
-        val xrayJson = if (currentTab == 5) {
-            val v2dnsJsonField = view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).text.toString()
-            when {
-                v2dnsJsonField.isNotBlank() -> v2dnsJsonField
-                parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
-                c.xray.v2dnsJsonConfig.isNotBlank() -> c.xray.v2dnsJsonConfig
-                else -> ""
-            }
-        } else when (rgXray.checkedRadioButtonId) {
-            R.id.rb_xray_link -> if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-            else -> view.findViewById<EditText>(R.id.et_xray_json).text.toString()
-        }
-
-        val xray = if (currentTab == 5) {
-            // V2DNS totalement indépendant - ne touche pas aux champs Xray
-            // jsonConfig/xrayLink/xrayLinkJson/inputMode conservés via copy()
-            c.xray.copy(v2dnsJsonConfig = xrayJson)
-        } else {
-            val mode = when (rgXray.checkedRadioButtonId) {
-                R.id.rb_xray_link -> "link"
-                R.id.rb_xray_json -> "json"
-                else -> if (c.xray.inputMode.isNotBlank()) c.xray.inputMode else "json"
-            }
-            // Sauvegarder les deux champs simultanément - indépendance totale
-            val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-            val rawJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
-            c.xray.copy(
-                xrayLink = if (rawLink.isNotBlank()) rawLink else c.xray.xrayLink,
-                xrayLinkJson = if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else c.xray.xrayLinkJson,
-                jsonConfig = if (rawJson.isNotBlank()) rawJson else c.xray.jsonConfig,
-                inputMode = mode
+            val http = c.httpProxy.copy(
+                sshHost = view.findViewById<EditText>(R.id.et_http_ssh_host)?.text?.toString() ?: "",
+                sshPort = view.findViewById<EditText>(R.id.et_http_ssh_port)?.text?.toString()?.toIntOrNull() ?: 22,
+                sshUser = view.findViewById<EditText>(R.id.et_http_ssh_user)?.text?.toString() ?: "",
+                sshPass = view.findViewById<EditText>(R.id.et_http_ssh_pass)?.text?.toString() ?: "",
+                proxyHost = view.findViewById<EditText>(R.id.et_proxy_host)?.text?.toString() ?: "",
+                proxyPort = view.findViewById<EditText>(R.id.et_proxy_port)?.text?.toString()?.toIntOrNull() ?: 8080,
+                customPayload = view.findViewById<EditText>(R.id.et_payload)?.text?.toString() ?: ""
             )
+
+            val ssl = c.sshSsl.copy(
+                sshHost = view.findViewById<EditText>(R.id.et_ssl_ssh_host)?.text?.toString() ?: "",
+                sshPort = view.findViewById<EditText>(R.id.et_ssl_ssh_port)?.text?.toString()?.toIntOrNull() ?: 22,
+                sshUser = view.findViewById<EditText>(R.id.et_ssl_ssh_user)?.text?.toString() ?: "",
+                sshPass = view.findViewById<EditText>(R.id.et_ssl_ssh_pass)?.text?.toString() ?: "",
+                sni = view.findViewById<EditText>(R.id.et_sni)?.text?.toString() ?: ""
+            )
+
+            val dns = c.slowDns
+
+            val rgXray = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
+            val tvXrayWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
+            
+            // Xray Tab is index 3
+            if (currentTab == 3 && rgXray != null && rgXray.checkedRadioButtonId == -1) {
+                tvXrayWarning?.visibility = View.VISIBLE
+                return
+            }
+
+            val xrayJson = if (currentTab == 4) { // V2Ray+DNS
+                val v2dnsJsonField = view.findViewById<android.widget.EditText>(R.id.et_v2dns_json)?.text?.toString() ?: ""
+                when {
+                    v2dnsJsonField.isNotBlank() -> v2dnsJsonField
+                    parsedJsonFromV2dnsLink.isNotBlank() -> parsedJsonFromV2dnsLink
+                    c.xray.v2dnsJsonConfig.isNotBlank() -> c.xray.v2dnsJsonConfig
+                    else -> ""
+                }
+            } else {
+                val etXrayJson = view.findViewById<EditText>(R.id.et_xray_json)
+                when (rgXray?.checkedRadioButtonId) {
+                    R.id.rb_xray_link -> if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else etXrayJson?.text?.toString() ?: ""
+                    else -> etXrayJson?.text?.toString() ?: ""
+                }
+            }
+
+            val xray = if (currentTab == 4) { // V2Ray+DNS
+                c.xray.copy(v2dnsJsonConfig = xrayJson)
+            } else {
+                val mode = when (rgXray?.checkedRadioButtonId) {
+                    R.id.rb_xray_link -> "link"
+                    R.id.rb_xray_json -> "json"
+                    else -> if (c.xray.inputMode.isNotBlank()) c.xray.inputMode else "json"
+                }
+                val rawLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link)?.text?.toString() ?: ""
+                val rawJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json)?.text?.toString() ?: ""
+                c.xray.copy(
+                    xrayLink = if (rawLink.isNotBlank()) rawLink else c.xray.xrayLink,
+                    xrayLinkJson = if (parsedJsonFromLink.isNotBlank()) parsedJsonFromLink else c.xray.xrayLinkJson,
+                    jsonConfig = if (rawJson.isNotBlank()) rawJson else c.xray.jsonConfig,
+                    inputMode = mode
+                )
+            }
+
+            val hys = c.hysteria.copy(
+                serverAddress = view.findViewById<EditText>(R.id.et_hys_host)?.text?.toString() ?: "",
+                authPassword = view.findViewById<EditText>(R.id.et_hys_auth)?.text?.toString() ?: "",
+                uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload)?.text?.toString()?.toIntOrNull() ?: 10,
+                downloadMbps = view.findViewById<EditText>(R.id.et_hys_download)?.text?.toString()?.toIntOrNull() ?: 50,
+                obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs)?.text?.toString() ?: "",
+                portHopping = view.findViewById<EditText>(R.id.et_hys_port_hopping)?.text?.toString()?.ifBlank { "20000-50000" } ?: "20000-50000",
+            )
+
+            val newTunnelMode = when (currentTab) {
+                0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
+                1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
+                2 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
+                3 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
+                4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
+                5 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+                else -> c.tunnelMode
+            }
+
+            // Persister les profils SlowDNS
+            try { profileRepo.save(dnsProfiles) } catch (_: Exception) {}
+            
+            viewModel.saveConfig(c.copy(
+                tunnelMode = newTunnelMode,
+                httpProxy = http,
+                sshSsl = ssl,
+                slowDns = dns,
+                xray = xray,
+                hysteria = hys,
+                slowDnsProfiles = dnsProfiles.map { p -> com.kighmu.vpn.models.SlowDnsConfig(dnsServer = p.dnsServer, nameserver = p.nameserver, publicKey = p.publicKey, sshHost = p.sshHost, sshPort = p.sshPort, sshUser = p.sshUser, sshPass = p.sshPass) }.toMutableList()
+            ))
+            Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            android.util.Log.e("ConfigFragment", "Error in saveConfig", e)
+            Toast.makeText(requireContext(), "Erreur de sauvegarde: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-
-        val hys = c.hysteria.copy(
-            serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
-            authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
-            uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
-            downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
-            obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
-            portHopping = view.findViewById<EditText>(R.id.et_hys_port_hopping).text.toString().ifBlank { "20000-50000" },
-        )
-
-        val newTunnelMode = when (currentTab) {
-            0 -> com.kighmu.vpn.models.TunnelMode.SLOW_DNS
-            1 -> com.kighmu.vpn.models.TunnelMode.HTTP_PROXY
-            2 -> com.kighmu.vpn.models.TunnelMode.SSH_SSL_TLS
-            3 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
-            4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
-            5 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
-            else -> c.tunnelMode
-        }
-
-        // Persister les profils SlowDNS
-        profileRepo.save(dnsProfiles)
-        viewModel.saveConfig(c.copy(
-            tunnelMode = newTunnelMode,
-            httpProxy = http,
-            sshSsl = ssl,
-            slowDns = dns,
-            xray = xray,
-            hysteria = hys,
-            slowDnsProfiles = dnsProfiles.map { p -> com.kighmu.vpn.models.SlowDnsConfig(dnsServer = p.dnsServer, nameserver = p.nameserver, publicKey = p.publicKey, sshHost = p.sshHost, sshPort = p.sshPort, sshUser = p.sshUser, sshPass = p.sshPass) }.toMutableList()
-        ))
-        Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()
     }
 
     private fun parseLinkToJson(link: String): String? {
@@ -470,26 +507,33 @@ class ConfigFragment : Fragment() {
     }
 
     private fun applyConfigLock(view: View, locked: Boolean) {
-        if (!locked) return
-        // Désactiver seulement les EditText - pas les boutons de navigation
-        fun lockView(v: android.view.View) {
-            if (v is android.widget.EditText) {
-                v.isEnabled = false
-                v.setText("••••••••")
-                v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        try {
+            if (!locked) return
+            // Désactiver seulement les EditText - pas les boutons de navigation
+            fun lockView(v: android.view.View) {
+                if (v is android.widget.EditText) {
+                    v.isEnabled = false
+                    v.setText("••••••••")
+                    v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                }
+                if (v is android.view.ViewGroup) {
+                    for (i in 0 until v.childCount) lockView(v.getChildAt(i))
+                }
             }
-            if (v is android.view.ViewGroup) {
-                for (i in 0 until v.childCount) lockView(v.getChildAt(i))
+            val content = view.findViewById<android.view.ViewGroup>(R.id.config_content)
+            if (content != null) lockView(content)
+            
+            // Garder le bouton save visible mais désactivé
+            val btnSave = view.findViewById<android.widget.Button>(R.id.btn_save_config)
+            if (btnSave != null) {
+                btnSave.isEnabled = !locked
+                if (locked) {
+                    btnSave.text = "🔒 CONFIG VERROUILLÉE"
+                    btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+                }
             }
-        }
-        val content = view.findViewById<android.view.ViewGroup>(R.id.config_content)
-        lockView(content)
-        // Garder le bouton save visible mais désactivé
-        val btnSave = view.findViewById<android.widget.Button>(R.id.btn_save_config)
-        btnSave.isEnabled = !locked
-        if (locked) {
-            btnSave.text = "🔒 CONFIG VERROUILLÉE"
-            btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+        } catch (e: Exception) {
+            android.util.Log.e("ConfigFragment", "Error in applyConfigLock", e)
         }
     }
 
@@ -542,49 +586,71 @@ class ConfigFragment : Fragment() {
     }
 
     private fun setupV2rayDnsProfiles(view: View) {
-        val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
-        val profiles = v2dnsRepo.getAll().toMutableList()
-        
-        lateinit var adapter: com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter
-        adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
-            profiles,
-            onSelectionChanged = { id, selected ->
-                v2dnsRepo.updateSelection(id, selected)
-            },
-            onEdit = { profile ->
-                com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext(), profile) { updated ->
-                    v2dnsRepo.update(updated)
-                    adapter.setProfiles(v2dnsRepo.getAll())
+        try {
+            val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
+            val profiles = try { v2dnsRepo.getAll().toMutableList() } catch (_: Exception) { mutableListOf() }
+            
+            val adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
+                profiles,
+                onSelectionChanged = { id, selected ->
+                    try { v2dnsRepo.updateSelection(id, selected) } catch (_: Exception) {}
+                },
+                onEdit = { profile ->
+                    try {
+                        com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext(), profile) { updated ->
+                            try {
+                                v2dnsRepo.update(updated)
+                                val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
+                                (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
+                            } catch (_: Exception) {}
+                        }
+                    } catch (_: Exception) {}
+                },
+                onDelete = { profile ->
+                    try {
+                        android.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Supprimer profil")
+                            .setMessage("Êtes-vous sûr de vouloir supprimer '${profile.profileName}' ?")
+                            .setPositiveButton("Supprimer") { _, _ ->
+                                try {
+                                    v2dnsRepo.delete(profile.id)
+                                    val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
+                                    (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
+                                } catch (_: Exception) {}
+                            }
+                            .setNegativeButton("Annuler", null)
+                            .show()
+                    } catch (_: Exception) {}
+                },
+                onClone = { profile ->
+                    try {
+                        v2dnsRepo.clone(profile.id)
+                        val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
+                        (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
+                    } catch (_: Exception) {}
                 }
-            },
-            onDelete = { profile ->
-                android.app.AlertDialog.Builder(requireContext())
-                    .setTitle("Supprimer profil")
-                    .setMessage("Êtes-vous sûr de vouloir supprimer '${profile.profileName}' ?")
-                    .setPositiveButton("Supprimer") { _, _ ->
-                        v2dnsRepo.delete(profile.id)
-                        adapter.setProfiles(v2dnsRepo.getAll())
+            )
+            
+            val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)
+            if (rv != null) {
+                rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+                rv.adapter = adapter
+            }
+            
+            // Bouton pour ajouter un nouveau profil
+            view.findViewById<android.widget.Button>(R.id.btn_add_v2dns_profile)?.setOnClickListener {
+                try {
+                    com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext()) { newProfile ->
+                        try {
+                            v2dnsRepo.add(newProfile)
+                            val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
+                            (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
+                        } catch (_: Exception) {}
                     }
-                    .setNegativeButton("Annuler", null)
-                    .show()
-            },
-            onClone = { profile ->
-                v2dnsRepo.clone(profile.id)
-                adapter.setProfiles(v2dnsRepo.getAll())
+                } catch (_: Exception) {}
             }
-        )
-        
-        val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)
-        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
-        rv.adapter = adapter
-        
-        // Bouton pour ajouter un nouveau profil
-        val btnAdd = view.findViewById<android.widget.Button>(R.id.btn_add_v2dns_profile)
-        btnAdd.setOnClickListener {
-            com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext()) { newProfile ->
-                v2dnsRepo.add(newProfile)
-                adapter.setProfiles(v2dnsRepo.getAll())
-            }
+        } catch (e: Exception) {
+            android.util.Log.e("ConfigFragment", "Error in setupV2rayDnsProfiles", e)
         }
     }
 }

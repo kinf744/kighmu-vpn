@@ -7,8 +7,13 @@ class ProfileRepository(context: Context) {
     private val KEY = "profiles_json"
 
     fun getAll(): MutableList<SlowDnsProfile> {
-        val json = prefs.getString(KEY, "[]") ?: "[]"
-        return SlowDnsProfile.listFromJson(json)
+        return try {
+            val json = prefs.getString(KEY, "[]") ?: "[]"
+            SlowDnsProfile.listFromJson(json)
+        } catch (e: Exception) {
+            android.util.Log.e("ProfileRepository", "Error parsing profiles", e)
+            mutableListOf()
+        }
     }
 
     fun save(profiles: List<SlowDnsProfile>) {

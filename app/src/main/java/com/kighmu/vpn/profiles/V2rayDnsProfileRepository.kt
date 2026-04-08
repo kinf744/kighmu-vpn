@@ -7,8 +7,13 @@ class V2rayDnsProfileRepository(context: Context) {
     private val KEY = "profiles_json"
     
     fun getAll(): MutableList<V2rayDnsProfile> {
-        val json = prefs.getString(KEY, "[]") ?: "[]"
-        return V2rayDnsProfile.listFromJson(json)
+        return try {
+            val json = prefs.getString(KEY, "[]") ?: "[]"
+            V2rayDnsProfile.listFromJson(json)
+        } catch (e: Exception) {
+            android.util.Log.e("V2rayDnsProfileRepository", "Error parsing profiles", e)
+            mutableListOf()
+        }
     }
 
     fun save(profiles: List<V2rayDnsProfile>) {
