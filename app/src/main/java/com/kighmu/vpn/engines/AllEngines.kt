@@ -115,28 +115,28 @@ class SshSslEngine(
 
 
     override fun startTun2Socks(fd: Int) {
-        engineScope.launch(Dispatchers.IO) {
-            try {
-                val bin = File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
-                if (!bin.exists()) { KighmuLogger.error(TAG, "libtun2socks.so introuvable"); return@launch }
-                bin.setExecutable(true)
-                val sockPath = "${context.cacheDir.absolutePath}/tun2socks_ssl.sock"
-                File(sockPath).delete()
-                val cmd = listOf(bin.absolutePath, "--sock-path", sockPath, "--tunmtu", "1500", "--netif-ipaddr", "10.0.0.2", "--netif-netmask", "255.255.255.0", "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT", "--udpgw-remote-server-addr", "127.0.0.1:7300", "--loglevel", "4")
-                val proc = Runtime.getRuntime().exec(cmd.toTypedArray())
-                Thread { try { proc.errorStream.bufferedReader().forEachLine { KighmuLogger.error(TAG, "[tun2socks] $it") } } catch (_: Exception) {} }.start()
-                Thread.sleep(500)
-                val localSocket = android.net.LocalSocket()
-                localSocket.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                localSocket.outputStream.write(1); localSocket.outputStream.flush(); localSocket.close()
-                KighmuLogger.info(TAG, "SshSslEngine fd $fd envoye via sock-path")
-            } catch (e: Exception) { KighmuLogger.error(TAG, "tun2socks error: ${e.message}") }
+        try {
+            KighmuLogger.info(TAG, "Démarrage HevTun2Socks (SSH SSL/TLS) fd=$fd port=$LOCAL_SOCKS_PORT")
+            HevTun2Socks.init()
+            if (HevTun2Socks.isAvailable) {
+                // On récupère le VpnService depuis le contexte si possible, ou on utilise le relay Kotlin en fallback
+                val vpnService = context as? android.net.VpnService
+                if (vpnService != null) {
+                    HevTun2Socks.start(context, fd, LOCAL_SOCKS_PORT, vpnService, mtu = 1500)
+                    KighmuLogger.info(TAG, "HevTun2Socks démarré avec succès ✅")
+                } else {
+                    KighmuLogger.error(TAG, "Contexte n'est pas un VpnService, fallback impossible")
+                }
+            } else {
+                KighmuLogger.error(TAG, "HevTun2Socks non disponible")
+            }
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
         }
     }
     override suspend fun stop() {
         running = false
+        try { HevTun2Socks.stop() } catch (_: Exception) {}
         try { sshConnection?.close() } catch (_: Exception) {}
         engineScope.cancel()
     }

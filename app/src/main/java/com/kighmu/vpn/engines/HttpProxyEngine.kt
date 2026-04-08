@@ -226,88 +226,28 @@ class HttpProxyEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "Demarrage tun2socks fd=$fd")
-        engineScope.launch(Dispatchers.IO) {
-            try {
-                val nativeDir = context.applicationInfo.nativeLibraryDir
-                val bin = File(nativeDir, "libtun2socks.so")
-                if (!bin.exists()) {
-                    KighmuLogger.error(TAG, "libtun2socks.so introuvable")
-                    return@launch
+        try {
+            KighmuLogger.info(TAG, "Démarrage HevTun2Socks (HTTP Proxy) fd=$fd port=$LOCAL_SOCKS_PORT")
+            HevTun2Socks.init()
+            if (HevTun2Socks.isAvailable) {
+                val vpnService = context as? android.net.VpnService
+                if (vpnService != null) {
+                    HevTun2Socks.start(context, fd, LOCAL_SOCKS_PORT, vpnService, mtu = MTU)
+                    KighmuLogger.info(TAG, "HevTun2Socks démarré avec succès ✅")
+                } else {
+                    KighmuLogger.error(TAG, "Contexte n'est pas un VpnService")
                 }
-                bin.setExecutable(true)
-                val sockPath = "${context.cacheDir}/tun2socks_http.sock"
-                File(sockPath).delete()
-                val cmd = arrayOf(
-                    bin.absolutePath,
-                    "--sock-path", sockPath,
-                    "--tunmtu", MTU.toString(),
-                    "--netif-ipaddr", "10.0.0.2",
-                    "--netif-netmask", "255.255.255.0",
-                    "--socks-server-addr", "127.0.0.1:$LOCAL_SOCKS_PORT",
-                    "--udpgw-remote-server-addr", "127.0.0.1:7300",
-                    "--loglevel", "4"
-                )
-                tun2socksProcess = Runtime.getRuntime().exec(cmd)
-                val proc = tun2socksProcess!!
-
-                Thread {
-                    try {
-                        val es = proc.errorStream
-                        val sb = StringBuilder()
-                        while (running) {
-                            val b = es.read()
-                            if (b == -1) break
-                            if (b == '\n'.code) {
-                                if (sb.isNotEmpty()) KighmuLogger.info(TAG, "tun2socks: $sb")
-                                sb.clear()
-                            } else if (b != '\r'.code) {
-                                sb.append(b.toChar())
-                            }
-                        }
-                    } catch (e: Exception) {
-                        if (running) KighmuLogger.info(TAG, "tun2socks stderr fin: ${e.message}")
-                    }
-                }.start()
-
-                delay(500)
-                try {
-                    val localSocket = LocalSocket()
-                    localSocket.connect(LocalSocketAddress(sockPath, LocalSocketAddress.Namespace.FILESYSTEM))
-                    val pfd = ParcelFileDescriptor.fromFd(fd)
-                    localSocket.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
-                    localSocket.outputStream.write(1)
-                    localSocket.outputStream.flush()
-                    localSocket.close()
-                    KighmuLogger.info(TAG, "fd=$fd envoye OK")
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "sock-path error: ${e.message}")
-                }
-
-                try {
-                    val is2 = proc.inputStream
-                    val sb = StringBuilder()
-                    while (running) {
-                        val b = is2.read()
-                        if (b == -1) break
-                        if (b == '\n'.code) {
-                            if (sb.isNotEmpty()) KighmuLogger.info(TAG, "tun2socks: $sb")
-                            sb.clear()
-                        } else if (b != '\r'.code) {
-                            sb.append(b.toChar())
-                        }
-                    }
-                } catch (e: Exception) {
-                    if (running) KighmuLogger.info(TAG, "tun2socks stdout fin: ${e.message}")
-                }
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
+            } else {
+                KighmuLogger.error(TAG, "HevTun2Socks non disponible")
             }
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
         }
     }
 
     override suspend fun stop() {
         running = false
+        try { HevTun2Socks.stop() } catch (_: Exception) {}
         try { sshConnection?.close() } catch (e: Exception) {}
         try { proxySocket?.close() } catch (e: Exception) {}
         try { tun2socksProcess?.destroyForcibly() } catch (e: Exception) {}
