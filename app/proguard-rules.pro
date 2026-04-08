@@ -98,6 +98,10 @@
 -dontwarn org.xbill.DNS.config.IPHlpAPI
 -dontwarn org.xbill.DNS.config.WindowsResolverConfigProvider**
 -dontwarn org.xbill.DNS.config.JndiContextResolverConfigProvider**
+# dnsjava utilise Lombok pour générer du code, mais Lombok n'est pas une dépendance runtime.
+-dontwarn lombok.**
+# dnsjava utilise slf4j pour le logging, mais ce n'est pas une dépendance directe sur Android.
+-dontwarn org.slf4j.**
 
 -keep class org.xbill.DNS.** { *; }
 
