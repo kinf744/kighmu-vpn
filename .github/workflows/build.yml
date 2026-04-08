@@ -42,9 +42,10 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
+            -storetype PKCS12 \
             -storepass KighmuStore2024! \
             -keypass KighmuStore2024! \
-            -dname "CN=KIGHMU VPN, OU=Mobile, O=KIGHMU, L=Unknown, S=Unknown, C=US"
+            -dname "CN=KIGHMU VPN, OU=Mobile, O=KIGHMU, L=Unknown, ST=Unknown, C=US"
           keytool -list -keystore kighmu.keystore -storepass KighmuStore2024! | head -3
 
       - name: Build APK

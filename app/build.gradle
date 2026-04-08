@@ -12,7 +12,7 @@ android {
             storePassword "KighmuStore2024!"
             keyAlias "kighmu_key"
             keyPassword "KighmuStore2024!"
-            storeType "JKS"
+            storeType "PKCS12"
         }
     }
     namespace 'com.kighmu.vpn'

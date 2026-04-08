@@ -79,9 +79,6 @@
             </intent-filter>
         </service>
 
-        <service
-            android:name=".engines.TunnelManagerService"
-            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
