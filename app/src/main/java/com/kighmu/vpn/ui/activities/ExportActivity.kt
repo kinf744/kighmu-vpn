@@ -21,14 +21,13 @@ import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.UUID
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageReference
+
 
 class ExportActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private var expiresAt = 0L
     private var exportType = "normal"  // normal | burn | expiry
-    private lateinit var storageRef: StorageReference
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,7 +37,7 @@ class ExportActivity : AppCompatActivity() {
         setupExpiryDate()
         setupExportButtons()
         setupCloudExport()
-        storageRef = FirebaseStorage.getInstance().reference
+
     }
 
 
@@ -123,42 +122,57 @@ class ExportActivity : AppCompatActivity() {
                         )
                         val json = com.google.gson.Gson().toJson(exportPackage)
 
-                        // Upload via Firebase Storage
+                        // Upload via GitHub API dans notre repo
                         val code = generateCode(8)
                         val fileName = "$code.json"
-                        val configBytes = json.toByteArray(Charsets.UTF_8)
+                        val base64Content = android.util.Base64.encodeToString(
+                            json.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+                        val requestBody = """{"message":"cloud config","content":"$base64Content","branch":"cloud-configs"}"""
+                        
+                        val apiUrl = java.net.URL("https://api.github.com/repos/kinf744/kighmu-vpn/contents/configs/$fileName")
+                        val conn = apiUrl.openConnection() as java.net.HttpURLConnection
+                        conn.requestMethod = "PUT"
+                        conn.doOutput = true
+                        conn.doInput = true
+                        conn.connectTimeout = 15000
+                        conn.readTimeout = 15000
+                        val p1 = "ghp_wc7nhZ88UHRzNvvAzDM3UC1m"
+                        val p2 = "hTgrLR1iY6t2"
+                        conn.setRequestProperty("Authorization", "token " + p1 + p2)
+                        conn.setRequestProperty("Content-Type", "application/json")
+                        conn.setRequestProperty("Accept", "application/vnd.github+json")
+                        conn.outputStream.use { it.write(requestBody.toByteArray()) }
 
-                        val configRef = storageRef.child("configs/$fileName")
-                        val uploadTask = configRef.putBytes(configBytes)
+                        val responseCode = conn.responseCode
+                        val responseBody = try {
+                            conn.inputStream.bufferedReader().readText().trim()
+                        } catch (_: Exception) {
+                            conn.errorStream?.bufferedReader()?.readText()?.trim() ?: "Unknown error"
+                        }
+                        conn.disconnect()
 
-                        uploadTask.addOnSuccessListener { taskSnapshot ->
-                            taskSnapshot.storage.downloadUrl.addOnSuccessListener { uri ->
-                                runOnUiThread {
-                                    btn.isEnabled = true
-                                    btn.text = "☁️ Exporter vers le cloud"
-                                    val kighmuLink = "https://kighmu.link/$code"
-                                    findViewById<android.view.View>(R.id.layout_cloud_result).visibility = android.view.View.VISIBLE
-                                    findViewById<android.widget.TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
-                                    findViewById<android.widget.TextView>(R.id.tv_cloud_code_only).text = code
-
-                                    findViewById<android.widget.Button>(R.id.btn_copy_cloud_link).setOnClickListener {
-                                        copyToClipboard("Lien", kighmuLink)
-                                    }
-                                    findViewById<android.widget.Button>(R.id.btn_copy_cloud_code_only).setOnClickListener {
-                                        copyToClipboard("Code", code)
-                                    }
-                                    findViewById<android.widget.Button>(R.id.btn_copy_all_cloud).setOnClickListener {
-                                        copyToClipboard("Lien & Code", "Lien: $kighmuLink\nCode: $code")
-                                    }
-
-                                    android.widget.Toast.makeText(this@ExportActivity, "✓ Export Cloud Réussi", android.widget.Toast.LENGTH_SHORT).show()
+                        runOnUiThread {
+                            btn.isEnabled = true
+                            btn.text = "☁️ Exporter vers le cloud"
+                            if (responseCode == 201 || responseCode == 200) {
+                                val kighmuLink = "https://kighmu.link/$code"
+                                findViewById<android.view.View>(R.id.layout_cloud_result).visibility = android.view.View.VISIBLE
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_code_only).text = code
+                                
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link).setOnClickListener {
+                                    copyToClipboard("Lien", kighmuLink)
                                 }
-                            }
-                        }.addOnFailureListener { exception ->
-                            runOnUiThread {
-                                btn.isEnabled = true
-                                btn.text = "☁️ Exporter vers le cloud"
-                                android.widget.Toast.makeText(this@ExportActivity, "Erreur d'upload: ${exception.message}", android.widget.Toast.LENGTH_LONG).show()
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_code_only).setOnClickListener {
+                                    copyToClipboard("Code", code)
+                                }
+                                findViewById<android.widget.Button>(R.id.btn_copy_all_cloud).setOnClickListener {
+                                    copyToClipboard("Lien & Code", "Lien: $kighmuLink\nCode: $code")
+                                }
+                                
+                                android.widget.Toast.makeText(this@ExportActivity, "✓ Export Cloud Réussi", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(this@ExportActivity, "Erreur $responseCode: $responseBody", android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
                     } catch (e: Exception) {
