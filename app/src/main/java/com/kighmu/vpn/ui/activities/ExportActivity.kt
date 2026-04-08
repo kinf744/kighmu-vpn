@@ -31,28 +31,12 @@ class ExportActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_export)
 
-        setupAccessCode()
+        // setupAccessCode()
         setupExpiryDate()
         setupExportButtons()
         setupCloudExport()
     }
 
-    private fun setupAccessCode() {
-        // Générer code aléatoire
-        findViewById<Button>(R.id.btn_generate_code).setOnClickListener {
-            val code = generateCode(8)
-            findViewById<EditText>(R.id.et_access_code).setText(code)
-        }
-        // Copier code
-        findViewById<Button>(R.id.btn_copy_code).setOnClickListener {
-            val code = findViewById<EditText>(R.id.et_access_code).text.toString()
-            if (code.isNotEmpty()) {
-                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("code", code))
-                Toast.makeText(this, "Code copié!", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
 
     private fun setupExpiryDate() {
         val cbExpiry = findViewById<CheckBox>(R.id.cb_set_expiry)
@@ -121,7 +105,7 @@ class ExportActivity : AppCompatActivity() {
                             appId = packageName,
                             userMessage = findViewById<android.widget.EditText>(R.id.et_user_message).text.toString(),
                             lockAllConfig = findViewById<android.widget.CheckBox>(R.id.cb_lock_all_config).isChecked,
-                            accessCode = findViewById<android.widget.EditText>(R.id.et_access_code).text.toString(),
+                            accessCode = "",
                             lockDeviceId = cloudLockDevice,
                             hardwareId = if (cloudLockDevice) android.provider.Settings.Secure.getString(contentResolver, android.provider.Settings.Secure.ANDROID_ID) else "",
                             lockOperator = cloudLockOp,
@@ -169,6 +153,22 @@ class ExportActivity : AppCompatActivity() {
                             btn.text = "☁️ Exporter vers le cloud"
                             if (responseCode == 201 || responseCode == 200) {
                                 tvCloudCode.text = "Code: $code"
+                                val ehiLink = "https://ehi.link/$code"
+                                val kighmuLink = "https://kighmu.link/$code"
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_ehi).text = "EHI: $ehiLink"
+                                findViewById<android.widget.TextView>(R.id.tv_cloud_link_kighmu).text = "Kighmu: $kighmuLink"
+                                
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link_ehi).setOnClickListener {
+                                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    cm.setPrimaryClip(android.content.ClipData.newPlainText("link", ehiLink))
+                                    android.widget.Toast.makeText(this, "Lien EHI copié!", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                findViewById<android.widget.Button>(R.id.btn_copy_cloud_link_kighmu).setOnClickListener {
+                                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    cm.setPrimaryClip(android.content.ClipData.newPlainText("link", kighmuLink))
+                                    android.widget.Toast.makeText(this, "Lien Kighmu copié!", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                                
                                 layoutResult.visibility = android.view.View.VISIBLE
                                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 cm.setPrimaryClip(android.content.ClipData.newPlainText("code", code))
@@ -197,19 +197,15 @@ class ExportActivity : AppCompatActivity() {
     }
 
     private fun setupExportButtons() {
-        findViewById<Button>(R.id.btn_export_save).setOnClickListener {
-            showExportTypeDialog(share = false)
+        findViewById<Button>(R.id.btn_export_save_file).setOnClickListener {
+            showExportTypeDialog(share = false, locked = findViewById<CheckBox>(R.id.cb_lock_all_config).isChecked)
         }
-        findViewById<Button>(R.id.btn_export_locked_unlocked).setOnClickListener {
-            showExportTypeDialog(share = false, locked = true)
-        }
-        
-        }
+    }
 
     private fun exportConfig(locked: Boolean, share: Boolean) {
         val fileName = findViewById<EditText>(R.id.et_export_filename).text.toString()
             .ifBlank { "kighmu_config" }
-        val accessCode = findViewById<EditText>(R.id.et_access_code).text.toString()
+        val accessCode = ""
         val userMessage = findViewById<EditText>(R.id.et_user_message).text.toString()
 
         val lockOperator = findViewById<CheckBox>(R.id.cb_lock_operator).isChecked

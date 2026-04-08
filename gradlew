@@ -37,7 +37,7 @@ fi
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
-exec "$JAVACMD" \
+eval exec "$JAVACMD" \
   $DEFAULT_JVM_OPTS \
   $JAVA_OPTS \
   $GRADLE_OPTS \
