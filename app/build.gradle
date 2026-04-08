@@ -7,10 +7,15 @@ plugins {
 android {
     signingConfigs {
         release {
-            storeFile rootProject.file("kighmu.keystore")
-            storePassword "KighmuStore2024!"
-            keyAlias "kighmu_key"
-            keyPassword "KighmuStore2024!"
+            def keystorePath = System.getenv("KEYSTORE_PATH") ?: "kighmu.keystore"
+            def keystorePasswordValue = System.getenv("KEYSTORE_PASSWORD") ?: "KighmuStore2024!"
+            def keyAliasValue = System.getenv("KEY_ALIAS") ?: "kighmu_key"
+            def keyPasswordValue = System.getenv("KEY_PASSWORD") ?: "KighmuKey2024!"
+
+            storeFile rootProject.file(keystorePath)
+            storePassword keystorePasswordValue
+            keyAlias keyAliasValue
+            keyPassword keyPasswordValue
         }
     }
     namespace 'com.kighmu.vpn'

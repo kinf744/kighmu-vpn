@@ -51,10 +51,10 @@ jobs:
         run: gradle assembleRelease --no-daemon
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-          KEYSTORE_PATH: keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PATH: kighmu.keystore
+          KEYSTORE_PASSWORD: KighmuStore2024!
+          KEY_ALIAS: kighmu_key
+          KEY_PASSWORD: KighmuKey2024!
 
       - uses: actions/upload-artifact@v4
         with:

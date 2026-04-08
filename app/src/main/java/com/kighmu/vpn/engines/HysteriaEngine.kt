@@ -160,8 +160,12 @@ class HysteriaEngine(
             try {
                 val bin = java.io.File(context.applicationInfo.nativeLibraryDir, "libtun2socks.so")
                 if (!bin.exists()) { log("libtun2socks.so introuvable"); return@Thread }
-                // Utiliser un socket abstrait pour éviter les problèmes de permissions filesystem
-                val sockPath = "kighmu_tun_sock"
+                // Restaurer le principe stable du build #736 : socket filesystem dans dataDir
+                val sockPath = "${context.dataDir.absolutePath}/sock_path"
+                try {
+                    val sockFile = java.io.File(sockPath)
+                    if (sockFile.exists()) sockFile.delete()
+                } catch (_: Exception) {}
 
                 val cmd = "${bin.absolutePath}" +
                     " --netif-ipaddr 10.0.0.2" +
@@ -169,7 +173,7 @@ class HysteriaEngine(
                     " --socks-server-addr 127.0.0.1:$socksPort" +
                     " --tunmtu 1500" +
                     " --tunfd $fd" +
-                    " --sock-path @$sockPath" + // @ indique un socket abstrait pour tun2socks
+                    " --sock-path $sockPath" +
                     " --loglevel 3" +
                     " --udpgw-remote-server-addr 127.0.0.1:7300"
 
@@ -209,12 +213,12 @@ class HysteriaEngine(
                         Thread.sleep(800)
                         val s = android.net.LocalSocket()
                         try {
-                            s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.ABSTRACT))
+                            s.connect(android.net.LocalSocketAddress(sockPath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
                             s.setFileDescriptorsForSend(arrayOf(pfd.fileDescriptor))
                             s.outputStream.write(42)
                             s.outputStream.flush()
                             sent = true
-                            log("fd=$fd envoyé avec succès au socket abstrait ✅ (tentative ${i+1})")
+                            log("fd=$fd envoyé avec succès au socket filesystem ✅ (tentative ${i+1})")
                         } catch (e: Exception) {
                             log("sendFd tentative ${i+1}: ${e.message}")
                         } finally {
