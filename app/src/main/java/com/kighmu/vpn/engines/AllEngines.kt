@@ -57,19 +57,58 @@ class SshSslEngine(
                 // Créer un ServerSocket local qui forward vers le SSL socket
                 val localPort = findFreeLocalPort()
                 val bridge = java.net.ServerSocket(localPort)
+                bridge.soTimeout = 10000 // Timeout court pour l'acceptation
+                
                 Thread {
                     try {
                         val client = bridge.accept()
                         bridge.close()
-                        val buf = ByteArray(8192)
+                        client.tcpNoDelay = true
+                        
                         val t1 = Thread {
-                            try { val i = client.getInputStream(); val o = sslSocket.outputStream; var n: Int; while (i.read(buf).also { n = it } > 0) { o.write(buf, 0, n); o.flush() } } catch (_: Exception) {}
+                            try {
+                                val i = client.getInputStream()
+                                val o = sslSocket.outputStream
+                                val buf = ByteArray(16384)
+                                var n: Int
+                                while (running && !client.isClosed && !sslSocket.isClosed) {
+                                    n = i.read(buf)
+                                    if (n <= 0) break
+                                    o.write(buf, 0, n)
+                                    o.flush()
+                                }
+                            } catch (_: Exception) {} finally {
+                                try { client.close() } catch (_: Exception) {}
+                                try { sslSocket.close() } catch (_: Exception) {}
+                            }
                         }
+                        
                         val t2 = Thread {
-                            try { val i = sslSocket.inputStream; val o = client.getOutputStream(); var n: Int; while (i.read(buf).also { n = it } > 0) { o.write(buf, 0, n); o.flush() } } catch (_: Exception) {}
+                            try {
+                                val i = sslSocket.inputStream
+                                val o = client.getOutputStream()
+                                val buf = ByteArray(16384)
+                                var n: Int
+                                while (running && !client.isClosed && !sslSocket.isClosed) {
+                                    n = i.read(buf)
+                                    if (n <= 0) break
+                                    o.write(buf, 0, n)
+                                    o.flush()
+                                }
+                            } catch (_: Exception) {} finally {
+                                try { client.close() } catch (_: Exception) {}
+                                try { sslSocket.close() } catch (_: Exception) {}
+                            }
                         }
-                        t1.start(); t2.start(); t1.join()
-                    } catch (_: Exception) {}
+                        
+                        t1.isDaemon = true
+                        t2.isDaemon = true
+                        t1.start()
+                        t2.start()
+                    } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "Bridge error: ${e.message}")
+                        try { bridge.close() } catch (_: Exception) {}
+                    }
                 }.start()
                 val conn = Connection("127.0.0.1", localPort)
                 conn.connect(null, 30000, 30000)
