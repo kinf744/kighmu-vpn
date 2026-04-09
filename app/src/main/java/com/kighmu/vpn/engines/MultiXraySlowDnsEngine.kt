@@ -89,7 +89,7 @@ class MultiXraySlowDnsEngine(
         com.kighmu.vpn.engines.HevTun2Socks.init()
         if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && activePorts.size > 1) {
             // Multi-SOCKS via hev pour plusieurs tunnels
-            com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activePorts)
+                com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activePorts, vpnService ?: return)
         } else {
             xray.startTun2Socks(fd)
         }
