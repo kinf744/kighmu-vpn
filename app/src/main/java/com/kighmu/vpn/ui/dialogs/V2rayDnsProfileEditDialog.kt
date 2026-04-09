@@ -46,14 +46,14 @@ object V2rayDnsProfileEditDialog {
         section("PROFILE")
         val etName = field("Profile Name", p.profileName)
 
-        section("V2RAY / XRAY CONFIG (LINK OR JSON)")
+        section("V2RAY / XRAY LINK")
         val etLink = EditText(context).apply {
-            hint = "vmess:// vless:// trojan:// ss:// OU Coller JSON Xray complet"
-            setText(if (p.xrayJsonConfig.isNotEmpty() && p.xrayLink.isEmpty()) p.xrayJsonConfig else p.xrayLink)
+            hint = "vmess:// vless:// trojan:// ss://"
+            setText(p.xrayLink)
             setTextColor(0xFF000000.toInt())
             setHintTextColor(0xFF888888.toInt())
             isSingleLine = false
-            setLines(5)
+            setLines(3)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 }
             layout.addView(this)
         }
@@ -68,23 +68,18 @@ object V2rayDnsProfileEditDialog {
             .setTitle(if (isEdit) "Modifier V2ray+DNS" else "Nouveau V2ray+DNS")
             .setView(scroll)
             .setPositiveButton("Sauvegarder") { _, _ ->
-                val input = etLink.text.toString().trim()
+                val link = etLink.text.toString().trim()
                 val updated = p.copy(
                     profileName = etName.text.toString().ifEmpty { "V2ray+DNS" },
+                    xrayLink = link,
                     dnsServer = etDnsServer.text.toString().ifEmpty { "8.8.8.8" },
                     dnsPort = etDnsPort.text.toString().toIntOrNull() ?: 53,
                     nameserver = etNameserver.text.toString(),
-                    publicKey = etPubKey.text.toString(),
-                    isSelected = true // Sélection automatique à la création
+                    publicKey = etPubKey.text.toString()
                 )
                 
-                if (input.startsWith("{")) {
-                    updated.xrayJsonConfig = input
-                    updated.xrayLink = ""
-                } else {
-                    updated.xrayLink = input
-                    parseLinkIntoProfile(input, updated)
-                }
+                // Parser le lien pour remplir les champs internes pour la compatibilité
+                parseLinkIntoProfile(link, updated)
                 
                 onSave(updated)
             }
@@ -116,8 +111,8 @@ object V2rayDnsProfileEditDialog {
                     p.uuid = uri.userInfo ?: ""
                     p.serverAddress = uri.host ?: ""
                     p.serverPort = uri.port.takeIf { it > 0 } ?: 443
-                    val params = uri.query?.split("&")?.associate {
-                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") }
+                    val params = uri.query?.split("&")?.associate { 
+                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") } 
                     } ?: emptyMap()
                     p.transport = params["type"] ?: "tcp"
                     p.tls = params["security"] == "tls" || params["security"] == "reality"

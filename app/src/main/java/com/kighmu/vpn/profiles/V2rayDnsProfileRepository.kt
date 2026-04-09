@@ -7,22 +7,15 @@ class V2rayDnsProfileRepository(context: Context) {
     private val KEY = "profiles_json"
     
     fun getAll(): MutableList<V2rayDnsProfile> {
-        return try {
-            val json = prefs.getString(KEY, "[]") ?: "[]"
-            V2rayDnsProfile.listFromJson(json)
-        } catch (e: Exception) {
-            android.util.Log.e("V2rayDnsProfileRepository", "Error parsing profiles", e)
-            mutableListOf()
-        }
+        val json = prefs.getString(KEY, "[]") ?: "[]"
+        return V2rayDnsProfile.listFromJson(json)
     }
 
     fun save(profiles: List<V2rayDnsProfile>) {
-        android.util.Log.d("V2rayDnsProfileRepository", "Sauvegarde ${profiles.size} profils")
         prefs.edit().putString(KEY, V2rayDnsProfile.listToJson(profiles)).apply()
     }
 
     fun add(profile: V2rayDnsProfile) {
-        android.util.Log.d("V2rayDnsProfileRepository", "Ajout profil: ${profile.profileName}")
         val list = getAll()
         list.add(profile)
         save(list)
