@@ -17,10 +17,12 @@ class V2rayDnsProfileRepository(context: Context) {
     }
 
     fun save(profiles: List<V2rayDnsProfile>) {
+        android.util.Log.d("V2rayDnsProfileRepository", "Sauvegarde ${profiles.size} profils")
         prefs.edit().putString(KEY, V2rayDnsProfile.listToJson(profiles)).apply()
     }
 
     fun add(profile: V2rayDnsProfile) {
+        android.util.Log.d("V2rayDnsProfileRepository", "Ajout profil: ${profile.profileName}")
         val list = getAll()
         list.add(profile)
         save(list)

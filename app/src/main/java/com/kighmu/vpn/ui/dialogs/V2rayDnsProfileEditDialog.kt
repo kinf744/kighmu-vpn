@@ -97,6 +97,7 @@ object V2rayDnsProfileEditDialog {
                     publicKey = etPubKey.text.toString()
                 )
 
+                android.util.Log.d("V2rayDnsProfileEditDialog", "Profil à sauvegarder: ${updated.profileName} - link: ${updated.xrayLink} - server: ${updated.serverAddress}")
                 onSave(updated)
             }
             .setNegativeButton("Annuler", null)
