@@ -46,14 +46,14 @@ object V2rayDnsProfileEditDialog {
         section("PROFILE")
         val etName = field("Profile Name", p.profileName)
 
-        section("V2RAY / XRAY LINK")
+        section("V2RAY / XRAY CONFIG (LINK OR JSON)")
         val etLink = EditText(context).apply {
-            hint = "vmess:// vless:// trojan:// ss://"
-            setText(p.xrayLink)
+            hint = "vmess:// vless:// trojan:// ss:// OU Coller JSON Xray complet"
+            setText(if (p.xrayJsonConfig.isNotEmpty() && p.xrayLink.isEmpty()) p.xrayJsonConfig else p.xrayLink)
             setTextColor(0xFF000000.toInt())
             setHintTextColor(0xFF888888.toInt())
             isSingleLine = false
-            setLines(3)
+            setLines(5)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 }
             layout.addView(this)
         }
@@ -68,19 +68,24 @@ object V2rayDnsProfileEditDialog {
             .setTitle(if (isEdit) "Modifier V2ray+DNS" else "Nouveau V2ray+DNS")
             .setView(scroll)
             .setPositiveButton("Sauvegarder") { _, _ ->
-                val link = etLink.text.toString().trim()
+                val input = etLink.text.toString().trim()
                 val updated = p.copy(
                     profileName = etName.text.toString().ifEmpty { "V2ray+DNS" },
-                    xrayLink = link,
                     dnsServer = etDnsServer.text.toString().ifEmpty { "8.8.8.8" },
                     dnsPort = etDnsPort.text.toString().toIntOrNull() ?: 53,
                     nameserver = etNameserver.text.toString(),
-                    publicKey = etPubKey.text.toString()
+                    publicKey = etPubKey.text.toString(),
+                    isSelected = true // Sélection automatique à la création
                 )
-
-                // ✅ DÉTAIL CRUCIAL: parseLinkIntoProfile modifie directement "updated"
-                parseLinkIntoProfile(link, updated)
-
+                
+                if (input.startsWith("{")) {
+                    updated.xrayJsonConfig = input
+                    updated.xrayLink = ""
+                } else {
+                    updated.xrayLink = input
+                    parseLinkIntoProfile(input, updated)
+                }
+                
                 onSave(updated)
             }
             .setNegativeButton("Annuler", null)
