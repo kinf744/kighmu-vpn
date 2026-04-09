@@ -8,7 +8,8 @@ import kotlinx.coroutines.*
 
 class MultiXraySlowDnsEngine(
     private val baseConfig: KighmuConfig,
-    private val context: Context
+    private val context: Context,
+    private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
     private val TAG = "MultiXraySlowDns"
