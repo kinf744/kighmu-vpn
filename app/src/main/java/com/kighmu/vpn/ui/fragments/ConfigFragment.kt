@@ -586,8 +586,12 @@ class ConfigFragment : Fragment() {
     }
 
     private fun setupV2rayDnsProfiles(view: View) {
+        android.util.Log.d("SetupV2rayDns", "=== DEBUT setupV2rayDnsProfiles ===")
+
         val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
+        android.util.Log.d("SetupV2rayDns", "Repository créé")
         val profiles = v2dnsRepo.getAll().toMutableList()
+        android.util.Log.d("SetupV2rayDns", "Profils chargés: ${profiles.size}")
 
         lateinit var adapter: com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter
         adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
@@ -619,10 +623,13 @@ class ConfigFragment : Fragment() {
         )
 
         val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)
+        android.util.Log.d("SetupV2rayDns", "RV trouvée: ${rv != null}")
         rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
         rv.adapter = adapter
+        android.util.Log.d("SetupV2rayDns", "Adapter configuré")
 
         val btnAdd = view.findViewById<android.widget.Button>(R.id.btn_add_v2dns_profile)
+        android.util.Log.d("SetupV2rayDns", "BtnAdd trouvé: ${btnAdd != null}")
         btnAdd.setOnClickListener {
             com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext()) { newProfile ->
                 v2dnsRepo.add(newProfile)
