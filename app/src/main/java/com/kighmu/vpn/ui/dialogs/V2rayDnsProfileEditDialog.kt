@@ -69,60 +69,146 @@ object V2rayDnsProfileEditDialog {
             .setView(scroll)
             .setPositiveButton("Sauvegarder") { _, _ ->
                 val link = etLink.text.toString().trim()
+                
+                // ✅ FIX: Parser le lien D'ABORD pour extraire les données
+                val parsedData = parseLinkIntoData(link)
+                
+                // ✅ FIX: Créer le JSON config depuis les données parsées
+                val xrayJsonConfig = buildXrayJsonConfig(parsedData)
+                
                 val updated = p.copy(
                     profileName = etName.text.toString().ifEmpty { "V2ray+DNS" },
                     xrayLink = link,
+                    xrayJsonConfig = xrayJsonConfig,
+                    protocol = parsedData["protocol"] as? String ?: "vmess",
+                    serverAddress = parsedData["serverAddress"] as? String ?: "",
+                    serverPort = parsedData["serverPort"] as? Int ?: 443,
+                    uuid = parsedData["uuid"] as? String ?: "",
+                    encryption = parsedData["encryption"] as? String ?: "auto",
+                    transport = parsedData["transport"] as? String ?: "tcp",
+                    wsPath = parsedData["wsPath"] as? String ?: "/",
+                    wsHost = parsedData["wsHost"] as? String ?: "",
+                    tls = parsedData["tls"] as? Boolean ?: false,
+                    sni = parsedData["sni"] as? String ?: "",
+                    allowInsecure = parsedData["allowInsecure"] as? Boolean ?: false,
                     dnsServer = etDnsServer.text.toString().ifEmpty { "8.8.8.8" },
                     dnsPort = etDnsPort.text.toString().toIntOrNull() ?: 53,
                     nameserver = etNameserver.text.toString(),
                     publicKey = etPubKey.text.toString()
                 )
-                
-                // Parser le lien pour remplir les champs internes pour la compatibilité
-                parseLinkIntoProfile(link, updated)
-                
+
                 onSave(updated)
             }
             .setNegativeButton("Annuler", null)
             .show()
     }
 
-    private fun parseLinkIntoProfile(link: String, p: V2rayDnsProfile) {
+    private fun parseLinkIntoData(link: String): Map<String, Any> {
+        val data = mutableMapOf<String, Any>()
+        data["protocol"] = "vmess"
+        data["serverAddress"] = ""
+        data["serverPort"] = 443
+        data["uuid"] = ""
+        data["encryption"] = "auto"
+        data["transport"] = "tcp"
+        data["wsPath"] = "/"
+        data["wsHost"] = ""
+        data["tls"] = false
+        data["sni"] = ""
+        data["allowInsecure"] = false
+
         try {
             when {
                 link.startsWith("vmess://") -> {
                     val b64 = link.removePrefix("vmess://")
                     val json = String(Base64.decode(b64, Base64.DEFAULT))
                     val obj = JSONObject(json)
-                    p.protocol = "vmess"
-                    p.serverAddress = obj.optString("add", "")
-                    p.serverPort = obj.optInt("port", 443)
-                    p.uuid = obj.optString("id", "")
-                    p.encryption = obj.optString("scy", "auto")
-                    p.transport = obj.optString("net", "tcp")
-                    p.wsPath = obj.optString("path", "/")
-                    p.wsHost = obj.optString("host", "")
-                    p.tls = obj.optString("tls", "") == "tls"
-                    p.sni = obj.optString("sni", p.serverAddress)
+                    data["protocol"] = "vmess"
+                    data["serverAddress"] = obj.optString("add", "")
+                    data["serverPort"] = obj.optInt("port", 443)
+                    data["uuid"] = obj.optString("id", "")
+                    data["encryption"] = obj.optString("scy", "auto")
+                    data["transport"] = obj.optString("net", "tcp")
+                    data["wsPath"] = obj.optString("path", "/")
+                    data["wsHost"] = obj.optString("host", "")
+                    data["tls"] = obj.optString("tls", "") == "tls"
+                    data["sni"] = obj.optString("sni", data["serverAddress"] as String)
                 }
                 link.startsWith("vless://") || link.startsWith("trojan://") -> {
                     val uri = URI(link)
-                    p.protocol = if (link.startsWith("vless://")) "vless" else "trojan"
-                    p.uuid = uri.userInfo ?: ""
-                    p.serverAddress = uri.host ?: ""
-                    p.serverPort = uri.port.takeIf { it > 0 } ?: 443
-                    val params = uri.query?.split("&")?.associate { 
-                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") } 
+                    data["protocol"] = if (link.startsWith("vless://")) "vless" else "trojan"
+                    data["uuid"] = uri.userInfo ?: ""
+                    data["serverAddress"] = uri.host ?: ""
+                    data["serverPort"] = uri.port.takeIf { it > 0 } ?: 443
+                    val params = uri.query?.split("&")?.associate {
+                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") }
                     } ?: emptyMap()
-                    p.transport = params["type"] ?: "tcp"
-                    p.tls = params["security"] == "tls" || params["security"] == "reality"
-                    p.sni = params["sni"] ?: params["host"] ?: p.serverAddress
-                    p.wsPath = params["path"] ?: "/"
-                    p.wsHost = params["host"] ?: ""
+                    data["transport"] = params["type"] ?: "tcp"
+                    data["tls"] = params["security"] == "tls" || params["security"] == "reality"
+                    data["sni"] = params["sni"] ?: params["host"] ?: (data["serverAddress"] as String)
+                    data["wsPath"] = params["path"] ?: "/"
+                    data["wsHost"] = params["host"] ?: ""
+                    data["allowInsecure"] = params["allowInsecure"] == "1" || params["allowInsecure"] == "true"
                 }
             }
         } catch (e: Exception) {
-            // En cas d'erreur de parsing, on laisse les champs tels quels
+            android.util.Log.e("V2rayDnsProfileEditDialog", "Error parsing link", e)
         }
+
+        return data
+    }
+
+    private fun buildXrayJsonConfig(data: Map<String, Any>): String {
+        val protocol = data["protocol"] as? String ?: "vmess"
+        val serverAddress = data["serverAddress"] as? String ?: ""
+        val serverPort = data["serverPort"] as? Int ?: 443
+        val uuid = data["uuid"] as? String ?: ""
+        val encryption = data["encryption"] as? String ?: "auto"
+        val transport = data["transport"] as? String ?: "tcp"
+        val wsPath = data["wsPath"] as? String ?: "/"
+        val wsHost = data["wsHost"] as? String ?: ""
+        val tls = data["tls"] as? Boolean ?: false
+        val sni = data["sni"] as? String ?: serverAddress
+        val allowInsecure = data["allowInsecure"] as? Boolean ?: false
+
+        val outbound = when (protocol) {
+            "vmess" -> {
+                val users = """[{"id": "$uuid", "alterId": 0, "security": "$encryption"}]"""
+                """{
+                    "protocol": "vmess",
+                    "settings": {"vnext": [{"address": "$serverAddress", "port": $serverPort, "users": $users}]},
+                    "streamSettings": {"network": "$transport", "security": "${if (tls) "tls" else "none"}", "tlsSettings": {"serverName": "$sni", "allowInsecure": $allowInsecure}}
+                }"""
+            }
+            "vless" -> {
+                val users = """[{"id": "$uuid", "encryption": "none"}]"""
+                """{
+                    "protocol": "vless",
+                    "settings": {"vnext": [{"address": "$serverAddress", "port": $serverPort, "users": $users}]},
+                    "streamSettings": {"network": "$transport", "security": "${if (tls) "tls" else "none"}", "tlsSettings": {"serverName": "$sni", "allowInsecure": $allowInsecure}}
+                }"""
+            }
+            "trojan" -> {
+                """{
+                    "protocol": "trojan",
+                    "settings": {"servers": [{"address": "$serverAddress", "port": $serverPort, "password": "$uuid"}]},
+                    "streamSettings": {"network": "$transport", "security": "${if (tls) "tls" else "none"}", "tlsSettings": {"serverName": "$sni", "allowInsecure": $allowInsecure}}
+                }"""
+            }
+            else -> {
+                """{
+                    "protocol": "$protocol",
+                    "settings": {},
+                    "streamSettings": {"network": "$transport", "security": "${if (tls) "tls" else "none"}", "tlsSettings": {"serverName": "$sni", "allowInsecure": $allowInsecure}}
+                }"""
+            }
+        }
+
+        return """{
+            "log": {"loglevel": "warning"},
+            "inbounds": [{"port": 10808, "protocol": "socks", "settings": {"udp": true}}],
+            "outbounds": [$outbound],
+            "routing": {"rules": []}
+        }"""
     }
 }
