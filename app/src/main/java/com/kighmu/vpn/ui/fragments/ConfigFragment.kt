@@ -586,71 +586,49 @@ class ConfigFragment : Fragment() {
     }
 
     private fun setupV2rayDnsProfiles(view: View) {
-        try {
-            val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
-            val profiles = try { v2dnsRepo.getAll().toMutableList() } catch (_: Exception) { mutableListOf() }
-            
-            val adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
-                profiles,
-                onSelectionChanged = { id, selected ->
-                    try { v2dnsRepo.updateSelection(id, selected) } catch (_: Exception) {}
-                },
-                onEdit = { profile ->
-                    try {
-                        com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext(), profile) { updated ->
-                            try {
-                                v2dnsRepo.update(updated)
-                                val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
-                                (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
-                            } catch (_: Exception) {}
-                        }
-                    } catch (_: Exception) {}
-                },
-                onDelete = { profile ->
-                    try {
-                        android.app.AlertDialog.Builder(requireContext())
-                            .setTitle("Supprimer profil")
-                            .setMessage("Êtes-vous sûr de vouloir supprimer '${profile.profileName}' ?")
-                            .setPositiveButton("Supprimer") { _, _ ->
-                                try {
-                                    v2dnsRepo.delete(profile.id)
-                                    val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
-                                    (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
-                                } catch (_: Exception) {}
-                            }
-                            .setNegativeButton("Annuler", null)
-                            .show()
-                    } catch (_: Exception) {}
-                },
-                onClone = { profile ->
-                    try {
-                        v2dnsRepo.clone(profile.id)
-                        val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
-                        (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
-                    } catch (_: Exception) {}
+        val v2dnsRepo = com.kighmu.vpn.profiles.V2rayDnsProfileRepository(requireContext())
+        val profiles = v2dnsRepo.getAll().toMutableList()
+
+        lateinit var adapter: com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter
+        adapter = com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter(
+            profiles,
+            onSelectionChanged = { id, selected ->
+                v2dnsRepo.updateSelection(id, selected)
+            },
+            onEdit = { profile ->
+                com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext(), profile) { updated ->
+                    v2dnsRepo.update(updated)
+                    adapter.setProfiles(v2dnsRepo.getAll())
                 }
-            )
-            
-            val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)
-            if (rv != null) {
-                rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
-                rv.adapter = adapter
-            }
-            
-            // Bouton pour ajouter un nouveau profil
-            view.findViewById<android.widget.Button>(R.id.btn_add_v2dns_profile)?.setOnClickListener {
-                try {
-                    com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext()) { newProfile ->
-                        try {
-                            v2dnsRepo.add(newProfile)
-                            val updatedList = try { v2dnsRepo.getAll() } catch (_: Exception) { emptyList() }
-                            (view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)?.adapter as? com.kighmu.vpn.ui.adapters.V2rayDnsProfileAdapter)?.setProfiles(updatedList)
-                        } catch (_: Exception) {}
+            },
+            onDelete = { profile ->
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer profil")
+                    .setMessage("Êtes-vous sûr de vouloir supprimer '${profile.profileName}' ?")
+                    .setPositiveButton("Supprimer") { _, _ ->
+                        v2dnsRepo.delete(profile.id)
+                        adapter.setProfiles(v2dnsRepo.getAll())
                     }
-                } catch (_: Exception) {}
+                    .setNegativeButton("Annuler", null)
+                    .show()
+            },
+            onClone = { profile ->
+                v2dnsRepo.clone(profile.id)
+                adapter.setProfiles(v2dnsRepo.getAll())
             }
-        } catch (e: Exception) {
-            android.util.Log.e("ConfigFragment", "Error in setupV2rayDnsProfiles", e)
+        )
+
+        val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_v2dns_profiles)
+        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+        rv.adapter = adapter
+
+        val btnAdd = view.findViewById<android.widget.Button>(R.id.btn_add_v2dns_profile)
+        btnAdd.setOnClickListener {
+            com.kighmu.vpn.ui.dialogs.V2rayDnsProfileEditDialog.show(requireContext()) { newProfile ->
+                v2dnsRepo.add(newProfile)
+                adapter.setProfiles(v2dnsRepo.getAll())
+            }
         }
     }
+
 }
