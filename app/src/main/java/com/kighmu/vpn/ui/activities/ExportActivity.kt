@@ -141,8 +141,7 @@ class ExportActivity : AppCompatActivity() {
                     )
                     val json = Gson().toJson(exportPackage)
 
-                    // Alternative sûre : Utilisation de Pastebin API (ou similaire)
-                    // Pour cet exemple, nous utilisons une méthode POST standard vers un service de stockage de texte
+                    // Utilisation de l'API Pastebin (ou alternative)
                     val pasteUrl = uploadToPasteService(json)
 
                     runOnUiThread {
@@ -175,22 +174,50 @@ class ExportActivity : AppCompatActivity() {
 
     private fun uploadToPasteService(content: String): String? {
         return try {
-            // Utilisation de hastebin.com ou similaire (service public gratuit et anonyme)
-            val url = URL("https://hastebin.com/documents")
+            // Utilisation de paste.ee comme alternative plus stable
+            val url = URL("https://api.paste.ee/v1/pastes")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "text/plain")
+            conn.setRequestProperty("Content-Type", "application/json")
             
-            conn.outputStream.use { it.write(content.toByteArray()) }
+            // Note: Idéalement utiliser une clé API, mais paste.ee permet des pastes anonymes
+            val payload = mapOf(
+                "sections" to listOf(
+                    mapOf(
+                        "name" to "KIGHMU Config",
+                        "contents" to content
+                    )
+                ),
+                "description" to "KIGHMU VPN Cloud Config"
+            )
             
-            if (conn.responseCode == 200) {
+            conn.outputStream.use { it.write(Gson().toJson(payload).toByteArray()) }
+            
+            if (conn.responseCode == 201 || conn.responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().readText()
-                val key = Gson().fromJson(response, Map::class.java)["key"] as String
-                "https://hastebin.com/$key"
+                val obj = org.json.JSONObject(response)
+                if (obj.getBoolean("success")) {
+                    obj.getString("link").replace("/p/", "/r/") // Lien raw pour l'import
+                } else null
             } else null
         } catch (e: Exception) {
-            null
+            // Fallback vers hastebin si paste.ee échoue
+            try {
+                val url = URL("https://hastebin.com/documents")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "text/plain")
+                conn.outputStream.use { it.write(content.toByteArray()) }
+                if (conn.responseCode == 200) {
+                    val response = conn.inputStream.bufferedReader().readText()
+                    val key = org.json.JSONObject(response).getString("key")
+                    "https://hastebin.com/raw/$key"
+                } else null
+            } catch (e2: Exception) {
+                null
+            }
         }
     }
 
@@ -255,53 +282,30 @@ class ExportActivity : AppCompatActivity() {
         )
 
         val json = Gson().toJson(exportPackage)
-        if (share) {
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, json)
+        val finalFileName = if (fileName.endsWith(".kighmu")) fileName else "$fileName.kighmu"
+        
+        // Sauvegarder le fichier localement
+        try {
+            openFileOutput(finalFileName, Context.MODE_PRIVATE).use { 
+                it.write(json.toByteArray()) 
             }
-            startActivity(Intent.createChooser(intent, "Partager la configuration"))
-        } else {
-            saveToFile(fileName, json)
+            Toast.makeText(this, "Config sauvegardée: $finalFileName", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erreur: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun saveToFile(name: String, json: String) {
-        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/octet-stream"
-            putExtra(Intent.EXTRA_TITLE, "$name.kighmu")
-        }
-        startActivityForResult(intent, 1001)
-        tempJson = json
-    }
-
-    private var tempJson: String? = null
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1001 && resultCode == RESULT_OK) {
-            data?.data?.let { uri ->
-                contentResolver.openOutputStream(uri)?.use { it.write(tempJson?.toByteArray() ?: return) }
-                Toast.makeText(this, "Fichier sauvegardé", Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
-    }
-
-    private fun buildSignature(config: String, hwid: String, expiry: Long, op: String): String {
-        val data = config + hwid + expiry + op + "KIGHMU_SECRET_SALT"
-        return MessageDigest.getInstance("SHA-256").digest(data.toByteArray())
+    private fun buildSignature(config: String, hwid: String, expiry: Long, operator: String): String {
+        val salt = "KIGHMU_SECURE_SALT_2026"
+        val input = "$config|$hwid|$expiry|$operator|$salt"
+        return MessageDigest.getInstance("SHA-256")
+            .digest(input.toByteArray())
             .joinToString("") { "%02x".format(it) }
     }
 
-    private fun generateCode(length: Int): String {
-        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return (1..length).map { chars.random() }.joinToString("")
-    }
-
     private fun copyToClipboard(label: String, text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-        Toast.makeText(this, "$label copié", Toast.LENGTH_SHORT).show()
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(this, "$label copié !", Toast.LENGTH_SHORT).show()
     }
 }

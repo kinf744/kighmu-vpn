@@ -12,10 +12,10 @@ class MultiXraySlowDnsEngine(
     private val vpnService: android.net.VpnService? = null
 ) : TunnelEngine {
 
-    private val TAG = "MultiXraySlowDns"
+    private val TAG = "MultiXraySlo"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dnsttEngines = mutableListOf<SlowDnsEngine>()
-    private val xray = XrayEngine(baseConfig, context, 0)
+    private var xray: XrayEngine? = null
     private var activePorts = listOf<Int>()
 
     override suspend fun start(): Int {
@@ -27,9 +27,10 @@ class MultiXraySlowDnsEngine(
             val dnstt = SlowDnsEngine(baseConfig, context, null, 0)
             dnsttEngines.add(dnstt)
             val port = dnstt.startDnsttOnly()
-            xray.dnsttProxyPort = port
+            
+            xray = XrayEngine(baseConfig, context, port, 0, vpnService)
             activePorts = listOf(port)
-            return xray.start()
+            return xray!!.start()
         }
 
         KighmuLogger.info(TAG, "=== Démarrage ${selected.size} tunnels V2ray+DNS ===")
@@ -44,20 +45,6 @@ class MultiXraySlowDnsEngine(
                             dnsPort = profile.dnsPort,
                             nameserver = profile.nameserver,
                             publicKey = profile.publicKey
-                        ),
-                        xray = baseConfig.xray.copy(
-                            jsonConfig = profile.xrayJsonConfig,
-                            protocol = profile.protocol,
-                            serverAddress = profile.serverAddress,
-                            serverPort = profile.serverPort,
-                            uuid = profile.uuid,
-                            encryption = profile.encryption,
-                            transport = profile.transport,
-                            wsPath = profile.wsPath,
-                            wsHost = profile.wsHost,
-                            tls = profile.tls,
-                            sni = profile.sni,
-                            allowInsecure = profile.allowInsecure
                         )
                     )
                     val engine = SlowDnsEngine(cfg, context, null, idx)
@@ -79,9 +66,29 @@ class MultiXraySlowDnsEngine(
         KighmuLogger.info(TAG, "=== STEP 2: ${successPorts.size}/${selected.size} connectées ===")
         KighmuLogger.info(TAG, "Ports dnstt actifs: $activePorts")
 
-        // Xray utilise le premier port dnstt
-        xray.dnsttProxyPort = successPorts.first()
-        return xray.start()
+        // Utiliser le premier profil réussi pour configurer Xray
+        val firstSuccessIdx = results.indexOfFirst { it > 0 }
+        val firstProfile = selected[firstSuccessIdx]
+        
+        val xrayConfig = baseConfig.copy(
+            xray = baseConfig.xray.copy(
+                jsonConfig = firstProfile.xrayJsonConfig,
+                protocol = firstProfile.protocol,
+                serverAddress = firstProfile.serverAddress,
+                serverPort = firstProfile.serverPort,
+                uuid = firstProfile.uuid,
+                encryption = firstProfile.encryption,
+                transport = firstProfile.transport,
+                wsPath = firstProfile.wsPath,
+                wsHost = firstProfile.wsHost,
+                tls = firstProfile.tls,
+                sni = firstProfile.sni,
+                allowInsecure = firstProfile.allowInsecure
+            )
+        )
+
+        xray = XrayEngine(xrayConfig, context, successPorts.first(), 0, vpnService)
+        return xray!!.start()
     }
 
     override fun startTun2Socks(fd: Int) {
@@ -89,22 +96,22 @@ class MultiXraySlowDnsEngine(
         com.kighmu.vpn.engines.HevTun2Socks.init()
         if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && activePorts.size > 1) {
             // Multi-SOCKS via hev pour plusieurs tunnels
-                com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activePorts, vpnService ?: return)
+            com.kighmu.vpn.engines.HevTun2Socks.startMulti(context, fd, activePorts, vpnService ?: return)
         } else {
-            xray.startTun2Socks(fd)
+            xray?.startTun2Socks(fd)
         }
     }
 
     override suspend fun stop() {
         com.kighmu.vpn.engines.HevTun2Socks.stop()
-        xray.dnsttProxyPort = 0
-        xray.stop()
+        xray?.stop()
+        xray = null
         dnsttEngines.forEach { try { it.stop() } catch (_: Exception) {} }
         dnsttEngines.clear()
         scope.cancel()
     }
 
-    override suspend fun sendData(data: ByteArray, length: Int) = xray.sendData(data, length)
-    override suspend fun receiveData(): ByteArray? = xray.receiveData()
-    override fun isRunning() = xray.isRunning()
+    override suspend fun sendData(data: ByteArray, length: Int) = xray?.sendData(data, length) ?: Unit
+    override suspend fun receiveData(): ByteArray? = xray?.receiveData()
+    override fun isRunning() = xray?.isRunning() ?: false
 }

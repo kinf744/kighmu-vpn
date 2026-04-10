@@ -38,7 +38,8 @@ class SlowDnsEngine(
     private var _dnsttPort: Int = 0
     private val dnsttPort: Int get() {
         if (_dnsttPort == 0) {
-            _dnsttPort = findFreePort(7000 + profileIndex)
+            // Décalage plus important pour éviter les collisions entre profils
+            _dnsttPort = findFreePort(7000 + (profileIndex * 10))
         }
         return _dnsttPort
     }
