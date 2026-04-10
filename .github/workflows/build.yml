@@ -3,6 +3,8 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,7 +18,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4.3.0
         with:
           gradle-version: '8.4'
-      - uses: nttld/setup-ndk@v1.5.0
+      - uses: nttld/setup-ndk@v1.6.0
         id: ndk
         with:
           ndk-version: r26d
