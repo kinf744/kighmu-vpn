@@ -152,7 +152,7 @@ class ImportActivity : AppCompatActivity() {
         applyImport(finalConfig)
     }
 
-    private fun showConfirmBurn(config: KighmuConfig, security: ExportConfig) {
+    private fun showConfirmBurn(config: KighmuConfig, @Suppress("UNUSED_PARAMETER") security: ExportConfig) {
         AlertDialog.Builder(this)
             .setTitle("⚠️ Config à usage unique")
             .setMessage("Cette configuration sera détruite après importation. Continuer?")

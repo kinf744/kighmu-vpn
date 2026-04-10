@@ -99,7 +99,7 @@ class Tun2SocksRelay(
         }
     }
 
-    private suspend fun handleUdp(pkt: ByteArray, ihl: Int, srcIp: String, dstIp: String) {
+    private suspend fun handleUdp(pkt: ByteArray, ihl: Int, @Suppress("UNUSED_PARAMETER") srcIp: String, @Suppress("UNUSED_PARAMETER") dstIp: String) {
         if (pkt.size < ihl + 8) return
         val dstPort = port(pkt, ihl + 2)
         val dataOff = ihl + 8
@@ -217,7 +217,7 @@ class Tun2SocksRelay(
         private var socket: Socket? = null
         private val writeScope = CoroutineScope(Dispatchers.IO)
 
-        suspend fun connect(socksHost: String, socksPort: Int) {
+        suspend fun connect(@Suppress("UNUSED_PARAMETER") socksHost: String, @Suppress("UNUSED_PARAMETER") socksPort: Int) {
             socket = connectSocks5(dstIp, dstPort)
             if (socket == null) {
                 sessions.remove(key)

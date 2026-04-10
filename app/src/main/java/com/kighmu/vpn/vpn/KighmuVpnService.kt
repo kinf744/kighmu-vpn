@@ -110,7 +110,7 @@ class KighmuVpnService : VpnService() {
                 } catch (e: Exception) { sb.appendLine("Error: ${e.message}") }
                 sb.appendLine()
                 sb.appendLine("--- VPN STATE ---")
-                sb.appendLine("TunnelMode: ${currentConfig?.tunnelMode?.name ?: "unknown"}")
+                sb.appendLine("TunnelMode: ${currentConfig.tunnelMode.name}")
                 sb.appendLine("======================================")
                 crashFile.writeText(sb.toString())
             } catch (_: Exception) {}
@@ -251,7 +251,6 @@ class KighmuVpnService : VpnService() {
                 }
 
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
-                val eng = tunnelEngine
                 // Garder vpnInterface ouvert - le fermer au stop libère la clé VPN
                 KighmuLogger.info("VpnService", "Appel startTun2Socks fd=${vpnInterface!!.fd}")
                 tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
@@ -362,7 +361,7 @@ class KighmuVpnService : VpnService() {
         }
     }
 
-    private fun buildVpnInterface(localProxyPort: Int): ParcelFileDescriptor? {
+    private fun buildVpnInterface(@Suppress("UNUSED_PARAMETER") localProxyPort: Int): ParcelFileDescriptor? {
         return try {
             val builder = Builder()
                 .setSession("KIGHMU VPN")

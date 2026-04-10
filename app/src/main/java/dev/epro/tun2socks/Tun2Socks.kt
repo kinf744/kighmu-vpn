@@ -26,7 +26,7 @@ object Tun2Socks {
     external fun terminateTun2Socks(): Int
 
     @JvmStatic
-    fun logTun2Socks(level: String, channel: String, message: String) {
+    fun logTun2Socks(@Suppress("UNUSED_PARAMETER") level: String, channel: String, message: String) {
         Log.d("Tun2Socks_SSC", "[$channel] $message")
     }
 }

@@ -63,11 +63,11 @@ class ConfigFragment : Fragment() {
             val etLink = view.findViewById<EditText>(R.id.et_xray_link)
             currentTab = index
             if (index == 4) {
-                val xray = viewModel.config.value?.xray
-                val mode = xray?.inputMode ?: "json"
+                val xray = viewModel.config.value.xray
+                val mode = xray.inputMode.ifBlank { "json" }
                 // Toujours charger les deux champs indépendamment
-                etJson.setText(xray?.jsonConfig ?: "")
-                etLink.setText(xray?.xrayLink ?: "")
+                etJson.setText(xray.jsonConfig)
+                etLink.setText(xray.xrayLink)
                 // Désactiver listener pendant le check pour éviter boucle
                 val rgRestore = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
                 val pLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
@@ -88,13 +88,13 @@ class ConfigFragment : Fragment() {
                     when (id) {
                         R.id.rb_xray_link -> {
                             val currentJson = view.findViewById<android.widget.EditText>(R.id.et_xray_json).text.toString()
-                            if (currentJson.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
+                            if (currentJson.isNotBlank()) { val c = viewModel.config.value; viewModel.saveConfig(c.copy(xray = c.xray.copy(jsonConfig = currentJson))) }
                             pLink.visibility = android.view.View.VISIBLE
                             pJson.visibility = android.view.View.GONE
                         }
                         R.id.rb_xray_json -> {
                             val currentLink = view.findViewById<android.widget.EditText>(R.id.et_xray_link).text.toString()
-                            if (currentLink.isNotBlank()) { val c = viewModel.config.value; if (c != null) viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
+                            if (currentLink.isNotBlank()) { val c = viewModel.config.value; viewModel.saveConfig(c.copy(xray = c.xray.copy(xrayLink = currentLink))) }
                             pJson.visibility = android.view.View.VISIBLE
                             pLink.visibility = android.view.View.GONE
                         }
@@ -103,7 +103,7 @@ class ConfigFragment : Fragment() {
             } else if (index == 5) {
                 view.findViewById<android.widget.EditText>(R.id.et_v2dns_json).setText(
                     if (parsedJsonFromV2dnsLink.isNotBlank()) parsedJsonFromV2dnsLink
-                    else viewModel.config.value?.xray?.v2dnsJsonConfig ?: "")
+                    else viewModel.config.value.xray.v2dnsJsonConfig)
             }
             tabs.forEachIndexed { i, btn ->
                 btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
@@ -116,13 +116,6 @@ class ConfigFragment : Fragment() {
         }
 
         tabs.forEachIndexed { index, btn -> btn.setOnClickListener { selectTab(index) } }
-
-        // RadioGroup Xray
-        val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
-        val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
-        val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-
-
 
         // Parse Xray link
         view.findViewById<Button>(R.id.btn_parse_link).setOnClickListener {
@@ -268,13 +261,12 @@ class ConfigFragment : Fragment() {
             com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 3
             com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 4
             com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 5
-            else -> 0
         }
         currentTab = tabIndex
     }
 
     private fun saveConfig(view: View) {
-        val c = viewModel.config.value ?: return
+        val c = viewModel.config.value
 
         val http = c.httpProxy.copy(
             sshHost = view.findViewById<EditText>(R.id.et_http_ssh_host).text.toString(),

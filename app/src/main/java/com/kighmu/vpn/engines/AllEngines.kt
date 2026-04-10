@@ -344,8 +344,6 @@ class XrayEngine(
     }
     private fun buildXrayConfigFromFields(xc: com.kighmu.vpn.models.XrayConfig): String {
         // Optimisation StreamSettings: Mux activé pour la stabilité du flux streaming
-        val muxSettings = """ "mux": { "enabled": true, "concurrency": 8 } """
-        
         val streamSettings = when (xc.transport) {
             "ws" -> """
                 "streamSettings": {

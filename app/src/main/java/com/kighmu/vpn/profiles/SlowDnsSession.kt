@@ -52,19 +52,8 @@ class SlowDnsSession(
             try { dnsttProcess!!.exitValue(); throw Exception("dnstt crashed") }
             catch (_: IllegalThreadStateException) {}
 
-            // Démarrer SSH via dnstt
-            val sshCmd = arrayOf(
-                "ssh", "-p", profile.sshPort.toString(),
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=15",
-                "-D", "127.0.0.1:$localPort",
-                "-N",
-                "-l", profile.sshUser,
-                "127.0.0.1"
-            )
-            // Note: SSH via trilead sera géré par SlowDnsEngine existant
-            // On utilise le port dnstt directement
+            // SSH via trilead est géré par SlowDnsEngine existant
+            // On utilise le port dnstt directement (port=$localPort, user=${profile.sshUser})
             state = SessionState.CONNECTED
             KighmuLogger.info(TAG, "Session démarrée port=$localPort")
             true

@@ -8,7 +8,7 @@ import com.kighmu.vpn.utils.KighmuLogger
 object TunnelEngineFactory {
     private const val TAG = "TunnelEngineFactory"
 
-    fun create(config: KighmuConfig, context: Context, vpnService: android.net.VpnService? = null, profileIndex: Int = 0): TunnelEngine {
+    fun create(config: KighmuConfig, context: Context, vpnService: android.net.VpnService? = null, @Suppress("UNUSED_PARAMETER") profileIndex: Int = 0): TunnelEngine {
         val mode = config.tunnelMode
         KighmuLogger.info(TAG, "=== Creation engine: ${mode.label} ===")
         return when (mode) {

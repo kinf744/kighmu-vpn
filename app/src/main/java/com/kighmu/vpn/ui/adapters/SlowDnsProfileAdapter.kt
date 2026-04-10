@@ -20,8 +20,6 @@ class SlowDnsProfileAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val v = LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_2, parent, false)
         // Ajouter checkbox programmatiquement
         val root = LinearLayout(parent.context).apply {
             orientation = LinearLayout.HORIZONTAL

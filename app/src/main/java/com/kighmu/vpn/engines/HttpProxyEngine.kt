@@ -161,7 +161,7 @@ class HttpProxyEngine(
     }
 
     private fun consumeHeaders(inp: InputStream) {
-        var h = ""
+        var h: String
         do {
             h = readHttpLine(inp)
             if (h.isNotEmpty()) KighmuLogger.info(TAG, "Header: $h")

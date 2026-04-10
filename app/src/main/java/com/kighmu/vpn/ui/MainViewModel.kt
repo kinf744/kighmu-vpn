@@ -147,7 +147,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ─── Import / Export ──────────────────────────────────────────────────────
 
-    fun importConfig(context: Context, uri: android.net.Uri) {
+    fun importConfig(@Suppress("UNUSED_PARAMETER") context: Context, uri: android.net.Uri) {
         viewModelScope.launch {
             when (val result = configManager.importFromUri(uri)) {
                 is ConfigManager.ImportResult.Success -> {
@@ -170,7 +170,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun exportConfig(context: Context, uri: android.net.Uri) {
+    fun exportConfig(@Suppress("UNUSED_PARAMETER") context: Context, uri: android.net.Uri) {
         viewModelScope.launch {
             val success = configManager.exportConfig(_config.value, uri)
             _importResult.emit(if (success) "Config exported successfully" else "Export failed")

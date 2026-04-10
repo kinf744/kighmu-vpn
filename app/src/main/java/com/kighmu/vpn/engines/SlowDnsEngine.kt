@@ -2,7 +2,6 @@ package com.kighmu.vpn.engines
 
 import android.content.Context
 import com.trilead.ssh2.Connection
-import com.trilead.ssh2.ConnectionInfo
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
@@ -268,7 +267,7 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "Établissement connexion SSH...")
 
         val conn = Connection("127.0.0.1", dnsttPort)
-        val connInfo: ConnectionInfo = conn.connect(null, 120000, 120000)
+        conn.connect(null, 120000, 120000)
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
         val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)

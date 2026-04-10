@@ -326,7 +326,7 @@ class ExportActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun exportConfig(locked: Boolean, share: Boolean) {
+    private fun exportConfig(locked: Boolean, @Suppress("UNUSED_PARAMETER") share: Boolean) {
         savePersistedData()
         val fileName = findViewById<EditText>(R.id.et_export_filename).text.toString().ifBlank { "kighmu_config" }
         val userMessage = findViewById<EditText>(R.id.et_user_message).text.toString()
