@@ -45,7 +45,7 @@ object HysteriaProfileEditDialog {
 
         label("Serveur Hysteria")
         val etHost = field("Server Address (host ou IP)", p.serverAddress)
-        val etAuth = field("Authentication Password", p.authPassword, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val etAuth = field("Authentication Password", p.authPassword, android.text.InputType.TYPE_CLASS_TEXT)
 
         label("Bande passante")
         val etUp = field("Upload Speed (Mbps)", p.uploadMbps.toString(), android.text.InputType.TYPE_CLASS_NUMBER)

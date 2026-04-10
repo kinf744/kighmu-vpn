@@ -51,7 +51,7 @@ object HttpProxyProfileEditDialog {
         val etSshHost = field("SSH Host / IP", p.sshHost, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI)
         val etSshPort = field("SSH Port (22)", p.sshPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
         val etSshUser = field("SSH Username", p.sshUser)
-        val etSshPass = field("SSH Password", p.sshPass, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            val etSshPass = field("SSH Password", p.sshPass, android.text.InputType.TYPE_CLASS_TEXT)
 
         label("Payload HTTP (placeholders: [host] [port] [crlf])")
         val etPayload = EditText(context).apply {

@@ -49,8 +49,7 @@ object ProfileEditDialog {
         val etSshPort = field("SSH Port", p.sshPort.toString(), true)
         val etSshUser = field("Username", p.sshUser)
         val etSshPass = field("Password", p.sshPass).apply {
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                    android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
 
         section("SLOWDNS CONFIGURATION")
