@@ -61,9 +61,14 @@ class HysteriaEngine(
                     ?: hConfig.serverAddress
             } catch (_: Exception) { hConfig.serverAddress }
 
-            val portHopping = if (hConfig.portHopping.isNotBlank())
-                hConfig.portHopping else "20000-50000"
-            val server = "$ip:$portHopping"
+            // Fix "too many colons in address": on construit l'adresse serveur proprement.
+            // Si portHopping est défini, on l'utilise comme plage de ports (ex: 20000-50000).
+            // Sinon on utilise serverPort seul (ex: 443).
+            val server = if (hConfig.portHopping.isNotBlank()) {
+                "$ip:${hConfig.portHopping}"
+            } else {
+                "$ip:${hConfig.serverPort}"
+            }
             log("Démarrage Hysteria: $server")
 
             val configFile = writeConfig(server)

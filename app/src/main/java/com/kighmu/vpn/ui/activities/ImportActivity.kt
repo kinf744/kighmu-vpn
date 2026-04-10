@@ -179,9 +179,13 @@ class ImportActivity : AppCompatActivity() {
     private suspend fun fetchCloudConfig(code: String): String? {
         return try {
             // Supporte : URL complete (GitHub Gist raw, paste.ee raw, hastebin raw) ou code seul
+            // Note: L'URL Gist correcte est https://gist.githubusercontent.com/{user}/{id}/raw/{file}
+            // ou directement l'URL complète retournée par l'API lors de l'export.
             val urlString = when {
                 code.startsWith("http") -> code
-                code.length > 20 -> "https://gist.githubusercontent.com/raw/$code/kighmu_config.json"
+                // Si le code ressemble à un gist ID (32 chars hex), on ne peut pas construire l'URL sans le username.
+                // L'utilisateur doit coller l'URL complète retournée par l'export.
+                // Fallback hastebin pour les codes courts.
                 else -> "https://hastebin.com/raw/$code"
             }
             val url = URL(urlString)

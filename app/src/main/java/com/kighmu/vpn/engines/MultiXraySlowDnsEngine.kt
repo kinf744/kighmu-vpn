@@ -141,23 +141,20 @@ class MultiXraySlowDnsEngine(
         }
 
         // ── Démarrer Xray sur le premier profil réussi ─────────────────────
+        // Note: Le balancer doit être placé sur les ports SOCKS5 générés par Xray,
+        // pas sur les ports DNSTT. Mais XrayEngine ne gère qu'un seul port SOCKS.
+        // Pour V2Ray+DNS, le multi-profil est complexe car il faudrait un XrayEngine par profil.
+        // Pour l'instant, on va démarrer un seul XrayEngine sur le premier port DNSTT réussi,
+        // et on ne balance pas les ports DNSTT.
         val (firstPort, firstXrayCfg) = successXrayConfigs.first()
         xray = XrayEngine(firstXrayCfg, context, firstPort, 0, vpnService)
         val xraySocksPort = xray!!.start()
 
-        // ── Balancer multi-profil si plusieurs tunnels réussis ──────────────
-        activePorts = if (successPorts.size > 1) successPorts else listOf(xraySocksPort)
+        // ── Pas de balancer pour V2Ray+DNS pour l'instant, on utilise le premier SOCKS ──────────────
+        activePorts = listOf(xraySocksPort)
 
-        if (successPorts.size > 1) {
-            KighmuLogger.info(TAG, "=== STEP 3: Démarrage SocksBalancer sur ${successPorts.size} ports ===")
-            val balancer = SocksBalancer(successPorts)
-            balancer.start()
-            socksBalancer = balancer
-            KighmuLogger.info(TAG, "Balancer actif sur port ${SocksBalancer.BALANCER_PORT}")
-        }
-
-        val finalPort = if (successPorts.size > 1) SocksBalancer.BALANCER_PORT else xraySocksPort
-        KighmuLogger.info(TAG, "=== V2ray+DNS prêt — port=$finalPort, ${successPorts.size} tunnel(s) actif(s) ===")
+        val finalPort = xraySocksPort
+        KighmuLogger.info(TAG, "=== V2ray+DNS prêt — port=$finalPort, 1 tunnel actif (Xray) ===")
         return finalPort
     }
 

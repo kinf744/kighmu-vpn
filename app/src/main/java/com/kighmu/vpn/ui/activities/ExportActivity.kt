@@ -38,6 +38,21 @@ class ExportActivity : AppCompatActivity() {
         setupExpiryDate()
         setupExportButtons()
         setupCloudExport()
+        loadPersistedData()
+    }
+
+    private fun loadPersistedData() {
+        val prefs = getSharedPreferences("kighmu_export_prefs", Context.MODE_PRIVATE)
+        findViewById<EditText>(R.id.et_github_token).setText(prefs.getString("github_token", ""))
+        findViewById<EditText>(R.id.et_user_message).setText(prefs.getString("user_message", ""))
+    }
+
+    private fun savePersistedData() {
+        val prefs = getSharedPreferences("kighmu_export_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("github_token", findViewById<EditText>(R.id.et_github_token).text.toString().trim())
+            .putString("user_message", findViewById<EditText>(R.id.et_user_message).text.toString())
+            .apply()
     }
 
     private fun setupExpiryDate() {
@@ -141,6 +156,9 @@ class ExportActivity : AppCompatActivity() {
                     )
                     val json = Gson().toJson(exportPackage)
 
+                    // Sauvegarder les données persistantes
+                    savePersistedData()
+
                     // Methode principale : GitHub Gist (si token fourni), sinon paste.ee
                     val githubToken = findViewById<EditText>(R.id.et_github_token).text.toString().trim()
                     val pasteUrl = uploadToCloud(json, githubToken)
@@ -211,9 +229,22 @@ class ExportActivity : AppCompatActivity() {
                 if (conn.responseCode == 201) {
                     val response = conn.inputStream.bufferedReader().readText()
                     val obj = org.json.JSONObject(response)
+                    // Utiliser raw_url de la réponse API (format correct avec username)
+                    val rawUrl = obj
+                        .optJSONObject("files")
+                        ?.optJSONObject("kighmu_config.json")
+                        ?.optString("raw_url", "")
+                    if (!rawUrl.isNullOrBlank()) {
+                        return rawUrl
+                    }
+                    // Fallback: construire l'URL à partir de l'owner et du gistId
                     val gistId = obj.getString("id")
-                    // URL raw stable pour l'import
-                    return "https://gist.githubusercontent.com/raw/$gistId/kighmu_config.json"
+                    val owner = obj.optJSONObject("owner")?.optString("login", "") ?: ""
+                    return if (owner.isNotBlank()) {
+                        "https://gist.githubusercontent.com/$owner/$gistId/raw/kighmu_config.json"
+                    } else {
+                        "https://gist.github.com/$gistId"
+                    }
                 } else {
                     val err = conn.errorStream?.bufferedReader()?.readText() ?: "code=${conn.responseCode}"
                     android.util.Log.e("ExportActivity", "GitHub Gist erreur: $err")
@@ -296,6 +327,7 @@ class ExportActivity : AppCompatActivity() {
     }
 
     private fun exportConfig(locked: Boolean, share: Boolean) {
+        savePersistedData()
         val fileName = findViewById<EditText>(R.id.et_export_filename).text.toString().ifBlank { "kighmu_config" }
         val userMessage = findViewById<EditText>(R.id.et_user_message).text.toString()
         val lockOperator = findViewById<CheckBox>(R.id.cb_lock_operator).isChecked
