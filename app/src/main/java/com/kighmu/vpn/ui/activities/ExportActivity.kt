@@ -141,8 +141,9 @@ class ExportActivity : AppCompatActivity() {
                     )
                     val json = Gson().toJson(exportPackage)
 
-                    // Utilisation de l'API Pastebin (ou alternative)
-                    val pasteUrl = uploadToPasteService(json)
+                    // Methode principale : GitHub Gist (si token fourni), sinon paste.ee
+                    val githubToken = findViewById<EditText>(R.id.et_github_token).text.toString().trim()
+                    val pasteUrl = uploadToCloud(json, githubToken)
 
                     runOnUiThread {
                         btn.isEnabled = true
@@ -172,52 +173,104 @@ class ExportActivity : AppCompatActivity() {
         }
     }
 
-    private fun uploadToPasteService(content: String): String? {
-        return try {
-            // Utilisation de paste.ee comme alternative plus stable
+    /**
+     * uploadToCloud — Methode principale d'upload.
+     *
+     * 1. Si un token GitHub est fourni -> GitHub Gist (API REST, fiable, raw URL stable)
+     * 2. Sinon -> paste.ee (anonyme)
+     * 3. Fallback final -> hastebin
+     */
+    private fun uploadToCloud(content: String, githubToken: String): String? {
+        // === METHODE 1 : GitHub Gist (recommande) ===
+        if (githubToken.isNotBlank()) {
+            try {
+                val url = URL("https://api.github.com/gists")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.connectTimeout = 15000
+                conn.readTimeout = 20000
+                conn.setRequestProperty("Accept", "application/vnd.github+json")
+                conn.setRequestProperty("Authorization", "Bearer $githubToken")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+
+                val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
+                val gistPayload = org.json.JSONObject().apply {
+                    put("description", "KIGHMU VPN Config $ts")
+                    put("public", false)
+                    put("files", org.json.JSONObject().apply {
+                        put("kighmu_config.json", org.json.JSONObject().apply {
+                            put("content", content)
+                        })
+                    })
+                }
+
+                conn.outputStream.use { it.write(gistPayload.toString().toByteArray()) }
+
+                if (conn.responseCode == 201) {
+                    val response = conn.inputStream.bufferedReader().readText()
+                    val obj = org.json.JSONObject(response)
+                    val gistId = obj.getString("id")
+                    // URL raw stable pour l'import
+                    return "https://gist.githubusercontent.com/raw/$gistId/kighmu_config.json"
+                } else {
+                    val err = conn.errorStream?.bufferedReader()?.readText() ?: "code=${conn.responseCode}"
+                    android.util.Log.e("ExportActivity", "GitHub Gist erreur: $err")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ExportActivity", "GitHub Gist exception: ${e.message}")
+            }
+        }
+
+        // === METHODE 2 : paste.ee (anonyme) ===
+        try {
             val url = URL("https://api.paste.ee/v1/pastes")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
+            conn.connectTimeout = 15000
+            conn.readTimeout = 20000
             conn.setRequestProperty("Content-Type", "application/json")
-            
-            // Note: Idéalement utiliser une clé API, mais paste.ee permet des pastes anonymes
-            val payload = mapOf(
-                "sections" to listOf(
-                    mapOf(
-                        "name" to "KIGHMU Config",
-                        "contents" to content
-                    )
-                ),
-                "description" to "KIGHMU VPN Cloud Config"
-            )
-            
-            conn.outputStream.use { it.write(Gson().toJson(payload).toByteArray()) }
-            
+            val payload = org.json.JSONObject().apply {
+                put("description", "KIGHMU VPN Cloud Config")
+                put("sections", org.json.JSONArray().apply {
+                    put(org.json.JSONObject().apply {
+                        put("name", "KIGHMU Config")
+                        put("contents", content)
+                    })
+                })
+            }
+            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
             if (conn.responseCode == 201 || conn.responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().readText()
                 val obj = org.json.JSONObject(response)
-                if (obj.getBoolean("success")) {
-                    obj.getString("link").replace("/p/", "/r/") // Lien raw pour l'import
-                } else null
+                if (obj.optBoolean("success", false)) {
+                    return obj.getString("link").replace("/p/", "/r/")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ExportActivity", "paste.ee exception: ${e.message}")
+        }
+
+        // === METHODE 3 : hastebin (fallback final) ===
+        return try {
+            val url = URL("https://hastebin.com/documents")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.connectTimeout = 15000
+            conn.readTimeout = 20000
+            conn.setRequestProperty("Content-Type", "text/plain")
+            conn.outputStream.use { it.write(content.toByteArray()) }
+            if (conn.responseCode == 200) {
+                val response = conn.inputStream.bufferedReader().readText()
+                val key = org.json.JSONObject(response).getString("key")
+                "https://hastebin.com/raw/$key"
             } else null
         } catch (e: Exception) {
-            // Fallback vers hastebin si paste.ee échoue
-            try {
-                val url = URL("https://hastebin.com/documents")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "text/plain")
-                conn.outputStream.use { it.write(content.toByteArray()) }
-                if (conn.responseCode == 200) {
-                    val response = conn.inputStream.bufferedReader().readText()
-                    val key = org.json.JSONObject(response).getString("key")
-                    "https://hastebin.com/raw/$key"
-                } else null
-            } catch (e2: Exception) {
-                null
-            }
+            android.util.Log.e("ExportActivity", "hastebin exception: ${e.message}")
+            null
         }
     }
 

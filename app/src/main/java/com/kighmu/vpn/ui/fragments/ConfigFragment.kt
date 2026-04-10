@@ -188,6 +188,10 @@ class ConfigFragment : Fragment() {
 
         // V2ray+DNS profiles
         setupV2rayDnsProfiles(view)
+        // HTTP Proxy multi-profil
+        setupHttpProxyProfiles(view)
+        // Hysteria multi-profil
+        setupHysteriaProfiles(view)
 
         view.findViewById<Button>(R.id.btn_save_config).setOnClickListener { saveConfig(view) }
 
@@ -539,6 +543,70 @@ class ConfigFragment : Fragment() {
             }
             .setNegativeButton("Annuler", null)
             .show()
+    }
+
+    private fun setupHttpProxyProfiles(view: View) {
+        val repo = com.kighmu.vpn.profiles.HttpProxyProfileRepository(requireContext())
+        lateinit var adapter: com.kighmu.vpn.ui.adapters.HttpProxyProfileAdapter
+        adapter = com.kighmu.vpn.ui.adapters.HttpProxyProfileAdapter(
+            repo.getAll(),
+            onSelectionChanged = { id, selected -> repo.updateSelection(id, selected) },
+            onEdit = { profile ->
+                com.kighmu.vpn.ui.dialogs.HttpProxyProfileEditDialog.show(requireContext(), profile) { updated ->
+                    repo.update(updated)
+                    adapter.setProfiles(repo.getAll())
+                }
+            },
+            onDelete = { profile ->
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer profil")
+                    .setMessage("Supprimer '${profile.profileName}' ?")
+                    .setPositiveButton("Supprimer") { _, _ -> repo.delete(profile.id); adapter.setProfiles(repo.getAll()) }
+                    .setNegativeButton("Annuler", null).show()
+            },
+            onClone = { profile -> repo.clone(profile.id); adapter.setProfiles(repo.getAll()) }
+        )
+        val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_http_proxy_profiles)
+        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+        rv.adapter = adapter
+        view.findViewById<android.widget.Button>(R.id.btn_add_http_proxy_profile).setOnClickListener {
+            com.kighmu.vpn.ui.dialogs.HttpProxyProfileEditDialog.show(requireContext()) { newProfile ->
+                repo.add(newProfile)
+                adapter.setProfiles(repo.getAll())
+            }
+        }
+    }
+
+    private fun setupHysteriaProfiles(view: View) {
+        val repo = com.kighmu.vpn.profiles.HysteriaProfileRepository(requireContext())
+        lateinit var adapter: com.kighmu.vpn.ui.adapters.HysteriaProfileAdapter
+        adapter = com.kighmu.vpn.ui.adapters.HysteriaProfileAdapter(
+            repo.getAll(),
+            onSelectionChanged = { id, selected -> repo.updateSelection(id, selected) },
+            onEdit = { profile ->
+                com.kighmu.vpn.ui.dialogs.HysteriaProfileEditDialog.show(requireContext(), profile) { updated ->
+                    repo.update(updated)
+                    adapter.setProfiles(repo.getAll())
+                }
+            },
+            onDelete = { profile ->
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer profil")
+                    .setMessage("Supprimer '${profile.profileName}' ?")
+                    .setPositiveButton("Supprimer") { _, _ -> repo.delete(profile.id); adapter.setProfiles(repo.getAll()) }
+                    .setNegativeButton("Annuler", null).show()
+            },
+            onClone = { profile -> repo.clone(profile.id); adapter.setProfiles(repo.getAll()) }
+        )
+        val rv = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_hysteria_profiles)
+        rv.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+        rv.adapter = adapter
+        view.findViewById<android.widget.Button>(R.id.btn_add_hysteria_profile).setOnClickListener {
+            com.kighmu.vpn.ui.dialogs.HysteriaProfileEditDialog.show(requireContext()) { newProfile ->
+                repo.add(newProfile)
+                adapter.setProfiles(repo.getAll())
+            }
+        }
     }
 
     private fun setupV2rayDnsProfiles(view: View) {

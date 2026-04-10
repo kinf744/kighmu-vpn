@@ -13,11 +13,11 @@ object TunnelEngineFactory {
         KighmuLogger.info(TAG, "=== Creation engine: ${mode.label} ===")
         return when (mode) {
             TunnelMode.SLOW_DNS      -> MultiSlowDnsEngine(config, context, vpnService)
-            TunnelMode.HTTP_PROXY    -> HttpProxyEngine(config, context)
+            TunnelMode.HTTP_PROXY    -> MultiHttpProxyEngine(config, context, vpnService)
             TunnelMode.SSH_SSL_TLS   -> SshSslEngine(config, context)
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context, 0)
             TunnelMode.V2RAY_SLOWDNS -> MultiXraySlowDnsEngine(config, context, vpnService)
-            TunnelMode.HYSTERIA_UDP  -> HysteriaEngine(config, context, vpnService)
+            TunnelMode.HYSTERIA_UDP  -> MultiHysteriaEngine(config, context, vpnService)
         }
     }
 }

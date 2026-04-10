@@ -178,17 +178,29 @@ class ImportActivity : AppCompatActivity() {
 
     private suspend fun fetchCloudConfig(code: String): String? {
         return try {
-            // Supporte à la fois le code seul ou l'URL complète
-            val urlString = if (code.startsWith("http")) code else "https://hastebin.com/raw/$code"
+            // Supporte : URL complete (GitHub Gist raw, paste.ee raw, hastebin raw) ou code seul
+            val urlString = when {
+                code.startsWith("http") -> code
+                code.length > 20 -> "https://gist.githubusercontent.com/raw/$code/kighmu_config.json"
+                else -> "https://hastebin.com/raw/$code"
+            }
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            
+            conn.connectTimeout = 15000
+            conn.readTimeout = 20000
+            conn.setRequestProperty("Accept", "application/json, text/plain, */*")
+            conn.setRequestProperty("User-Agent", "KIGHMU-VPN/1.0")
+
             if (conn.responseCode == 200) {
-                val json = conn.inputStream.bufferedReader().readText()
+                val json = conn.inputStream.bufferedReader().readText().trim()
                 if (json.contains("config") && json.contains("security")) json else null
-            } else null
+            } else {
+                android.util.Log.e("ImportActivity", "fetchCloudConfig HTTP ${conn.responseCode} pour $urlString")
+                null
+            }
         } catch (e: Exception) {
+            android.util.Log.e("ImportActivity", "fetchCloudConfig exception: ${e.message}")
             null
         }
     }

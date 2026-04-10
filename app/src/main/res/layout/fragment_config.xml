@@ -40,6 +40,15 @@
 
             <!-- HTTP Proxy Panel -->
             <LinearLayout android:id="@+id/panel_http" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <!-- Multi-Profil HTTP Proxy -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="HTTP PROXY PROFILES" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true"/>
+                    <Button android:id="@+id/btn_add_http_proxy_profile" android:layout_width="36dp" android:layout_height="36dp" android:text="+" android:textSize="20sp" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:padding="0dp"/>
+                </LinearLayout>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ajoutez plusieurs profils pour le multi-tunnel (debit eleve). Si aucun profil selectionne, la config par defaut est utilisee." android:textColor="#666666" android:textSize="11sp" android:layout_marginBottom="8dp"/>
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_http_proxy_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:layout_marginBottom="16dp"/>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333344" android:layout_marginBottom="12dp"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CONFIG PAR DEFAUT (si aucun profil selectionne)" android:textColor="#888888" android:textSize="11sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="SSH SERVER" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
                 <EditText android:id="@+id/et_http_ssh_host" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Host / IP" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
                 <EditText android:id="@+id/et_http_ssh_port" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Port (22)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
@@ -100,6 +109,15 @@
 
             <!-- Hysteria Panel -->
             <LinearLayout android:id="@+id/panel_hysteria" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <!-- Multi-Profil Hysteria -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="HYSTERIA PROFILES" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true"/>
+                    <Button android:id="@+id/btn_add_hysteria_profile" android:layout_width="36dp" android:layout_height="36dp" android:text="+" android:textSize="20sp" android:backgroundTint="#1565C0" android:textColor="#FFFFFF" android:padding="0dp"/>
+                </LinearLayout>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ajoutez plusieurs profils Hysteria pour le multi-tunnel UDP (debit eleve). Si aucun profil selectionne, la config par defaut est utilisee." android:textColor="#666666" android:textSize="11sp" android:layout_marginBottom="8dp"/>
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_hysteria_profiles" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:layout_marginBottom="16dp"/>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333344" android:layout_marginBottom="12dp"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CONFIG PAR DEFAUT (si aucun profil selectionne)" android:textColor="#888888" android:textSize="11sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="HYSTERIA UDP SETTINGS" android:textColor="#4FC3F7" android:textSize="12sp" android:textAllCaps="true" android:layout_marginBottom="8dp"/>
                 <EditText android:id="@+id/et_hys_host" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Server Address" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp"/>
                 <EditText android:id="@+id/et_hys_auth" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Authentication Password" android:textColor="#FFFFFF" android:textColorHint="#666666" android:backgroundTint="#1A1F2E" android:padding="12dp" android:layout_marginTop="8dp"/>
