@@ -27,70 +27,67 @@ class HttpProxyProfileAdapter(
             layoutParams = RecyclerView.LayoutParams(-1, -2)
             setPadding(16, 12, 16, 12)
         }
+
         val cb = CheckBox(parent.context).apply {
             id = android.R.id.checkbox
             buttonTintList = android.content.res.ColorStateList.valueOf(0xFF4FC3F7.toInt())
         }
+
         val textLayout = LinearLayout(parent.context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
             setPadding(12, 0, 0, 0)
         }
+
         val tv1 = TextView(parent.context).apply {
             id = android.R.id.text1
             setTextColor(0xFFFFFFFF.toInt())
             textSize = 14f
         }
+
         val tv2 = TextView(parent.context).apply {
             id = android.R.id.text2
             setTextColor(0xFF888888.toInt())
             textSize = 11f
         }
+
         textLayout.addView(tv1)
         textLayout.addView(tv2)
         root.addView(cb)
         root.addView(textLayout)
 
-        // Boutons d'action
-        val btnEdit = Button(parent.context).apply {
-            text = "✏️"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFF4FC3F7.toInt())
-        }
-        val btnClone = Button(parent.context).apply {
-            text = "📋"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFF4FC3F7.toInt())
-        }
-        val btnDel = Button(parent.context).apply {
-            text = "🗑️"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFFFF5252.toInt())
-        }
-        root.addView(btnEdit)
-        root.addView(btnClone)
-        root.addView(btnDel)
-
-        val vh = VH(root)
-        btnEdit.setOnClickListener { if (vh.adapterPosition >= 0) onEdit(profiles[vh.adapterPosition]) }
-        btnClone.setOnClickListener { if (vh.adapterPosition >= 0) onClone(profiles[vh.adapterPosition]) }
-        btnDel.setOnClickListener { if (vh.adapterPosition >= 0) onDelete(profiles[vh.adapterPosition]) }
-        return vh
+        return VH(root)
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val p = profiles[position]
-        holder.tvName.text = p.profileName.ifBlank { "Profil ${position + 1}" }
+        holder.tvName.text = if (p.profileName.isNotEmpty()) p.profileName else "HTTP Proxy ${position + 1}"
         holder.tvSub.text = "${p.proxyHost}:${p.proxyPort} → SSH ${p.sshHost}:${p.sshPort}"
+
+        holder.checkbox.setOnCheckedChangeListener(null)
         holder.checkbox.isChecked = p.isSelected
         holder.checkbox.setOnCheckedChangeListener { _, checked ->
+            profiles[holder.adapterPosition].isSelected = checked
             onSelectionChanged(p.id, checked)
+        }
+
+        // Appui long → menu contextuel (style V2ray DNS)
+        holder.itemView.setOnLongClickListener {
+            val popup = PopupMenu(holder.itemView.context, holder.itemView)
+            popup.menu.add(0, 0, 0, "✏️ Modifier")
+            popup.menu.add(0, 1, 1, "📋 Cloner")
+            popup.menu.add(0, 2, 2, "🗑️ Supprimer")
+            popup.setOnMenuItemClickListener { item ->
+                val pos = holder.adapterPosition
+                when (item.itemId) {
+                    0 -> onEdit(profiles[pos])
+                    1 -> onClone(profiles[pos])
+                    2 -> onDelete(profiles[pos])
+                }
+                true
+            }
+            popup.show()
+            true
         }
     }
 
@@ -100,4 +97,6 @@ class HttpProxyProfileAdapter(
         profiles = newList.toMutableList()
         notifyDataSetChanged()
     }
+
+    fun getSelected() = profiles.filter { it.isSelected }
 }

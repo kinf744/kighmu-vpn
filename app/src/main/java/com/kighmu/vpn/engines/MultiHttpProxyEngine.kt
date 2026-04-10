@@ -132,18 +132,19 @@ class MultiHttpProxyEngine(
     }
 
     override fun startTun2Socks(fd: Int) {
-        KighmuLogger.info(TAG, "HevTun2Socks multi-HTTP fd=$fd ports=$activePorts")
         HevTun2Socks.init()
         val svc = vpnService ?: run {
             KighmuLogger.error(TAG, "VpnService null — impossible de démarrer HevTun2Socks")
             return
         }
         if (HevTun2Socks.isAvailable) {
-            if (activePorts.size > 1) {
-                HevTun2Socks.startMulti(context, fd, activePorts, svc)
-            } else {
-                HevTun2Socks.start(context, fd, activePorts.firstOrNull() ?: return, svc, mtu = 1500)
-            }
+            // Toujours pointer HEV sur un seul port SOCKS5 :
+            // - si balancer actif → son port unique (qui distribue en round-robin)
+            // - sinon → le port direct du premier tunnel
+            val targetPort = if (activePorts.size > 1) SocksBalancer.BALANCER_PORT
+                             else activePorts.firstOrNull() ?: return
+            KighmuLogger.info(TAG, "hev HTTP Proxy → port=$targetPort (${activePorts.size} tunnel(s))")
+            HevTun2Socks.start(context, fd, targetPort, svc, mtu = 1500)
         } else {
             KighmuLogger.error(TAG, "HevTun2Socks non disponible")
         }

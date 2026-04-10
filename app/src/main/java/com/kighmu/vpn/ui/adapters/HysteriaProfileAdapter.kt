@@ -51,47 +51,40 @@ class HysteriaProfileAdapter(
         root.addView(cb)
         root.addView(textLayout)
 
-        val btnEdit = Button(parent.context).apply {
-            text = "\u270F\uFE0F"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFF4FC3F7.toInt())
-        }
-        val btnClone = Button(parent.context).apply {
-            text = "\uD83D\uDCCB"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFF4FC3F7.toInt())
-        }
-        val btnDel = Button(parent.context).apply {
-            text = "\uD83D\uDDD1\uFE0F"
-            textSize = 12f
-            setPadding(8, 4, 8, 4)
-            setBackgroundColor(0xFF2A3550.toInt())
-            setTextColor(0xFFFF5252.toInt())
-        }
-        root.addView(btnEdit)
-        root.addView(btnClone)
-        root.addView(btnDel)
-
-        val vh = VH(root)
-        btnEdit.setOnClickListener { if (vh.adapterPosition >= 0) onEdit(profiles[vh.adapterPosition]) }
-        btnClone.setOnClickListener { if (vh.adapterPosition >= 0) onClone(profiles[vh.adapterPosition]) }
-        btnDel.setOnClickListener { if (vh.adapterPosition >= 0) onDelete(profiles[vh.adapterPosition]) }
-        return vh
+        return VH(root)
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val p = profiles[position]
-        holder.tvName.text = p.profileName.ifBlank { "Profil Hysteria ${position + 1}" }
+        holder.tvName.text = if (p.profileName.isNotEmpty()) p.profileName else "Hysteria ${position + 1}"
         val obfs = if (p.obfsPassword.isNotBlank()) " | obfs" else ""
-        val hop = if (p.portHopping.isNotBlank()) " | hop:${p.portHopping}" else ""
-        holder.tvSub.text = "${p.serverAddress}:${p.serverPort} | up:${p.uploadMbps}M dn:${p.downloadMbps}M$obfs$hop"
+        val hop = if (p.portHopping.isNotBlank()) " | hop" else ""
+        holder.tvSub.text = "${p.serverAddress}:${p.serverPort} | ↑${p.uploadMbps}M ↓${p.downloadMbps}M$obfs$hop"
+
+        holder.checkbox.setOnCheckedChangeListener(null)
         holder.checkbox.isChecked = p.isSelected
         holder.checkbox.setOnCheckedChangeListener { _, checked ->
+            profiles[holder.adapterPosition].isSelected = checked
             onSelectionChanged(p.id, checked)
+        }
+
+        // Appui long → menu contextuel (style V2ray DNS)
+        holder.itemView.setOnLongClickListener {
+            val popup = PopupMenu(holder.itemView.context, holder.itemView)
+            popup.menu.add(0, 0, 0, "✏️ Modifier")
+            popup.menu.add(0, 1, 1, "📋 Cloner")
+            popup.menu.add(0, 2, 2, "🗑️ Supprimer")
+            popup.setOnMenuItemClickListener { item ->
+                val pos = holder.adapterPosition
+                when (item.itemId) {
+                    0 -> onEdit(profiles[pos])
+                    1 -> onClone(profiles[pos])
+                    2 -> onDelete(profiles[pos])
+                }
+                true
+            }
+            popup.show()
+            true
         }
     }
 
@@ -101,4 +94,6 @@ class HysteriaProfileAdapter(
         profiles = newList.toMutableList()
         notifyDataSetChanged()
     }
+
+    fun getSelected() = profiles.filter { it.isSelected }
 }
