@@ -121,7 +121,6 @@ class ConfigFragment : Fragment() {
         val rgMode = view.findViewById<android.widget.RadioGroup>(R.id.rg_xray_mode)
         val panelLink = view.findViewById<android.view.View>(R.id.panel_xray_link)
         val panelJson = view.findViewById<android.view.View>(R.id.panel_xray_json)
-        val tvWarning = view.findViewById<android.widget.TextView>(R.id.tv_xray_mode_warning)
 
 
 
