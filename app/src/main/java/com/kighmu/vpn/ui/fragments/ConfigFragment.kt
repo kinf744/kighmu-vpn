@@ -260,8 +260,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
         view.findViewById<EditText>(R.id.et_hys_obfs).setText(c.hysteria.obfsPassword)
         view.findViewById<EditText>(R.id.et_hys_port_hopping).setText(c.hysteria.portHopping)
-        // Charger le port Hysteria dans le champ de la section (section_hysteria.xml)
-        try { view.findViewById<EditText>(R.id.et_hysteria_port)?.setText(c.hysteria.serverPort.toString()) } catch (_: Exception) {}
+
         // Tab
         val tabIndex = when (c.tunnelMode) {
             com.kighmu.vpn.models.TunnelMode.SLOW_DNS -> 0
@@ -339,22 +338,13 @@ class ConfigFragment : Fragment() {
             )
         }
 
-        // Lire le port Hysteria depuis le champ de la section (section_hysteria.xml) si disponible
-        val hysPortFromSection = try {
-            view.findViewById<EditText>(R.id.et_hysteria_port)?.text?.toString()?.toIntOrNull()
-        } catch (_: Exception) { null }
         val hys = c.hysteria.copy(
             serverAddress = view.findViewById<EditText>(R.id.et_hys_host).text.toString(),
-            serverPort = hysPortFromSection ?: view.findViewById<EditText>(R.id.et_hys_host).text.toString().let {
-                // Essayer d'extraire le port depuis l'adresse si format "ip:port"
-                if (it.contains(":")) it.substringAfterLast(":").toIntOrNull() ?: c.hysteria.serverPort
-                else c.hysteria.serverPort
-            },
             authPassword = view.findViewById<EditText>(R.id.et_hys_auth).text.toString(),
             uploadMbps = view.findViewById<EditText>(R.id.et_hys_upload).text.toString().toIntOrNull() ?: 10,
             downloadMbps = view.findViewById<EditText>(R.id.et_hys_download).text.toString().toIntOrNull() ?: 50,
             obfsPassword = view.findViewById<EditText>(R.id.et_hys_obfs).text.toString(),
-            portHopping = view.findViewById<EditText>(R.id.et_hys_port_hopping).text.toString(),
+            portHopping = view.findViewById<EditText>(R.id.et_hys_port_hopping).text.toString().ifBlank { "20000-50000" },
         )
 
         val newTunnelMode = when (currentTab) {

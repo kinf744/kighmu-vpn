@@ -59,7 +59,7 @@ class HysteriaProfileAdapter(
         holder.tvName.text = if (p.profileName.isNotEmpty()) p.profileName else "Hysteria ${position + 1}"
         val obfs = if (p.obfsPassword.isNotBlank()) " | obfs" else ""
         val hop = if (p.portHopping.isNotBlank()) " | hop" else ""
-        holder.tvSub.text = "${p.serverAddress}:${p.serverPort} | ↑${p.uploadMbps}M ↓${p.downloadMbps}M$obfs$hop"
+        holder.tvSub.text = "${p.serverAddress}${if (p.portHopping.isNotBlank()) ":${p.portHopping}" else ""} | ↑${p.uploadMbps}M ↓${p.downloadMbps}M$obfs$hop"
 
         holder.checkbox.setOnCheckedChangeListener(null)
         holder.checkbox.isChecked = p.isSelected

@@ -45,7 +45,6 @@ object HysteriaProfileEditDialog {
 
         label("Serveur Hysteria")
         val etHost = field("Server Address (host ou IP)", p.serverAddress)
-        val etPort = field("Port (443)", p.serverPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
         val etAuth = field("Authentication Password", p.authPassword, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
 
         label("Bande passante")
@@ -63,7 +62,6 @@ object HysteriaProfileEditDialog {
                 val updated = p.copy(
                     profileName = etName.text.toString().ifBlank { "Profil Hysteria" },
                     serverAddress = etHost.text.toString().trim(),
-                    serverPort = etPort.text.toString().toIntOrNull() ?: 443,
                     authPassword = etAuth.text.toString(),
                     uploadMbps = etUp.text.toString().toIntOrNull() ?: 100,
                     downloadMbps = etDown.text.toString().toIntOrNull() ?: 100,

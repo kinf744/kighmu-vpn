@@ -66,7 +66,6 @@ class MultiHysteriaEngine(
             val cfg = baseConfig.copy(
                 hysteria = baseConfig.hysteria.copy(
                     serverAddress = profile.serverAddress,
-                    serverPort = profile.serverPort,
                     authPassword = profile.authPassword,
                     uploadMbps = profile.uploadMbps,
                     downloadMbps = profile.downloadMbps,

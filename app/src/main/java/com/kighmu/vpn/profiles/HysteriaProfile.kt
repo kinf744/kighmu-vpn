@@ -11,12 +11,12 @@ data class HysteriaProfile(
     val id: String = UUID.randomUUID().toString(),
     var profileName: String = "",
     var serverAddress: String = "",
-    var serverPort: Int = 443,
+
     var authPassword: String = "",
     var uploadMbps: Int = 100,
     var downloadMbps: Int = 100,
     var obfsPassword: String = "",
-    var portHopping: String = "",
+    var portHopping: String = "20000-50000",
     var isSelected: Boolean = false
 ) {
     fun toJson(): String = Gson().toJson(this)
