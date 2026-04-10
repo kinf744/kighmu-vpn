@@ -32,6 +32,13 @@ object KighmuLogger {
 
     private fun sanitize(message: String): String {
         var msg = message
+        // Ne pas masquer les balises HTML (couleurs serveurs)
+        if (msg.contains("<font") || msg.contains("<b>")) {
+            // On sanitize quand même les mots de passe à l'intérieur si présents
+            msg = msg.replace(Regex("""(auth_str|password|obfs)[:\s"=]+\S+"""), "$1: ***")
+            return msg
+        }
+        
         msg = msg.replace(Regex("""(auth_str|password|obfs)[:\s"=]+\S+"""), "$1: ***")
         msg = msg.replace(Regex("""-pubkey\s+[A-Fa-f0-9]+"""), "-pubkey ***")
         msg = msg.replace(Regex("""ghp_[A-Za-z0-9]+"""), "***")
@@ -50,10 +57,14 @@ object KighmuLogger {
     }
 
     fun log(message: String, level: LogEntry.LogLevel = LogEntry.LogLevel.INFO, tag: String = "KIGHMU") {
-        // Filtrer les logs debug trop verbeux de tous les tunnels
-        if (message.contains("[DEBU]") || message.contains("SOCKS5 TCP") ||
-            message.contains("TCP EOF") || message.contains("TCP request") ||
-            message.contains("action:Proxy") || message.contains("action: Proxy")) return
+        // Filtrer les logs debug trop verbeux et les erreurs de connexion répétitives ("sales")
+        val msgLower = message.lowercase()
+        if (msgLower.contains("[debu]") || msgLower.contains("socks5 tcp") ||
+            msgLower.contains("tcp eof") || msgLower.contains("tcp request") ||
+            msgLower.contains("action:proxy") || msgLower.contains("action: proxy") ||
+            msgLower.contains("econnrefused") || msgLower.contains("connection refused") ||
+            msgLower.contains("relay error port") || msgLower.contains("failed to connect to /127.0.0.1")) return
+            
         val safeMessage = sanitize(message)
         val entry = LogEntry(System.currentTimeMillis(), level, safeMessage, tag)
         logBuffer.addLast(entry)

@@ -38,16 +38,31 @@ class LogsFragment : Fragment() {
             viewModel.logs.collect { logs ->
                 val sb = SpannableStringBuilder()
                 logs.forEach { entry ->
-                    val line = formatLine(entry)
+                    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+                        .format(java.util.Date(entry.timestamp))
+                    val tag = entry.tag.take(12).padEnd(12)
+                    
                     val start = sb.length
-                    sb.append(line)
+                    sb.append("[$time] [$tag] ")
+                    
+                    // Support HTML pour le message
+                    val htmlMsg = if (entry.message.contains("<font") || entry.message.contains("<b>")) {
+                        android.text.Html.fromHtml(entry.message, android.text.Html.FROM_HTML_MODE_COMPACT)
+                    } else {
+                        entry.message
+                    }
+                    sb.append(htmlMsg)
                     sb.append("\n")
-                    val color = getLineColor(entry)
-                    sb.setSpan(
-                        ForegroundColorSpan(color),
-                        start, sb.length,
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
+                    
+                    // Couleur de ligne par défaut si pas de HTML
+                    if (!entry.message.contains("<font")) {
+                        val color = getLineColor(entry)
+                        sb.setSpan(
+                            ForegroundColorSpan(color),
+                            start, sb.length,
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
                 }
                 tvLogs.text = sb
                 scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
@@ -57,12 +72,7 @@ class LogsFragment : Fragment() {
         btnClear.setOnClickListener { viewModel.clearLogs() }
     }
 
-    private fun formatLine(entry: LogEntry): String {
-        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
-            .format(java.util.Date(entry.timestamp))
-        val tag = entry.tag.take(12).padEnd(12)
-        return "[$time] [$tag] ${entry.message}"
-    }
+
 
     private fun getLineColor(entry: LogEntry): Int {
         val msg = entry.message.lowercase()

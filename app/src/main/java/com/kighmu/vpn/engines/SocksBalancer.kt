@@ -85,7 +85,11 @@ class SocksBalancer(private val ports: List<Int>) {
             try { server.close() } catch (_: Exception) {}
 
         } catch (e: Exception) {
-            KighmuLogger.error(TAG, "Relay error port $targetPort: ${e.message}")
+            // Ne pas logger les erreurs de connexion refusée (trop verbeux et "sale")
+            val msg = e.message ?: ""
+            if (!msg.contains("ECONNREFUSED") && !msg.contains("Connection refused")) {
+                KighmuLogger.error(TAG, "Relay error port $targetPort: $msg")
+            }
             try { client.close() } catch (_: Exception) {}
         }
     }
