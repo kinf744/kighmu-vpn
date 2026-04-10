@@ -98,7 +98,7 @@ class HttpProxyEngine(
                       firstLine.contains("407") || firstLine.contains("502") ||
                       firstLine.contains("404") || firstLine.contains("500")
 
-        if (isConnect && !firstLine.contains("200")) {
+        if (isConnect && !firstLine.contains("200") && !firstLine.contains("101")) {
             consumeHeaders(inp)
             throw Exception("Proxy CONNECT refuse: $firstLine")
         }
