@@ -12,17 +12,29 @@ import java.io.File
 class HysteriaEngine(
     private val config: KighmuConfig,
     private val context: Context,
-    private val vpnService: VpnService?
+    private val vpnService: VpnService?,
+    private val assignedSocksPort: Int = 0 // Port assigné par MultiHysteriaEngine
 ) : TunnelEngine {
 
-    private val TAG = "HysteriaEngine"
+    companion object {
+        const val TAG = "HysteriaEngine"
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10800 } // Fallback port
+    }
+        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10800 } // Fallback port
+    }
+
+
     private val hConfig = config.hysteria
     @Volatile private var running = false
     @Volatile private var hysteriaProcess: Process? = null
     @Volatile private var tun2socksProcess: Process? = null
-    @Volatile private var socksPort = 1080
+    @Volatile private var socksPort: Int = 0
     @Volatile private var serverConnected = false
     @Volatile private var vpnPfd: ParcelFileDescriptor? = null
+
+    init {
+        socksPort = if (assignedSocksPort > 0) assignedSocksPort else getFreePort()
+    }
 
     private fun log(msg: String) {
         KighmuLogger.info(TAG, msg)
@@ -42,20 +54,7 @@ class HysteriaEngine(
         running = true
         serverConnected = false
         return withContext(Dispatchers.IO) {
-            // Attendre que le port 1080 soit libre (max 30s)
-            var portWait = 0
-            while (portWait < 30) {
-                try {
-                    java.net.ServerSocket(1080).close()
-                    log("Port 1080 LIBRE ✅")
-                    break
-                } catch (_: Exception) {
-                    if (portWait == 0) log("Port 1080 occupé, attente...")
-                    Thread.sleep(1000)
-                    portWait++
-                }
-            }
-            if (portWait >= 30) throw Exception("Port 1080 occupé après 30s - fermez les autres apps VPN")
+            // Le port SOCKS est déjà alloué dynamiquement dans l'init block
             val ip = try {
                 java.net.InetAddress.getByName(hConfig.serverAddress).hostAddress
                     ?: hConfig.serverAddress
@@ -207,10 +206,7 @@ class HysteriaEngine(
         vpnPfd = null
         hysteriaProcess = null
         
-        // Commande de secours pour libérer le port 1080 si nécessaire
-        try {
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 1080/tcp")).waitFor()
-        } catch (_: Exception) {}
+
         
         withContext(Dispatchers.IO) { Thread.sleep(500) }
         log("Hysteria arrêté ✅")

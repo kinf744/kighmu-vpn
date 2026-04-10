@@ -39,7 +39,7 @@ class MultiHysteriaEngine(
         // Fallback : aucun profil selectionne -> engine unique
         if (selected.isEmpty()) {
             KighmuLogger.info(TAG, "Aucun profil Hysteria selectionne -> config par defaut")
-            val engine = HysteriaEngine(baseConfig, context, vpnService)
+            val engine = HysteriaEngine(baseConfig, context, vpnService, HysteriaEngine.getFreePort())
             synchronized(engines) { engines.add(engine) }
             val port = engine.start()
             activePorts = listOf(port)
@@ -80,7 +80,9 @@ class MultiHysteriaEngine(
             while (attempt < MAX_RETRIES && port <= 0) {
                 attempt++
                 KighmuLogger.info(TAG, "Profil[${idx + 1}] tentative $attempt/$MAX_RETRIES...")
-                val engine = HysteriaEngine(cfg, context, vpnService)
+                val assignedPort = HysteriaEngine.getFreePort()
+                KighmuLogger.info(TAG, "Profil[${idx + 1}] port SOCKS assigne: $assignedPort")
+                val engine = HysteriaEngine(cfg, context, vpnService, assignedPort)
                 try {
                     port = withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
                     if (port > 0) {
