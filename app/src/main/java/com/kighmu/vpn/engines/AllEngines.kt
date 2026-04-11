@@ -349,8 +349,8 @@ class XrayEngine(
                 "streamSettings": {
                     "network": "ws",
                     "security": "${if (xc.tls) "tls" else "none"}",
-                    "wsSettings": { "path": "${xc.wsPath}", "headers": { "Host": "${xc.wsHost}" } },
-                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} },
+                    "wsSettings": { "path": "${xc.wsPath}", "headers": { "Host": "${xc.wsHost}" } } // 'Host' dans 'headers' est déprécié, mais Xray ne supporte pas encore 'host' indépendant ici,
+                    "tlsSettings": { "serverName": "${xc.sni}" } // allowInsecure est déprécié, utiliser pinnedPeerCertSha256 et verifyPeerCertByName,
                     "sockopt": { "tcpFastOpen": true, "mark": 255 }
                 }
             """.trimIndent()
@@ -359,7 +359,7 @@ class XrayEngine(
                     "network": "grpc",
                     "security": "${if (xc.tls) "tls" else "none"}",
                     "grpcSettings": { "serviceName": "${xc.wsPath}" },
-                    "tlsSettings": { "serverName": "${xc.sni}", "allowInsecure": ${xc.allowInsecure} },
+                    "tlsSettings": { "serverName": "${xc.sni}" } // allowInsecure est déprécié, utiliser pinnedPeerCertSha256 et verifyPeerCertByName,
                     "sockopt": { "tcpFastOpen": true, "mark": 255 }
                 }
             """.trimIndent()
@@ -535,8 +535,8 @@ class XrayEngine(
                     KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI fd=$fd port=$targetPort")
                     val t = Thread {
                         try {
-                            vpnService?.protect(fd)
-                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, 1500) }
+
+                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, 1500) } // vpnService.protect(fd) a été supprimé de HevTun2Socks.kt
                             KighmuLogger.info(TAG, "HevTun2Socks JNI démarré")
                         } catch (e: Exception) {
                             KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")

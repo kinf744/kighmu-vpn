@@ -27,7 +27,7 @@ object HevTun2Socks {
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
-        vpnService.protect(fd)
+
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
@@ -43,7 +43,7 @@ object HevTun2Socks {
         configFile.writeText(config)
         
         Log.i(TAG, "Config multi sauvegardée: ${configFile.absolutePath}")
-        vpnService.protect(fd)
+
         hev.htproxy.TProxyService.TProxyStartService(configFile.absolutePath, fd)
     }
 
