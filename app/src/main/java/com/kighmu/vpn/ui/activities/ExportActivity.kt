@@ -177,14 +177,15 @@ class ExportActivity : AppCompatActivity() {
                             findViewById<Button>(R.id.btn_copy_all_cloud).setOnClickListener { copyToClipboard("Lien & Code", "Lien: $pasteUrl\nCode: $code") }
                             Toast.makeText(this, "✓ Export Cloud Réussi", Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(this, "Erreur lors de l'exportation (Vérifiez votre token)", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "Erreur lors de l'exportation", Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
                         btn.isEnabled = true
                         btn.text = "☁️ Exporter vers le cloud"
-                        Toast.makeText(this, "Erreur: ${e.message}", Toast.LENGTH_LONG).show()
+                        val msg = e.message ?: "Erreur inconnue"
+                        Toast.makeText(this, "❌ $msg", Toast.LENGTH_LONG).show()
                     }
                 }
             }.start()
@@ -250,11 +251,17 @@ class ExportActivity : AppCompatActivity() {
                     val errStream = conn.errorStream ?: conn.inputStream
                     val err = errStream?.bufferedReader()?.readText() ?: "No error body"
                     android.util.Log.e("ExportActivity", "GitHub Gist erreur ($responseCode): $err")
-                    // Si le token est invalide (401), on veut que l'utilisateur le sache
-                    if (responseCode == 401) throw Exception("Token GitHub invalide ou expiré")
+                    
+                    // Extraire le message d'erreur JSON si possible
+                    val errorMessage = try {
+                        org.json.JSONObject(err).optString("message", "Erreur $responseCode")
+                    } catch (_: Exception) { "Erreur $responseCode: $err" }
+                    
+                    throw Exception("GitHub: $errorMessage")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ExportActivity", "GitHub Gist exception: ${e.message}")
+                throw e // Remonter l'exception pour l'afficher à l'utilisateur
             }
         }
 
