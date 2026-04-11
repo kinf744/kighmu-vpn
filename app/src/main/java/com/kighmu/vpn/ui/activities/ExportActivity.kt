@@ -177,7 +177,7 @@ class ExportActivity : AppCompatActivity() {
                             findViewById<Button>(R.id.btn_copy_all_cloud).setOnClickListener { copyToClipboard("Lien & Code", "Lien: $pasteUrl\nCode: $code") }
                             Toast.makeText(this, "✓ Export Cloud Réussi", Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(this, "Erreur lors de l'exportation", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "Erreur lors de l'exportation (Vérifiez votre token)", Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -226,28 +226,32 @@ class ExportActivity : AppCompatActivity() {
 
                 conn.outputStream.use { it.write(gistPayload.toString().toByteArray()) }
 
-                if (conn.responseCode == 201) {
+                val responseCode = conn.responseCode
+                if (responseCode == 201) {
                     val response = conn.inputStream.bufferedReader().readText()
                     val obj = org.json.JSONObject(response)
-                    // Utiliser raw_url de la réponse API (format correct avec username)
-                    val rawUrl = obj
-                        .optJSONObject("files")
-                        ?.optJSONObject("kighmu_config.json")
-                        ?.optString("raw_url", "")
-                    if (!rawUrl.isNullOrBlank()) {
-                        return rawUrl
+                    
+                    // 1. Chercher l'URL brute (raw_url) dans n'importe quel fichier du Gist
+                    val files = obj.optJSONObject("files")
+                    if (files != null && files.length() > 0) {
+                        val firstFileName = files.keys().next()
+                        val rawUrl = files.optJSONObject(firstFileName)?.optString("raw_url", "")
+                        if (!rawUrl.isNullOrBlank()) return rawUrl
                     }
-                    // Fallback: construire l'URL à partir de l'owner et du gistId
-                    val gistId = obj.getString("id")
+                    
+                    // 2. Fallback: construire l'URL à partir de l'ID et du login
+                    val gistId = obj.optString("id", "")
                     val owner = obj.optJSONObject("owner")?.optString("login", "") ?: ""
-                    return if (owner.isNotBlank()) {
-                        "https://gist.githubusercontent.com/$owner/$gistId/raw/kighmu_config.json"
-                    } else {
-                        "https://gist.github.com/$gistId"
+                    if (gistId.isNotBlank() && owner.isNotBlank()) {
+                        return "https://gist.githubusercontent.com/$owner/$gistId/raw"
                     }
+                    return obj.optString("html_url", null)
                 } else {
-                    val err = conn.errorStream?.bufferedReader()?.readText() ?: "code=${conn.responseCode}"
-                    android.util.Log.e("ExportActivity", "GitHub Gist erreur: $err")
+                    val errStream = conn.errorStream ?: conn.inputStream
+                    val err = errStream?.bufferedReader()?.readText() ?: "No error body"
+                    android.util.Log.e("ExportActivity", "GitHub Gist erreur ($responseCode): $err")
+                    // Si le token est invalide (401), on veut que l'utilisateur le sache
+                    if (responseCode == 401) throw Exception("Token GitHub invalide ou expiré")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ExportActivity", "GitHub Gist exception: ${e.message}")
