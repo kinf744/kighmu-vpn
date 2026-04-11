@@ -20,9 +20,6 @@ class HysteriaEngine(
         const val TAG = "HysteriaEngine"
         fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10800 } // Fallback port
     }
-        fun getFreePort(): Int = try { java.net.ServerSocket(0).use { it.localPort } } catch (_: Exception) { 10800 } // Fallback port
-    }
-
 
     private val hConfig = config.hysteria
     @Volatile private var running = false
@@ -205,8 +202,6 @@ class HysteriaEngine(
         try { vpnPfd?.close() } catch (_: Exception) {}
         vpnPfd = null
         hysteriaProcess = null
-        
-
         
         withContext(Dispatchers.IO) { Thread.sleep(500) }
         log("Hysteria arrêté ✅")
