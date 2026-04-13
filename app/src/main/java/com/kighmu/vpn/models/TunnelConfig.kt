@@ -182,6 +182,7 @@ data class KighmuConfig(
     @SerializedName("xray") var xray: XrayConfig = XrayConfig(),
     @SerializedName("hysteria") var hysteria: HysteriaConfig = HysteriaConfig(),
 
+    @SerializedName("enabledTunnels") var enabledTunnels: MutableList<Int> = mutableListOf(),
     @SerializedName("dnsLeak") var dnsLeakProtection: Boolean = true,
     @SerializedName("killSwitch") var killSwitch: Boolean = false,
     @SerializedName("autoReconnect") var autoReconnect: Boolean = true

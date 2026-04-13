@@ -148,8 +148,20 @@ class ExportActivity : AppCompatActivity() {
                         securitySignature = buildSignature(config.toString(), "", cloudExpiresAt, "")
                     )
                     
+                    // Lire les tunnels cochés
+                    val enabledTunnels = mutableListOf<Int>()
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_slowdns).isChecked) enabledTunnels.add(0)
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_http).isChecked) enabledTunnels.add(1)
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_ssl).isChecked) enabledTunnels.add(3)
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_xray).isChecked) enabledTunnels.add(4)
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_v2dns).isChecked) enabledTunnels.add(5)
+                    if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_hysteria).isChecked) enabledTunnels.add(6)
+                    val configWithTunnels = config.copy(
+                        enabledTunnels = if (enabledTunnels.isEmpty()) mutableListOf(0,1,3,4,5,6) else enabledTunnels
+                    )
+
                     val exportPackage = mapOf(
-                        "config" to config,
+                        "config" to configWithTunnels,
                         "security" to cloudSecurity,
                         "exportedAt" to System.currentTimeMillis(),
                         "appVersion" to com.kighmu.vpn.BuildConfig.VERSION_NAME
@@ -173,7 +185,7 @@ class ExportActivity : AppCompatActivity() {
                             findViewById<TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
                             findViewById<TextView>(R.id.tv_cloud_code_only).text = code
 
-                            findViewById<Button>(R.id.btn_copy_cloud_link).setOnClickListener { copyToClipboard("Lien", pasteUrl) }
+                            findViewById<Button>(R.id.btn_copy_cloud_link).setOnClickListener { copyToClipboard("Lien", kighmuLink) }
                             findViewById<Button>(R.id.btn_copy_cloud_code_only).setOnClickListener { copyToClipboard("Code", code) }
                             findViewById<Button>(R.id.btn_copy_all_cloud).setOnClickListener { copyToClipboard("Lien & Code", "Lien: $pasteUrl\nCode: $code") }
                             Toast.makeText(this, "✓ Export Cloud Réussi", Toast.LENGTH_SHORT).show()

@@ -54,22 +54,29 @@ class HomeFragment : Fragment() {
             }
             spinnerMode = view.findViewById(R.id.spinner_tunnel_mode)
 
-            val modes = TunnelMode.values().map { it.label }
-            val adapter = object : ArrayAdapter<String>(requireContext(), R.layout.spinner_item, modes) {
+            val cfg = viewModel.config.value
+            val allModes = TunnelMode.values().toList()
+            val filteredModes = if (cfg.enabledTunnels.isEmpty()) allModes
+                                else allModes.filter { it.id in cfg.enabledTunnels }
+            val displayModes = filteredModes.ifEmpty { allModes }
+
+            val adapter = object : ArrayAdapter<String>(requireContext(), R.layout.spinner_item, displayModes.map { it.label }) {
                 override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                     val v = super.getView(position, convertView, parent)
                     (v as TextView).setTextColor(android.graphics.Color.WHITE)
-                    v.setPadding(32, 0, 32, 0) // Ajouter du padding horizontal pour le texte sélectionné
+                    v.setPadding(32, 0, 32, 0)
                     return v
                 }
             }
             adapter.setDropDownViewResource(R.layout.spinner_item)
             spinnerMode.adapter = adapter
-            spinnerMode.setSelection(viewModel.config.value.tunnelMode.ordinal)
+
+            val currentIdx = displayModes.indexOfFirst { it == cfg.tunnelMode }.takeIf { it >= 0 } ?: 0
+            spinnerMode.setSelection(currentIdx)
 
             spinnerMode.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
-                    val selectedMode = TunnelMode.values()[position]
+                    val selectedMode = displayModes[position]
                     if (selectedMode != viewModel.config.value.tunnelMode) {
                         viewModel.updateTunnelMode(selectedMode)
                     }
