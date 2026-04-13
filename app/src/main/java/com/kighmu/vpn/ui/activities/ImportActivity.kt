@@ -178,16 +178,16 @@ class ImportActivity : AppCompatActivity() {
 
     private suspend fun fetchCloudConfig(code: String): String? {
         return try {
-            // Supporte : URL complete (GitHub Gist raw, paste.ee raw, hastebin raw) ou code seul
-            // Note: L'URL Gist correcte est https://gist.githubusercontent.com/{user}/{id}/raw/{file}
-            // ou directement l'URL complète retournée par l'API lors de l'export.
-            val urlString = when {
-                code.startsWith("http") -> code
-                // Si le code ressemble à un gist ID (32 chars hex), on ne peut pas construire l'URL sans le username.
-                // L'utilisateur doit coller l'URL complète retournée par l'export.
-                // Fallback hastebin pour les codes courts.
-                else -> "https://hastebin.com/raw/$code"
+            val cleanCode = when {
+                code.startsWith("https://kighmu.link/") -> code.removePrefix("https://kighmu.link/")
+                else -> code.trim()
             }
+            val urlString = if (cleanCode.startsWith("http")) {
+                cleanCode
+            } else {
+                "https://raw.githubusercontent.com/kinf744/kighmu-vpn/cloud-configs/configs/$cleanCode.json"
+            }
+            android.util.Log.d("ImportActivity", "fetchCloudConfig URL: $urlString")
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
@@ -195,12 +195,11 @@ class ImportActivity : AppCompatActivity() {
             conn.readTimeout = 20000
             conn.setRequestProperty("Accept", "application/json, text/plain, */*")
             conn.setRequestProperty("User-Agent", "KIGHMU-VPN/1.0")
-
             if (conn.responseCode == 200) {
                 val json = conn.inputStream.bufferedReader().readText().trim()
                 if (json.contains("config") && json.contains("security")) json else null
             } else {
-                android.util.Log.e("ImportActivity", "fetchCloudConfig HTTP ${conn.responseCode} pour $urlString")
+                android.util.Log.e("ImportActivity", "HTTP ${conn.responseCode} pour $urlString")
                 null
             }
         } catch (e: Exception) {
@@ -209,6 +208,7 @@ class ImportActivity : AppCompatActivity() {
         }
     }
 
+    
     private fun showError(msg: String) {
         runOnUiThread {
             Toast.makeText(this, "❌ $msg", Toast.LENGTH_LONG).show()
