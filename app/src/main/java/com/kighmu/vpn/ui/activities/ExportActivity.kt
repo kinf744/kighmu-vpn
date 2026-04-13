@@ -126,8 +126,12 @@ class ExportActivity : AppCompatActivity() {
 
             Thread {
                 try {
-                    val cloudExpiresAt = if (durationMinutes > 0) 
-                        System.currentTimeMillis() + durationMinutes * 60 * 1000L else 0L
+                    // Priorite : datepicker (cb_set_expiry) > duree minutes > pas expiration
+                    val cloudExpiresAt = when {
+                        findViewById<CheckBox>(R.id.cb_set_expiry).isChecked && expiresAt > 0L -> expiresAt
+                        durationMinutes > 0 -> System.currentTimeMillis() + durationMinutes * 60 * 1000L
+                        else -> 0L
+                    }
                     
                     val config = viewModel.config.value
                     val cloudLockDevice = findViewById<CheckBox>(R.id.cb_lock_device_id).isChecked
@@ -290,7 +294,7 @@ class ExportActivity : AppCompatActivity() {
         val isBurn = exportType == "burn"
         val exportConfig = ExportConfig(
             fileName = fileName,
-            expiresAt = if (exportType == "expiry") expiresAt else 0L,
+            expiresAt = if (exportType == "expiry" || (findViewById<CheckBox>(R.id.cb_set_expiry).isChecked && expiresAt > 0L)) expiresAt else 0L,
             hardwareId = androidId,
             lockOperator = lockOperator,
             operatorName = operatorName,
