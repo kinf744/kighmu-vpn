@@ -138,11 +138,16 @@ class KighmuVpnService : VpnService() {
         KighmuLogger.info(TAG, "VPN révoqué par Android - reconnexion...")
         try { vpnInterface?.close() } catch (_: Exception) {}
         vpnInterface = null
-        if (!userRequestedStop) {
+        val autoReconnect = getSharedPreferences("kighmu_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("auto_reconnect", true)
+        if (!userRequestedStop && autoReconnect) {
             serviceScope.launch {
                 delay(1000)
                 startVpn()
             }
+        } else if (!userRequestedStop && !autoReconnect) {
+            KighmuLogger.info(TAG, "Auto-reconnect désactivé - VPN arrêté définitivement")
+            updateStatus(ConnectionStatus.DISCONNECTED, "Auto-reconnect désactivé")
         }
     }
 
@@ -402,20 +407,59 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun buildVpnInterface(@Suppress("UNUSED_PARAMETER") localProxyPort: Int): ParcelFileDescriptor? {
+        val prefs = getSharedPreferences("kighmu_prefs", android.content.Context.MODE_PRIVATE)
+
+        // Lire les settings utilisateur
+        val mtuValue = prefs.getString("mtu", "1500")?.toIntOrNull()?.coerceIn(576, 9000) ?: 1500
+        val dnsProtection = prefs.getBoolean("dns_protection", true)
+        val dnsPrimary = prefs.getString("dns_primary", "")?.trim() ?: ""
+        val dnsSecondary = prefs.getString("dns_secondary", "")?.trim() ?: ""
+        val killSwitch = prefs.getBoolean("kill_switch", false)
+        val wakelock = prefs.getBoolean("wakelock", true)
+
+        // WakeLock selon setting
+        if (wakelock && (wakeLock == null || wakeLock?.isHeld == false)) {
+            val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+            wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "KighmuVPN::WakeLock")
+            wakeLock?.acquire(8 * 60 * 60 * 1000L)
+            KighmuLogger.info(TAG, "WakeLock acquis (setting activé)")
+        } else if (!wakelock && wakeLock?.isHeld == true) {
+            wakeLock?.release()
+            wakeLock = null
+            KighmuLogger.info(TAG, "WakeLock désactivé (setting désactivé)")
+        }
+
         return try {
             val builder = Builder()
                 .setSession("KIGHMU VPN")
                 .addAddress("10.0.0.2", 24)
                 .addRoute("0.0.0.0", 0)
-                .addDnsServer("1.1.1.1")
-                .addDnsServer("8.8.8.8")
-                .setMtu(1500)
+                .setMtu(mtuValue)
                 .setBlocking(true)
+
+            // DNS selon settings
+            if (dnsProtection) {
+                if (dnsPrimary.isNotBlank()) builder.addDnsServer(dnsPrimary)
+                    else builder.addDnsServer("1.1.1.1")
+                if (dnsSecondary.isNotBlank()) builder.addDnsServer(dnsSecondary)
+                    else builder.addDnsServer("8.8.8.8")
+                KighmuLogger.info(TAG, "DNS protection: ${if (dnsPrimary.isNotBlank()) dnsPrimary else "1.1.1.1"} / ${if (dnsSecondary.isNotBlank()) dnsSecondary else "8.8.8.8"}")
+            } else {
+                builder.addDnsServer("8.8.8.8")
+                KighmuLogger.info(TAG, "DNS protection désactivée - DNS par défaut")
+            }
+
+            // Kill Switch - bloquer tout trafic hors VPN
+            if (killSwitch && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                builder.setBlocking(true)
+                KighmuLogger.info(TAG, "Kill Switch activé - trafic bloqué hors VPN")
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 builder.setMetered(false)
             }
 
+            KighmuLogger.info(TAG, "VPN Interface: MTU=$mtuValue, KillSwitch=$killSwitch, DNS=$dnsProtection")
             builder.addDisallowedApplication(packageName)
             builder.establish()
         } catch (e: Exception) {
