@@ -55,6 +55,7 @@
                 android:layout_width="220dp"
                 android:layout_height="220dp"
                 android:layout_gravity="center"
+                android:elevation="16dp"
                 android:background="@drawable/bg_vpn_button_glow" />
 
             <!-- Main Button (Circular) -->
@@ -81,7 +82,7 @@
                 android:layout_gravity="center"
                 android:src="@mipmap/ic_launcher"
                 android:scaleType="fitCenter"
-                android:elevation="8dp"
+                android:elevation="0dp"
                 android:clickable="false"
                 android:focusable="false" />
         </FrameLayout>
