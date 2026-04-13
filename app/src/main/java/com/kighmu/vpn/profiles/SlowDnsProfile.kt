@@ -16,6 +16,8 @@ data class SlowDnsProfile(
     var dnsServer: String = "8.8.8.8",
     var nameserver: String = "",
     var publicKey: String = "",
+    // Tunnels parallèles
+    var tunnelCount: Int = 1,
     // État
     var isSelected: Boolean = false
 ) {

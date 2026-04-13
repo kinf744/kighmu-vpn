@@ -57,19 +57,51 @@ object ProfileEditDialog {
         val etNs     = field("Nameserver", p.nameserver)
         val etPubKey = field("Public Key", p.publicKey)
 
+        section("TUNNELS PARALLÈLES")
+        val tvTunnelCount = TextView(context).apply {
+            text = "Flux simultanés : ${p.tunnelCount}"
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 13f
+            setPadding(0, 8, 0, 4)
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layout.addView(this)
+        }
+        val seekTunnel = SeekBar(context).apply {
+            max = 3  // 1..4 → 0..3
+            progress = (p.tunnelCount.coerceIn(1, 4)) - 1
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 }
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, v: Int, u: Boolean) {
+                    tvTunnelCount.text = "Flux simultanés : ${v + 1}"
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+            layout.addView(this)
+        }
+        val tvTunnelHint = TextView(context).apply {
+            text = "⚡ 1 flux = stable  |  2-3 flux = débit × N  |  4 flux = max"
+            setTextColor(0xFF888888.toInt())
+            textSize = 11f
+            setPadding(0, 2, 0, 8)
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layout.addView(this)
+        }
+
         AlertDialog.Builder(context)
             .setTitle(if (isEdit) "Modifier profil" else "Nouveau profil")
             .setView(scroll)
             .setPositiveButton("Sauvegarder") { _, _ ->
                 val updated = p.copy(
-                    profileName = etName.text.toString().ifEmpty { "Profil" },
-                    sshHost     = etSshHost.text.toString(),
-                    sshPort     = etSshPort.text.toString().toIntOrNull() ?: 22,
-                    sshUser     = etSshUser.text.toString(),
-                    sshPass     = etSshPass.text.toString(),
-                    dnsServer   = etDns.text.toString().ifEmpty { "8.8.8.8" },
-                    nameserver  = etNs.text.toString(),
-                    publicKey   = etPubKey.text.toString()
+                    profileName  = etName.text.toString().ifEmpty { "Profil" },
+                    sshHost      = etSshHost.text.toString(),
+                    sshPort      = etSshPort.text.toString().toIntOrNull() ?: 22,
+                    sshUser      = etSshUser.text.toString(),
+                    sshPass      = etSshPass.text.toString(),
+                    dnsServer    = etDns.text.toString().ifEmpty { "8.8.8.8" },
+                    nameserver   = etNs.text.toString(),
+                    publicKey    = etPubKey.text.toString(),
+                    tunnelCount  = seekTunnel.progress + 1
                 )
                 onSave(updated)
             }

@@ -61,26 +61,35 @@ class MultiSlowDnsEngine(
         // Attendre la libération des ressources noyau (500ms)
         delay(500)
 
-        KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle ${selected.size} session(s) ===")
+        // Calcul du total de flux (profils × tunnelCount chacun)
+        val totalFlux = selected.sumOf { it.tunnelCount.coerceIn(1, 4) }
+        KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle $totalFlux flux (${selected.size} profil(s)) ===")
 
-        // STEP 1 : Lancer les sessions séquentiellement comme SSH Custom
+        // STEP 1 : Lancer les sessions séquentiellement - N flux par profil
         val results = mutableListOf<Pair<Int, Int>>()
-        selected.forEachIndexed { idx, profile ->
-            KighmuLogger.info(TAG, "Session[${idx+1}/${selected.size}] démarrage: ${profile.profileName}")
-            val engine = SlowDnsEngine(buildConfig(profile), context, vpnService, idx)
-            synchronized(engines) { engines.add(engine) }
-            val port = try {
-                withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "Session[${idx+1}] FAILED: ${e.message}")
-                -1
+        var globalIdx = 0
+        selected.forEach { profile ->
+            val count = profile.tunnelCount.coerceIn(1, 4)
+            KighmuLogger.info(TAG, "Profil '${profile.profileName}' → $count flux parallèles")
+            repeat(count) { fluxIdx ->
+                val sessionLabel = "${profile.profileName}[${fluxIdx+1}/$count]"
+                KighmuLogger.info(TAG, "Session[${globalIdx+1}/$totalFlux] démarrage: $sessionLabel")
+                val engine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
+                synchronized(engines) { engines.add(engine) }
+                val port = try {
+                    withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "Session[${globalIdx+1}] FAILED: ${e.message}")
+                    -1
+                }
+                if (port > 0) {
+                    KighmuLogger.info(TAG, "Session[${globalIdx+1}] CONNECTÉE ✓ port=$port flux=$sessionLabel")
+                } else {
+                    KighmuLogger.error(TAG, "Session[${globalIdx+1}] ÉCHEC ✗ flux=$sessionLabel")
+                }
+                results.add(Pair(globalIdx, port))
+                globalIdx++
             }
-            if (port > 0) {
-                KighmuLogger.info(TAG, "Session[${idx+1}] CONNECTÉE ✓ port=$port")
-            } else {
-                KighmuLogger.error(TAG, "Session[${idx+1}] ÉCHEC ✗")
-            }
-            results.add(Pair(idx, port))
         }
 
         // STEP 2 : Résultats
