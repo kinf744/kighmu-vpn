@@ -79,7 +79,6 @@ class ConfigManager(private val context: Context) {
                 ImportResult.InvalidPassword("Wrong password or corrupted file")
             } catch (e: Exception) {
                 ImportResult.ParseError(e.message ?: "Unknown error")
-                }
             }
         }
 
