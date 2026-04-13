@@ -167,9 +167,10 @@ class ExportActivity : AppCompatActivity() {
                         btn.isEnabled = true
                         btn.text = "☁️ Exporter vers le cloud"
                         if (pasteUrl != null) {
-                            val code = pasteUrl.substringAfterLast("/")
+                            val code = pasteUrl.removePrefix("kighmu:")
+                            val kighmuLink = "https://kighmu.link/$code"
                             findViewById<View>(R.id.layout_cloud_result).visibility = View.VISIBLE
-                            findViewById<TextView>(R.id.tv_cloud_link_kighmu).text = pasteUrl
+                            findViewById<TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
                             findViewById<TextView>(R.id.tv_cloud_code_only).text = code
 
                             findViewById<Button>(R.id.btn_copy_cloud_link).setOnClickListener { copyToClipboard("Lien", pasteUrl) }
@@ -199,123 +200,50 @@ class ExportActivity : AppCompatActivity() {
      * 2. Sinon -> paste.ee (anonyme)
      * 3. Fallback final -> hastebin
      */
+    private fun generateCode(length: Int): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        return (1..length).map { chars.random() }.joinToString("")
+    }
+
     private fun uploadToCloud(content: String, githubToken: String): String? {
-        // === METHODE 1 : GitHub Gist (recommande) ===
-        if (githubToken.isNotBlank()) {
-            try {
-                val url = URL("https://api.github.com/gists")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.connectTimeout = 15000
-                conn.readTimeout = 20000
-                conn.setRequestProperty("Accept", "application/vnd.github+json")
-                conn.setRequestProperty("Authorization", "Bearer $githubToken")
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-
-                val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
-                val gistPayload = org.json.JSONObject().apply {
-                    put("description", "KIGHMU VPN Config $ts")
-                    put("public", false)
-                    put("files", org.json.JSONObject().apply {
-                        put("kighmu_config.json", org.json.JSONObject().apply {
-                            put("content", content)
-                        })
-                    })
-                }
-
-                conn.outputStream.use { it.write(gistPayload.toString().toByteArray()) }
-
-                val responseCode = conn.responseCode
-                if (responseCode == 201) {
-                    val response = conn.inputStream.bufferedReader().readText()
-                    val obj = org.json.JSONObject(response)
-                    
-                    // 1. Chercher l'URL brute (raw_url) dans n'importe quel fichier du Gist
-                    val files = obj.optJSONObject("files")
-                    if (files != null && files.length() > 0) {
-                        val firstFileName = files.keys().next()
-                        val rawUrl = files.optJSONObject(firstFileName)?.optString("raw_url", "")
-                        if (!rawUrl.isNullOrBlank()) return rawUrl
-                    }
-                    
-                    // 2. Fallback: construire l'URL à partir de l'ID et du login
-                    val gistId = obj.optString("id", "")
-                    val owner = obj.optJSONObject("owner")?.optString("login", "") ?: ""
-                    if (gistId.isNotBlank() && owner.isNotBlank()) {
-                        return "https://gist.githubusercontent.com/$owner/$gistId/raw"
-                    }
-                    return obj.optString("html_url", null)
-                } else {
-                    val errStream = conn.errorStream ?: conn.inputStream
-                    val err = errStream?.bufferedReader()?.readText() ?: "No error body"
-                    android.util.Log.e("ExportActivity", "GitHub Gist erreur ($responseCode): $err")
-                    
-                    // Extraire le message d'erreur JSON si possible
-                    val errorMessage = try {
-                        org.json.JSONObject(err).optString("message", "Erreur $responseCode")
-                    } catch (_: Exception) { "Erreur $responseCode: $err" }
-                    
-                    throw Exception("GitHub: $errorMessage")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("ExportActivity", "GitHub Gist exception: ${e.message}")
-                throw e // Remonter l'exception pour l'afficher à l'utilisateur
-            }
+        val token = githubToken.ifBlank {
+            throw Exception("Token GitHub requis pour l export cloud")
         }
-
-        // === METHODE 2 : paste.ee (anonyme) ===
-        try {
-            val url = URL("https://api.paste.ee/v1/pastes")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.connectTimeout = 15000
-            conn.readTimeout = 20000
-            conn.setRequestProperty("Content-Type", "application/json")
-            val payload = org.json.JSONObject().apply {
-                put("description", "KIGHMU VPN Cloud Config")
-                put("sections", org.json.JSONArray().apply {
-                    put(org.json.JSONObject().apply {
-                        put("name", "KIGHMU Config")
-                        put("contents", content)
-                    })
-                })
-            }
-            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
-            if (conn.responseCode == 201 || conn.responseCode == 200) {
-                val response = conn.inputStream.bufferedReader().readText()
-                val obj = org.json.JSONObject(response)
-                if (obj.optBoolean("success", false)) {
-                    return obj.getString("link").replace("/p/", "/r/")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("ExportActivity", "paste.ee exception: ${e.message}")
+        val code = generateCode(8)
+        val fileName = "$code.json"
+        val base64Content = android.util.Base64.encodeToString(
+            content.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
+        )
+        val requestBody = """{"message":"cloud config","content":"$base64Content","branch":"cloud-configs"}"""
+        val apiUrl = URL("https://api.github.com/repos/kinf744/kighmu-vpn/contents/configs/$fileName")
+        val conn = apiUrl.openConnection() as HttpURLConnection
+        conn.requestMethod = "PUT"
+        conn.doOutput = true
+        conn.doInput = true
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
+        conn.setRequestProperty("Authorization", "token $token")
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Accept", "application/vnd.github+json")
+        conn.outputStream.use { it.write(requestBody.toByteArray()) }
+        val responseCode = conn.responseCode
+        val responseBody = try {
+            conn.inputStream.bufferedReader().readText().trim()
+        } catch (_: Exception) {
+            conn.errorStream?.bufferedReader()?.readText()?.trim() ?: "Erreur inconnue"
         }
-
-        // === METHODE 3 : hastebin (fallback final) ===
-        return try {
-            val url = URL("https://hastebin.com/documents")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.connectTimeout = 15000
-            conn.readTimeout = 20000
-            conn.setRequestProperty("Content-Type", "text/plain")
-            conn.outputStream.use { it.write(content.toByteArray()) }
-            if (conn.responseCode == 200) {
-                val response = conn.inputStream.bufferedReader().readText()
-                val key = org.json.JSONObject(response).getString("key")
-                "https://hastebin.com/raw/$key"
-            } else null
-        } catch (e: Exception) {
-            android.util.Log.e("ExportActivity", "hastebin exception: ${e.message}")
-            null
+        conn.disconnect()
+        if (responseCode == 201 || responseCode == 200) {
+            return "kighmu:$code"
+        } else {
+            val errorMessage = try {
+                org.json.JSONObject(responseBody).optString("message", "Erreur $responseCode")
+            } catch (_: Exception) { "Erreur $responseCode" }
+            throw Exception("GitHub: $errorMessage")
         }
     }
 
+    
     private fun setupExportButtons() {
         findViewById<Button>(R.id.btn_export_save_file).setOnClickListener {
             showExportTypeDialog(share = false, locked = findViewById<CheckBox>(R.id.cb_lock_all_config).isChecked)
