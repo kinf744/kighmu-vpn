@@ -201,6 +201,46 @@ class KighmuVpnService : VpnService() {
                 updateStatus(ConnectionStatus.CONNECTING, "Starting tunnel engine...")
                 startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
 
+                // Surveillance periodique expiration + hardware ID (toutes les 60s)
+                serviceScope.launch {
+                    while (true) {
+                        kotlinx.coroutines.delay(60_000L)
+                        val cfg = currentConfig ?: break
+                        // Verifier expiration
+                        if (cfg.expiresAt > 0L && System.currentTimeMillis() > cfg.expiresAt) {
+                            updateStatus(ConnectionStatus.ERROR, "Config expired")
+                            stopVpn()
+                            break
+                        }
+                        // Verifier hardware ID
+                        if (cfg.hardwareId.isNotEmpty()) {
+                            val currentHwId = com.kighmu.vpn.config.ConfigEncryption.getHardwareId(this@KighmuVpnService)
+                            if (cfg.hardwareId != currentHwId) {
+                                updateStatus(ConnectionStatus.ERROR, "Config locked to another device")
+                                stopVpn()
+                                break
+                            }
+                        }
+                        // Verifier via ExportConfig aussi
+                        val sec = cfg.exportConfig
+                        if (sec != null) {
+                            if (sec.expiresAt > 0L && System.currentTimeMillis() > sec.expiresAt) {
+                                updateStatus(ConnectionStatus.ERROR, "Config expired")
+                                stopVpn()
+                                break
+                            }
+                            if (sec.lockDeviceId && sec.hardwareId.isNotEmpty()) {
+                                val currentHwId = com.kighmu.vpn.config.ConfigEncryption.getHardwareId(this@KighmuVpnService)
+                                if (sec.hardwareId != currentHwId) {
+                                    updateStatus(ConnectionStatus.ERROR, "Config locked to another device")
+                                    stopVpn()
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+
                 val tempVpn = try {
                     Builder()
                         .setSession("KIGHMU VPN")

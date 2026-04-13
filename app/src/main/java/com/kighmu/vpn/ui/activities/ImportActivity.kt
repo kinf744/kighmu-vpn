@@ -141,7 +141,8 @@ class ImportActivity : AppCompatActivity() {
 
         val finalConfig = config.copy(
             exportConfig = security,
-            hardwareId = if (security.lockDeviceId) security.hardwareId else config.hardwareId
+            hardwareId = if (security.lockDeviceId) security.hardwareId else config.hardwareId,
+            expiresAt = if (security.expiresAt > 0L) security.expiresAt else config.expiresAt
         )
 
         if (security.burnAfterImport) {
