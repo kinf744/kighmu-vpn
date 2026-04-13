@@ -29,6 +29,8 @@ data class V2rayDnsProfile(
     var nameserver: String = "",
     var publicKey: String = "",
 
+    // Tunnels parallèles
+    var tunnelCount: Int = 1,
     // État
     var isSelected: Boolean = false
 ) {

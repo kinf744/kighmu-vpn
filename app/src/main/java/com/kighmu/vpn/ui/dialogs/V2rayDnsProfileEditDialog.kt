@@ -59,10 +59,41 @@ object V2rayDnsProfileEditDialog {
         }
 
         section("SLOWDNS CONFIGURATION")
-        val etDnsServer = field("DNS Server", p.dnsServer)
-        val etDnsPort = field("DNS Port", p.dnsPort.toString(), true)
+        val etDnsServer  = field("DNS Server", p.dnsServer)
+        val etDnsPort    = field("DNS Port", p.dnsPort.toString(), true)
         val etNameserver = field("Nameserver (dnstt target)", p.nameserver)
-        val etPubKey = field("Public Key", p.publicKey)
+        val etPubKey     = field("Public Key", p.publicKey)
+
+        section("TUNNELS PARALLELES")
+        val tvTunnelCount = TextView(context).apply {
+            text = "Flux simultanes : ${p.tunnelCount}"
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 13f
+            setPadding(0, 8, 0, 4)
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layout.addView(this)
+        }
+        val seekTunnel = SeekBar(context).apply {
+            max = 3
+            progress = p.tunnelCount.coerceIn(1, 4) - 1
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 }
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, v: Int, u: Boolean) {
+                    tvTunnelCount.text = "Flux simultanes : ${v + 1}"
+                }
+                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                override fun onStopTrackingTouch(sb: SeekBar?) {}
+            })
+            layout.addView(this)
+        }
+        TextView(context).apply {
+            text = "1 flux = stable  |  2-3 flux = debit x N  |  4 flux = max"
+            setTextColor(0xFF888888.toInt())
+            textSize = 11f
+            setPadding(0, 2, 0, 8)
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
+            layout.addView(this)
+        }
 
         AlertDialog.Builder(context)
             .setTitle(if (isEdit) "Modifier V2ray+DNS" else "Nouveau V2ray+DNS")
@@ -70,17 +101,15 @@ object V2rayDnsProfileEditDialog {
             .setPositiveButton("Sauvegarder") { _, _ ->
                 val link = etLink.text.toString().trim()
                 val updated = p.copy(
-                    profileName = etName.text.toString().ifEmpty { "V2ray+DNS" },
-                    xrayLink = link,
-                    dnsServer = etDnsServer.text.toString().ifEmpty { "8.8.8.8" },
-                    dnsPort = etDnsPort.text.toString().toIntOrNull() ?: 53,
-                    nameserver = etNameserver.text.toString(),
-                    publicKey = etPubKey.text.toString()
+                    profileName  = etName.text.toString().ifEmpty { "V2ray+DNS" },
+                    xrayLink     = link,
+                    dnsServer    = etDnsServer.text.toString().ifEmpty { "8.8.8.8" },
+                    dnsPort      = etDnsPort.text.toString().toIntOrNull() ?: 53,
+                    nameserver   = etNameserver.text.toString(),
+                    publicKey    = etPubKey.text.toString(),
+                    tunnelCount  = seekTunnel.progress + 1
                 )
-                
-                // Parser le lien pour remplir les champs internes pour la compatibilité
                 parseLinkIntoProfile(link, updated)
-                
                 onSave(updated)
             }
             .setNegativeButton("Annuler", null)
@@ -94,35 +123,33 @@ object V2rayDnsProfileEditDialog {
                     val b64 = link.removePrefix("vmess://")
                     val json = String(Base64.decode(b64, Base64.DEFAULT))
                     val obj = JSONObject(json)
-                    p.protocol = "vmess"
+                    p.protocol      = "vmess"
                     p.serverAddress = obj.optString("add", "")
-                    p.serverPort = obj.optInt("port", 443)
-                    p.uuid = obj.optString("id", "")
-                    p.encryption = obj.optString("scy", "auto")
-                    p.transport = obj.optString("net", "tcp")
-                    p.wsPath = obj.optString("path", "/")
-                    p.wsHost = obj.optString("host", "")
-                    p.tls = obj.optString("tls", "") == "tls"
-                    p.sni = obj.optString("sni", p.serverAddress)
+                    p.serverPort    = obj.optInt("port", 443)
+                    p.uuid          = obj.optString("id", "")
+                    p.encryption    = obj.optString("scy", "auto")
+                    p.transport     = obj.optString("net", "tcp")
+                    p.wsPath        = obj.optString("path", "/")
+                    p.wsHost        = obj.optString("host", "")
+                    p.tls           = obj.optString("tls", "") == "tls"
+                    p.sni           = obj.optString("sni", p.serverAddress)
                 }
                 link.startsWith("vless://") || link.startsWith("trojan://") -> {
                     val uri = URI(link)
-                    p.protocol = if (link.startsWith("vless://")) "vless" else "trojan"
-                    p.uuid = uri.userInfo ?: ""
+                    p.protocol      = if (link.startsWith("vless://")) "vless" else "trojan"
+                    p.uuid          = uri.userInfo ?: ""
                     p.serverAddress = uri.host ?: ""
-                    p.serverPort = uri.port.takeIf { it > 0 } ?: 443
-                    val params = uri.query?.split("&")?.associate { 
-                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") } 
+                    p.serverPort    = uri.port.takeIf { it > 0 } ?: 443
+                    val params = uri.query?.split("&")?.associate {
+                        it.split("=").let { parts -> parts[0] to (parts.getOrNull(1) ?: "") }
                     } ?: emptyMap()
                     p.transport = params["type"] ?: "tcp"
-                    p.tls = params["security"] == "tls" || params["security"] == "reality"
-                    p.sni = params["sni"] ?: params["host"] ?: p.serverAddress
-                    p.wsPath = params["path"] ?: "/"
-                    p.wsHost = params["host"] ?: ""
+                    p.tls       = params["security"] == "tls" || params["security"] == "reality"
+                    p.sni       = params["sni"] ?: params["host"] ?: p.serverAddress
+                    p.wsPath    = params["path"] ?: "/"
+                    p.wsHost    = params["host"] ?: ""
                 }
             }
-        } catch (e: Exception) {
-            // En cas d'erreur de parsing, on laisse les champs tels quels
-        }
+        } catch (_: Exception) {}
     }
 }
