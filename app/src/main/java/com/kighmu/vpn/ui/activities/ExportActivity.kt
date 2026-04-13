@@ -149,7 +149,15 @@ class ExportActivity : AppCompatActivity() {
                         lockOperator = cloudLockOp,
                         operatorName = if (cloudLockOp) (getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).networkOperatorName else "",
                         burnAfterImport = exportType == "burn",
-                        securitySignature = buildSignature(config.toString(), "", cloudExpiresAt, "")
+                        securitySignature = buildExportSignature(
+                            hwid = if (cloudLockDevice) com.kighmu.vpn.config.ConfigEncryption.getHardwareId(this).uppercase() else "",
+                            expiresAt = cloudExpiresAt,
+                            lockDeviceId = cloudLockDevice,
+                            lockOperator = cloudLockOp,
+                            operatorName = if (cloudLockOp) (getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager).networkOperatorName else "",
+                            burnAfterImport = exportType == "burn",
+                            appId = packageName
+                        )
                     )
                     
                     // Lire les tunnels cochés
@@ -311,7 +319,15 @@ class ExportActivity : AppCompatActivity() {
             burnToken = if (isBurn) UUID.randomUUID().toString() else "",
             lockAllConfig = locked || findViewById<CheckBox>(R.id.cb_lock_all_config).isChecked,
             appId = packageName,
-            securitySignature = buildSignature(config.toString(), androidId, expiresAt, operatorName)
+            securitySignature = buildExportSignature(
+            hwid = androidId,
+            expiresAt = if (exportType == "expiry" || (findViewById<CheckBox>(R.id.cb_set_expiry).isChecked && expiresAt > 0L)) expiresAt else 0L,
+            lockDeviceId = lockDeviceId,
+            lockOperator = lockOperator,
+            operatorName = operatorName,
+            burnAfterImport = isBurn,
+            appId = packageName
+        )
         )
 
         val exportPackage = mapOf(
@@ -341,6 +357,20 @@ class ExportActivity : AppCompatActivity() {
         return MessageDigest.getInstance("SHA-256")
             .digest(input.toByteArray())
             .joinToString("") { "%02x".format(it) }
+    }
+
+    private fun buildExportSignature(
+        hwid: String,
+        expiresAt: Long,
+        lockDeviceId: Boolean,
+        lockOperator: Boolean,
+        operatorName: String,
+        burnAfterImport: Boolean,
+        appId: String
+    ): String {
+        return com.kighmu.vpn.config.ConfigEncryption.signExportConfig(
+            hwid, expiresAt, lockDeviceId, lockOperator, operatorName, burnAfterImport, appId
+        )
     }
 
     private fun copyToClipboard(label: String, text: String) {

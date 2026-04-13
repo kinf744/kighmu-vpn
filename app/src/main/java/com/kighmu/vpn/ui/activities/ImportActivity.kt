@@ -118,25 +118,53 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun validateAndImport(config: KighmuConfig, security: ExportConfig) {
+        // 1. Verifier signature HMAC - protection anti-modification du fichier
+        if (security.securitySignature.isNotBlank()) {
+            val valid = ConfigEncryption.verifyExportSignature(
+                hwid = security.hardwareId,
+                expiresAt = security.expiresAt,
+                lockDeviceId = security.lockDeviceId,
+                lockOperator = security.lockOperator,
+                operatorName = security.operatorName,
+                burnAfterImport = security.burnAfterImport,
+                appId = security.appId,
+                signature = security.securitySignature
+            )
+            if (!valid) {
+                showError("Config corrompue ou modifiee - import refuse")
+                return
+            }
+        }
+
+        // 2. Verifier expiration
         if (security.expiresAt > 0 && System.currentTimeMillis() > security.expiresAt) {
-            showError("Cette configuration a expiré")
+            showError("Cette configuration a expire")
             return
         }
 
+        // 3. Verifier hardware ID
         if (security.lockDeviceId && security.hardwareId.isNotEmpty()) {
-            val currentHwId = ConfigEncryption.getHardwareId(this)
-            if (security.hardwareId != currentHwId) {
-                showError("Config verrouillée sur un autre appareil")
+            val currentHwId = ConfigEncryption.getHardwareId(this).uppercase()
+            if (security.hardwareId.uppercase() != currentHwId) {
+                showError("Config verrouillee sur un autre appareil")
                 return
             }
         }
 
+        // 4. Verifier operateur
         if (security.lockOperator && security.operatorName.isNotEmpty()) {
             val tm = getSystemService(TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-            if (tm.networkOperatorName != security.operatorName) {
-                showError("Config verrouillée sur l'opérateur: ${security.operatorName}")
+            val currentOp = tm.networkOperatorName.trim()
+            if (!currentOp.equals(security.operatorName.trim(), ignoreCase = true)) {
+                showError("Config verrouillee sur l operateur: ${security.operatorName}")
                 return
             }
+        }
+
+        // 5. Verifier appId - empeche import dans une autre app
+        if (security.appId.isNotBlank() && security.appId != packageName) {
+            showError("Config non compatible avec cette application")
+            return
         }
 
         val finalConfig = config.copy(
@@ -153,6 +181,7 @@ class ImportActivity : AppCompatActivity() {
         applyImport(finalConfig)
     }
 
+    
     private fun showConfirmBurn(config: KighmuConfig, @Suppress("UNUSED_PARAMETER") security: ExportConfig) {
         AlertDialog.Builder(this)
             .setTitle("⚠️ Config à usage unique")

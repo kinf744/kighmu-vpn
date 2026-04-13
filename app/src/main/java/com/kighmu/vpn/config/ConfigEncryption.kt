@@ -48,13 +48,43 @@ object ConfigEncryption {
 
     // ─── Signature ───────────────────────────────────────────────────────────
 
+    // Signature HMAC renforcee sur tous les champs critiques de securite
+    fun signExportConfig(
+        hwid: String,
+        expiresAt: Long,
+        lockDeviceId: Boolean,
+        lockOperator: Boolean,
+        operatorName: String,
+        burnAfterImport: Boolean,
+        appId: String
+    ): String {
+        val salt = "KIGHMU_EXPORT_HMAC_v2_2026"
+        val input = "$hwid|$expiresAt|$lockDeviceId|$lockOperator|$operatorName|$burnAfterImport|$appId|$salt"
+        return sha256(input)
+    }
+
+    fun verifyExportSignature(
+        hwid: String,
+        expiresAt: Long,
+        lockDeviceId: Boolean,
+        lockOperator: Boolean,
+        operatorName: String,
+        burnAfterImport: Boolean,
+        appId: String,
+        signature: String
+    ): Boolean {
+        if (signature.isBlank()) return false
+        val expected = signExportConfig(hwid, expiresAt, lockDeviceId, lockOperator, operatorName, burnAfterImport, appId)
+        return expected == signature
+    }
+
     fun signConfig(config: KighmuConfig, secretKey: String): String {
         val payload = "${config.configName}|${config.creator}|${config.createdAt}|${config.expiresAt}|${config.hardwareId}"
         return sha256("$payload|$secretKey").take(16)
     }
 
     fun verifySignature(config: KighmuConfig, secretKey: String): Boolean {
-        if (config.signature.isEmpty()) return true // unsigned = ok
+        if (config.signature.isEmpty()) return true
         val expected = signConfig(config, secretKey)
         return config.signature == expected
     }

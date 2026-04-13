@@ -78,16 +78,7 @@ class ConfigManager(private val context: Context) {
             } catch (e: javax.crypto.BadPaddingException) {
                 ImportResult.InvalidPassword("Wrong password or corrupted file")
             } catch (e: Exception) {
-                // Try parsing as plain JSON
-                try {
-                    val json = context.contentResolver.openInputStream(uri)
-                        ?.bufferedReader()?.readText()
-                        ?: return@withContext ImportResult.ParseError("Cannot read file")
-                    val config = KighmuConfig.fromJson(json)
-                    saveCurrentConfig(config)
-                    ImportResult.Success(config)
-                } catch (e2: Exception) {
-                    ImportResult.ParseError(e.message ?: "Unknown error")
+                ImportResult.ParseError(e.message ?: "Unknown error")
                 }
             }
         }
