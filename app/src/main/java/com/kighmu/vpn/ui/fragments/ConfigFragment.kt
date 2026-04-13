@@ -472,7 +472,7 @@ class ConfigFragment : Fragment() {
             if (v is android.widget.EditText) {
                 v.isEnabled = false
                 v.setText("••••••••")
-                v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                v.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
             }
             if (v is android.view.ViewGroup) {
                 for (i in 0 until v.childCount) lockView(v.getChildAt(i))
@@ -512,7 +512,7 @@ class ConfigFragment : Fragment() {
         }
         fun et(hint: String, value: String = "", pwd: Boolean = false) = android.widget.EditText(ctx).apply {
             this.hint = hint; setText(value)
-            if (pwd) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            if (pwd) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
             layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2).apply { topMargin = 16 }
             layout.addView(this)
         }
