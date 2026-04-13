@@ -200,7 +200,7 @@ class ImportActivity : AppCompatActivity() {
         Toast.makeText(this, "✓ Configuration importée avec succès!", Toast.LENGTH_LONG).show()
         setResult(RESULT_OK)
         val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
         finish()
