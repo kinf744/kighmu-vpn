@@ -55,8 +55,20 @@
                 android:layout_width="220dp"
                 android:layout_height="220dp"
                 android:layout_gravity="center"
-                android:elevation="16dp"
                 android:background="@drawable/bg_vpn_button_glow" />
+
+<!-- Logo inside Button -->
+            <ImageView
+                android:id="@+id/iv_logo_center"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center"
+                android:src="@mipmap/ic_launcher"
+                android:scaleType="fitCenter"
+                android:elevation="0dp"
+                android:clickable="false"
+                android:focusable="false" />
+        </FrameLayout>
 
             <!-- Main Button (Circular) -->
             <com.google.android.material.button.MaterialButton
@@ -73,19 +85,6 @@
                 app:strokeColor="#1F6FEB"
                 app:strokeWidth="2dp"
                 android:padding="0dp" />
-
-            <!-- Logo inside Button -->
-            <ImageView
-                android:id="@+id/iv_logo_center"
-                android:layout_width="140dp"
-                android:layout_height="140dp"
-                android:layout_gravity="center"
-                android:src="@mipmap/ic_launcher"
-                android:scaleType="fitCenter"
-                android:elevation="0dp"
-                android:clickable="false"
-                android:focusable="false" />
-        </FrameLayout>
 
         <TextView
             android:id="@+id/tv_connection_status"
