@@ -486,6 +486,21 @@ class ConfigFragment : Fragment() {
         if (locked) {
             btnSave.text = "🔒 CONFIG VERROUILLÉE"
             btnSave.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF888888.toInt())
+
+            // Bloquer tous les boutons d ajout/modification de profils
+            val addButtons = listOf(
+                R.id.btn_add_dns_profile,
+                R.id.btn_add_http_proxy_profile,
+                R.id.btn_add_hysteria_profile,
+                R.id.btn_add_v2dns_profile
+            )
+            addButtons.forEach { btnId ->
+                try {
+                    val btn = view.findViewById<android.widget.Button>(btnId)
+                    btn?.isEnabled = false
+                    btn?.alpha = 0.4f
+                } catch (_: Exception) {}
+            }
         }
     }
 
