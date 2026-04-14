@@ -207,7 +207,6 @@ class SlowDnsEngine(
             bin.absolutePath,
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
             "-pubkey", cleanPublicKey,
-            "-recv-win", "131072",
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
