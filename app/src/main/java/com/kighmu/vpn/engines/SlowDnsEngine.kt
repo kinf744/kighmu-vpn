@@ -272,9 +272,6 @@ class SlowDnsEngine(
         // ── Compression zlib : réduit volume DNS de 40-60% ─────────────────
         conn.setCompression(true)
 
-        // ── TCP No Delay : supprime l'algorithme de Nagle ──────────────────
-        conn.setTCPNoDelay(true)
-
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
         conn.connect(null, 30000, 30000)
         KighmuLogger.info(TAG, "SSH connecté ✓")
