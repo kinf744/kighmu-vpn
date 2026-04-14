@@ -88,15 +88,15 @@ class SlowDnsEngine(
         val dnsttBin = extractDnsttBinary()
         startDnsttProcess(dnsttBin)
 
-        // Attendre que dnstt soit pret (max 30s, check toutes les 500ms)
+        // Attendre que dnstt soit pret (max 15s, check toutes les 200ms)
         KighmuLogger.info(TAG, "Attente dnstt pret...")
         var waited = 0
-        while (waited < 30000) {
-            delay(500)
-            waited += 500
+        while (waited < 15000) {
+            delay(200)
+            waited += 200
             try {
                 val sock = java.net.Socket()
-                sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 200)
+                sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 100)
                 sock.close()
                 KighmuLogger.info(TAG, "dnstt pret en ${waited}ms")
                 break
@@ -207,6 +207,7 @@ class SlowDnsEngine(
             bin.absolutePath,
             "-udp", "${dns.dnsServer}:${dns.dnsPort}",
             "-pubkey", cleanPublicKey,
+            "-recv-win", "131072",
             dns.nameserver,
             "127.0.0.1:$dnsttPort"
         )
@@ -267,19 +268,38 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "Établissement connexion SSH...")
 
         val conn = Connection("127.0.0.1", dnsttPort)
-        conn.connect(null, 120000, 120000)
+
+        // ── Compression zlib : réduit volume DNS de 40-60% ─────────────────
+        conn.setCompression(true)
+
+        // ── TCP No Delay : supprime l'algorithme de Nagle ──────────────────
+        conn.setTCPNoDelay(true)
+
+        // ── Timeouts réduits : détection rapide des pannes ─────────────────
+        conn.connect(null, 30000, 30000)
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
         val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
         if (!authenticated) throw Exception("SSH auth echoue pour ${sshUserVal}")
-        KighmuLogger.info(TAG, "SSH authentifie!")
+        KighmuLogger.info(TAG, "SSH authentifié ✓")
 
-        // SOCKS5 proxy local avec port choisi par l'OS - garanti libre
+        // ── SOCKS5 proxy local port libre garanti ───────────────────────────
         val socksServer = java.net.ServerSocket(0)
         _socksPort = socksServer.localPort
         socksServer.close()
         conn.createDynamicPortForwarder(_socksPort)
-        KighmuLogger.info(TAG, "Proxy SOCKS5 actif ✓")
+        KighmuLogger.info(TAG, "SOCKS5 actif sur port $_socksPort ✓")
+
+        // ── Keep-alive toutes les 25s : évite les déconnexions silencieuses ─
+        engineScope.launch {
+            while (running && sshConnection?.isAuthenticationComplete == true) {
+                delay(25_000)
+                try {
+                    conn.sendIgnorePacket()
+                } catch (_: Exception) { break }
+            }
+        }
+
         sshConnection = conn
     }
 
