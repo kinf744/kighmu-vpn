@@ -18,48 +18,51 @@ object ProfileEditDialog {
         val scroll = android.widget.ScrollView(context)
         val layout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 16)
+            setPadding(48, 24, 48, 24)
         }
         scroll.addView(layout)
 
-        fun section(title: String) = TextView(context).apply {
-            text = title
-            setTextColor(0xFF4FC3F7.toInt())
-            textSize = 12f
-            setPadding(0, 16, 0, 4)
-            layoutParams = LinearLayout.LayoutParams(-1, -2)
-            layout.addView(this)
+        fun label(text: String) {
+            layout.addView(TextView(context).apply {
+                this.text = text
+                setTextColor(0xFF4FC3F7.toInt())
+                textSize = 12f
+                setPadding(0, 16, 0, 4)
+            })
         }
 
-        fun field(hint: String, value: String, numeric: Boolean = false) = EditText(context).apply {
-            this.hint = hint
-            setText(value)
-            setTextColor(0xFF000000.toInt())
-            setHintTextColor(0xFF888888.toInt())
-            if (numeric) inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8 }
-            layout.addView(this)
+        fun field(hint: String, value: String, inputType: Int = android.text.InputType.TYPE_CLASS_TEXT): EditText {
+            val et = EditText(context).apply {
+                this.hint = hint
+                setText(value)
+                this.inputType = inputType
+                setTextColor(0xFFFFFFFF.toInt())
+                setHintTextColor(0xFF888888.toInt())
+                setBackgroundColor(0xFF1A1F2E.toInt())
+                setPadding(16, 12, 16, 12)
+            }
+            layout.addView(et)
+            layout.addView(Space(context).apply { layoutParams = LinearLayout.LayoutParams(-1, 8) })
+            return et
         }
 
-        section("PROFILE")
+        label("PROFILE")
         val etName = field("Profile Name", p.profileName)
 
-        section("SSH CONFIGURATION")
+        label("SSH CONFIGURATION")
         val etSshHost = field("SSH Host", p.sshHost)
-        val etSshPort = field("SSH Port", p.sshPort.toString(), true)
+        val etSshPort = field("SSH Port", p.sshPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
         val etSshUser = field("Username", p.sshUser)
-        val etSshPass = field("Password", p.sshPass).apply {
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-        }
+        val etSshPass = field("Password", p.sshPass, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
 
-        section("SLOWDNS CONFIGURATION")
+        label("SLOWDNS CONFIGURATION")
         val etDns    = field("DNS Server", p.dnsServer)
         val etNs     = field("Nameserver", p.nameserver)
         val etPubKey = field("Public Key", p.publicKey)
 
-        section("TUNNELS PARALLÈLES")
+        label("TUNNELS PARALLELES")
         val tvTunnelCount = TextView(context).apply {
-            text = "Flux simultanés : ${p.tunnelCount}"
+            text = "Flux simultanes : ${p.tunnelCount}"
             setTextColor(0xFFFFFFFF.toInt())
             textSize = 13f
             setPadding(0, 8, 0, 4)
@@ -67,20 +70,20 @@ object ProfileEditDialog {
             layout.addView(this)
         }
         val seekTunnel = SeekBar(context).apply {
-            max = 3  // 1..4 → 0..3
-            progress = (p.tunnelCount.coerceIn(1, 4)) - 1
+            max = 3
+            progress = p.tunnelCount.coerceIn(1, 4) - 1
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 4 }
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, v: Int, u: Boolean) {
-                    tvTunnelCount.text = "Flux simultanés : ${v + 1}"
+                    tvTunnelCount.text = "Flux simultanes : ${v + 1}"
                 }
                 override fun onStartTrackingTouch(sb: SeekBar?) {}
                 override fun onStopTrackingTouch(sb: SeekBar?) {}
             })
             layout.addView(this)
         }
-        val tvTunnelHint = TextView(context).apply {
-            text = "⚡ 1 flux = stable  |  2-3 flux = débit × N  |  4 flux = max"
+        TextView(context).apply {
+            text = "1 flux = stable  |  2-3 flux = debit x N  |  4 flux = max"
             setTextColor(0xFF888888.toInt())
             textSize = 11f
             setPadding(0, 2, 0, 8)
