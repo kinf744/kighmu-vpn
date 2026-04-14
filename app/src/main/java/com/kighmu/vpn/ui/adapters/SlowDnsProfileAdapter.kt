@@ -10,8 +10,14 @@ class SlowDnsProfileAdapter(
     private val onSelectionChanged: (String, Boolean) -> Unit,
     private val onEdit: (SlowDnsProfile) -> Unit,
     private val onDelete: (SlowDnsProfile) -> Unit,
-    private val onClone: (SlowDnsProfile) -> Unit
+    private val onClone: (SlowDnsProfile) -> Unit,
+    private var isLocked: Boolean = false
 ) : RecyclerView.Adapter<SlowDnsProfileAdapter.VH>() {
+
+    fun setLocked(locked: Boolean) {
+        isLocked = locked
+        notifyDataSetChanged()
+    }
 
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
         val checkbox: CheckBox = v.findViewById(android.R.id.checkbox)
@@ -66,8 +72,16 @@ class SlowDnsProfileAdapter(
             profiles[holder.adapterPosition].isSelected = checked
             onSelectionChanged(p.id, checked)
         }
-        // Long press → menu contextuel
+        // Long press → menu contextuel (bloqué si config verrouillée)
         holder.itemView.setOnLongClickListener {
+            if (isLocked) {
+                android.widget.Toast.makeText(
+                    holder.itemView.context,
+                    "🔒 Config verrouillée - modification interdite",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnLongClickListener true
+            }
             val popup = PopupMenu(holder.itemView.context, holder.itemView)
             popup.menu.add(0, 0, 0, "✏️ Modifier")
             popup.menu.add(0, 1, 1, "📋 Cloner")

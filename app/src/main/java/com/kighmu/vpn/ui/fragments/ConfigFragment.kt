@@ -466,6 +466,8 @@ class ConfigFragment : Fragment() {
     }
 
     private fun applyConfigLock(view: View, locked: Boolean) {
+        // Propager l'état locked à tous les adapters
+        slowDnsProfileAdapter?.setLocked(locked)
         if (!locked) return
         // Désactiver seulement les EditText - pas les boutons de navigation
         fun lockView(v: android.view.View) {
