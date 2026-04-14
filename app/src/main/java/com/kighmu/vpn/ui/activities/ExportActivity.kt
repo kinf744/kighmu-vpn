@@ -330,8 +330,22 @@ class ExportActivity : AppCompatActivity() {
         )
         )
 
+        // ── Lire les tunnels cochés (même logique que cloud export) ──
+        val enabledTunnels = mutableListOf<Int>()
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_slowdns).isChecked) enabledTunnels.add(0)
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_http).isChecked) enabledTunnels.add(1)
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_ssl).isChecked) enabledTunnels.add(3)
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_xray).isChecked) enabledTunnels.add(4)
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_v2dns).isChecked) enabledTunnels.add(5)
+        if (findViewById<android.widget.CheckBox>(R.id.cb_tunnel_hysteria).isChecked) enabledTunnels.add(6)
+        val finalEnabled = if (enabledTunnels.isEmpty()) mutableListOf(0,1,3,4,5,6) else enabledTunnels
+        val configWithTunnels = config.copy(
+            enabledTunnels = finalEnabled,
+            tunnelMode = if (config.tunnelMode.id in finalEnabled) config.tunnelMode
+                         else com.kighmu.vpn.models.TunnelMode.fromId(finalEnabled.first())
+        )
         val exportPackage = mapOf(
-            "config" to config,
+            "config" to configWithTunnels,
             "security" to exportConfig,
             "exportedAt" to System.currentTimeMillis(),
             "appVersion" to com.kighmu.vpn.BuildConfig.VERSION_NAME

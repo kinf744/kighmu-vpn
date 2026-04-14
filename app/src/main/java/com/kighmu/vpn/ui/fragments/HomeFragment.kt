@@ -119,7 +119,8 @@ class HomeFragment : Fragment() {
 
             viewLifecycleOwner.lifecycleScope.launch {
                 viewModel.config.collect { cfg ->
-                    spinnerMode.setSelection(cfg.tunnelMode.ordinal)
+                    val idx = displayModes.indexOfFirst { it == cfg.tunnelMode }.coerceAtLeast(0)
+                    spinnerMode.setSelection(idx)
                 }
             }
         } catch (e: Exception) {
