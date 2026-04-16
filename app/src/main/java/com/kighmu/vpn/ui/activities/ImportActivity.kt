@@ -214,8 +214,10 @@ class ImportActivity : AppCompatActivity() {
             }
 
             // Tenter décodage base64 → "gistId|fileName"
+            // Note: "~" est utilisé comme séparateur entre shortCode et encoded
+            val encodedPart = if (cleanCode.contains("~")) cleanCode.split("~")[1] else cleanCode
             val decoded = try {
-                val padded = cleanCode.padEnd((cleanCode.length + 3) / 4 * 4, '=')
+                val padded = encodedPart.padEnd((encodedPart.length + 3) / 4 * 4, '=')
                 String(android.util.Base64.decode(padded, android.util.Base64.URL_SAFE))
             } catch (_: Exception) { null }
 

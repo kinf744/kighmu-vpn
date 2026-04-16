@@ -191,15 +191,18 @@ class ExportActivity : AppCompatActivity() {
                         btn.isEnabled = true
                         btn.text = "☁️ Exporter vers le cloud"
                         if (pasteUrl != null) {
-                            val code = pasteUrl.removePrefix("kighmu:")
-                            val kighmuLink = "https://kighmu.link/$code"
+                            val parts = pasteUrl.removePrefix("kighmu:").split("~")
+                            val shortCode = parts[0]
+                            val fullCode = if (parts.size > 1) parts[1] else shortCode
+                            val kighmuLink = "https://kighmu.link/$fullCode"
+                            val displayLink = "https://kighmu.link/$shortCode"
                             findViewById<View>(R.id.layout_cloud_result).visibility = View.VISIBLE
-                            findViewById<TextView>(R.id.tv_cloud_link_kighmu).text = kighmuLink
-                            findViewById<TextView>(R.id.tv_cloud_code_only).text = code
+                            findViewById<TextView>(R.id.tv_cloud_link_kighmu).text = displayLink
+                            findViewById<TextView>(R.id.tv_cloud_code_only).text = shortCode
 
                             findViewById<Button>(R.id.btn_copy_cloud_link).setOnClickListener { copyToClipboard("Lien", kighmuLink) }
-                            findViewById<Button>(R.id.btn_copy_cloud_code_only).setOnClickListener { copyToClipboard("Code", code) }
-                            findViewById<Button>(R.id.btn_copy_all_cloud).setOnClickListener { copyToClipboard("Lien & Code", "Lien: $pasteUrl\nCode: $code") }
+                            findViewById<Button>(R.id.btn_copy_cloud_code_only).setOnClickListener { copyToClipboard("Code", fullCode) }
+                            findViewById<Button>(R.id.btn_copy_all_cloud).setOnClickListener { copyToClipboard("Lien & Code", "Lien: $kighmuLink\nCode: $fullCode") }
                             Toast.makeText(this, "✓ Export Cloud Réussi", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(this, "Erreur lors de l'exportation", Toast.LENGTH_LONG).show()
@@ -270,7 +273,7 @@ class ExportActivity : AppCompatActivity() {
             val encoded = android.util.Base64.encodeToString(
                 payload.toByteArray(), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE
             ).trimEnd('=')
-            return "kighmu:$code|$encoded"
+            return "kighmu:$code~$encoded"
         } else {
             val errorMessage = try {
                 org.json.JSONObject(responseBody).optString("message", "Erreur $responseCode")
