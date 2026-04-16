@@ -57,7 +57,7 @@ class HttpProxyEngine(
         KighmuLogger.info(TAG, "ETAPE 1: Connexion TCP au proxy...")
         val sock = Socket()
         sock.connect(InetSocketAddress(proxy.proxyHost, proxy.proxyPort), 15000)
-        sock.soTimeout = 30000
+        sock.soTimeout = 10000
         proxySocket = sock
         KighmuLogger.info(TAG, "TCP connecte au proxy OK")
 
@@ -110,13 +110,9 @@ class HttpProxyEngine(
         consumeHeaders(inp)
         KighmuLogger.info(TAG, "Headers consommes - tunnel pret pour SSH")
 
-        KighmuLogger.info(TAG, "ETAPE 4: Demarrage relay local...")
-        val relayPort = startLocalRelay(sock, inp, out)
-        KighmuLogger.info(TAG, "Relay local pret sur 127.0.0.1:$relayPort")
-
-        KighmuLogger.info(TAG, "ETAPE 5: Connexion SSH via relay...")
-        val conn = Connection("127.0.0.1", relayPort)
-        conn.connect(null, 30000, 30000)
+        KighmuLogger.info(TAG, "ETAPE 4: Connexion SSH directement sur le socket proxy...")
+        val conn = Connection(ssh.host, ssh.port)
+        conn.connect(sock, null, 10000, 10000)
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
@@ -183,46 +179,6 @@ class HttpProxyEngine(
             prev = b
         }
         return sb.toString()
-    }
-
-    private fun startLocalRelay(proxySock: Socket, proxyIn: InputStream, proxyOut: OutputStream): Int {
-        val serverSocket = java.net.ServerSocket(0)
-        val port = serverSocket.localPort
-        Thread {
-            try {
-                val clientSock = serverSocket.accept()
-                serverSocket.close()
-                val clientIn = clientSock.getInputStream()
-                val clientOut = clientSock.getOutputStream()
-                Thread {
-                    try {
-                        val buf = ByteArray(8192)
-                        while (running && !proxySock.isClosed && !clientSock.isClosed) {
-                            val n = clientIn.read(buf)
-                            if (n == -1) break
-                            proxyOut.write(buf, 0, n)
-                            proxyOut.flush()
-                        }
-                    } catch (e: Exception) {
-                        if (running) KighmuLogger.info(TAG, "relay c->p fin: ${e.message}")
-                    }
-                }.start()
-                try {
-                    val buf = ByteArray(8192)
-                    while (running && !proxySock.isClosed && !clientSock.isClosed) {
-                        val n = proxyIn.read(buf)
-                        if (n == -1) break
-                        clientOut.write(buf, 0, n)
-                        clientOut.flush()
-                    }
-                } catch (e: Exception) {
-                    if (running) KighmuLogger.info(TAG, "relay p->c fin: ${e.message}")
-                }
-            } catch (e: Exception) {
-                KighmuLogger.error(TAG, "Relay error: ${e.message}")
-            }
-        }.start()
-        return port
     }
 
     override fun startTun2Socks(fd: Int) {
