@@ -212,21 +212,41 @@ class ImportActivity : AppCompatActivity() {
                 code.startsWith("https://kighmu.link/") -> code.removePrefix("https://kighmu.link/")
                 else -> code.trim()
             }
-            val urlString = if (cleanCode.startsWith("http")) {
-                cleanCode
+
+            // Tenter décodage base64 → "gistId|fileName"
+            val decoded = try {
+                val padded = cleanCode.padEnd((cleanCode.length + 3) / 4 * 4, '=')
+                String(android.util.Base64.decode(padded, android.util.Base64.URL_SAFE))
+            } catch (_: Exception) { null }
+
+            val urlString = if (decoded != null && decoded.contains("|")) {
+                // Nouveau format Gist
+                val gistId = decoded.split("|")[0]
+                "https://api.github.com/gists/$gistId"
             } else {
+                // Ancien format raw.githubusercontent (rétrocompatibilité)
                 "https://raw.githubusercontent.com/kinf744/kighmu-vpn/cloud-configs/configs/$cleanCode.json"
             }
+
             android.util.Log.d("ImportActivity", "fetchCloudConfig URL: $urlString")
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.connectTimeout = 15000
             conn.readTimeout = 20000
-            conn.setRequestProperty("Accept", "application/json, text/plain, */*")
+            conn.setRequestProperty("Accept", "application/json")
             conn.setRequestProperty("User-Agent", "KIGHMU-VPN/1.0")
+
             if (conn.responseCode == 200) {
-                val json = conn.inputStream.bufferedReader().readText().trim()
+                val body = conn.inputStream.bufferedReader().readText().trim()
+                val json = if (urlString.contains("api.github.com/gists")) {
+                    val gistJson = org.json.JSONObject(body)
+                    val files = gistJson.getJSONObject("files")
+                    val firstFile = files.keys().next()
+                    files.getJSONObject(firstFile).getString("content")
+                } else {
+                    body
+                }
                 if (json.contains("config") && json.contains("security")) json else null
             } else {
                 android.util.Log.e("ImportActivity", "HTTP ${conn.responseCode} pour $urlString")

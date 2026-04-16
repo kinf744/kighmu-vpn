@@ -235,13 +235,17 @@ class ExportActivity : AppCompatActivity() {
         }
         val code = generateCode(8)
         val fileName = "$code.json"
-        val base64Content = android.util.Base64.encodeToString(
-            content.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
-        )
-        val requestBody = """{"message":"cloud config","content":"$base64Content","branch":"cloud-configs"}"""
-        val apiUrl = URL("https://api.github.com/repos/kinf744/kighmu-vpn/contents/configs/$fileName")
-        val conn = apiUrl.openConnection() as HttpURLConnection
-        conn.requestMethod = "PUT"
+
+        val requestBody = org.json.JSONObject().apply {
+            put("description", "KIGHMU:$code")
+            put("public", false)
+            val files = org.json.JSONObject()
+            files.put(fileName, org.json.JSONObject().put("content", content))
+            put("files", files)
+        }.toString()
+
+        val conn = URL("https://api.github.com/gists").openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
         conn.doOutput = true
         conn.doInput = true
         conn.connectTimeout = 15000
@@ -250,6 +254,7 @@ class ExportActivity : AppCompatActivity() {
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Accept", "application/vnd.github+json")
         conn.outputStream.use { it.write(requestBody.toByteArray()) }
+
         val responseCode = conn.responseCode
         val responseBody = try {
             conn.inputStream.bufferedReader().readText().trim()
@@ -257,8 +262,15 @@ class ExportActivity : AppCompatActivity() {
             conn.errorStream?.bufferedReader()?.readText()?.trim() ?: "Erreur inconnue"
         }
         conn.disconnect()
-        if (responseCode == 201 || responseCode == 200) {
-            return "kighmu:$code"
+
+        if (responseCode == 201) {
+            val gistId = org.json.JSONObject(responseBody).optString("id", "")
+            if (gistId.isBlank()) throw Exception("Gist créé mais ID introuvable")
+            val payload = "$gistId|$fileName"
+            val encoded = android.util.Base64.encodeToString(
+                payload.toByteArray(), android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE
+            ).trimEnd('=')
+            return "kighmu:$code|$encoded"
         } else {
             val errorMessage = try {
                 org.json.JSONObject(responseBody).optString("message", "Erreur $responseCode")
