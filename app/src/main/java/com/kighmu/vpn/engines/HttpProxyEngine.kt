@@ -112,7 +112,7 @@ class HttpProxyEngine(
 
         KighmuLogger.info(TAG, "ETAPE 4: Connexion SSH directement sur le socket proxy...")
         val conn = Connection(ssh.host, ssh.port)
-        conn.connect(sock, null, 10000, 10000)
+        conn.connect(null, 10000, 10000)
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
