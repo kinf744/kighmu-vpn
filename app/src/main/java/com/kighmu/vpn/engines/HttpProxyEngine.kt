@@ -110,9 +110,29 @@ class HttpProxyEngine(
         consumeHeaders(inp)
         KighmuLogger.info(TAG, "Headers consommes - tunnel pret pour SSH")
 
-        KighmuLogger.info(TAG, "ETAPE 4: Connexion SSH directement sur le socket proxy...")
-        val conn = Connection(ssh.host, ssh.port)
-        conn.connect(null, 10000, 10000)
+        KighmuLogger.info(TAG, "ETAPE 4: Connexion SSH via socket proxy tunnel...")
+        // Creer un ServerSocket local qui expose le socket proxy comme port TCP local
+        // Meme principe que SlowDnsEngine avec dnstt
+        val bridgeSS = java.net.ServerSocket(0)
+        val bridgePort = bridgeSS.localPort
+        KighmuLogger.info(TAG, "Bridge local port=$bridgePort")
+        val bridgeThread = Thread {
+            try {
+                val bridgeClient = bridgeSS.accept()
+                bridgeSS.close()
+                val bIn  = Thread { try { pipe(sock.getInputStream(),      bridgeClient.getOutputStream()) } catch (_: Exception) {} }
+                val bOut = Thread { try { pipe(bridgeClient.getInputStream(), sock.getOutputStream())      } catch (_: Exception) {} }
+                bIn.isDaemon  = true
+                bOut.isDaemon = true
+                bIn.start()
+                bOut.start()
+            } catch (_: Exception) {}
+        }
+        bridgeThread.isDaemon = true
+        bridgeThread.start()
+
+        val conn = Connection("127.0.0.1", bridgePort)
+        conn.connect(null, 30000, 30000)
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
@@ -216,4 +236,16 @@ class HttpProxyEngine(
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = null
     override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
+
+    private fun pipe(inp: java.io.InputStream, out: java.io.OutputStream) {
+        val buf = ByteArray(65536)
+        try {
+            while (true) {
+                val n = inp.read(buf)
+                if (n == -1) break
+                out.write(buf, 0, n)
+                if (inp.available() == 0) out.flush()
+            }
+        } catch (_: Exception) {}
+    }
 }
