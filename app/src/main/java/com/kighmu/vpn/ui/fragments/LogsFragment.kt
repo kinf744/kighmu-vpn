@@ -40,10 +40,9 @@ class LogsFragment : Fragment() {
                 logs.forEach { entry ->
                     val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
                         .format(java.util.Date(entry.timestamp))
-                    val tag = entry.tag.take(12).padEnd(12)
                     
                     val start = sb.length
-                    sb.append("[$time] [$tag] ")
+                    sb.append("[$time] ")
                     
                     // Support HTML pour le message
                     val htmlMsg = if (entry.message.contains("<font") || entry.message.contains("<b>")) {
