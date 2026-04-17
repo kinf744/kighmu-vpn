@@ -42,6 +42,15 @@ object KighmuLogger {
         msg = msg.replace(Regex("""(auth_str|password|obfs)[:\s"=]+\S+"""), "$1: ***")
         msg = msg.replace(Regex("""-pubkey\s+[A-Fa-f0-9]+"""), "-pubkey ***")
         msg = msg.replace(Regex("""ghp_[A-Za-z0-9]+"""), "***")
+        // Reformater la version SSH du serveur
+        val sshVerRegex = Regex("""SSH-2\.0-([\w_.]+)\s*(.*)""")
+        val sshMatch = sshVerRegex.find(msg)
+        if (sshMatch != null) {
+            val version = sshMatch.groupValues[1]
+            val os = sshMatch.groupValues[2].trim()
+            msg = if (os.isNotEmpty()) "[SSH] Serveur: $version ($os)"
+                  else "[SSH] Serveur: $version"
+        }
         msg = msg.replace(Regex("""/data/app/[^/]+/[^/]+/lib/[^/]+/"""), "lib/")
         msg = msg.replace(Regex("""/data/user/0/[^\s/]+/"""), "data/")
         msg = msg.replace(Regex("""127[.]0[.]0[.]1:([0-9]{5,})""")) { m ->
