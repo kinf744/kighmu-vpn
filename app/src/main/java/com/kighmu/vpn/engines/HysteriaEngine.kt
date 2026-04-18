@@ -128,19 +128,26 @@ class HysteriaEngine(
             try {
                 hysteriaProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
-                        log("[out] $line")
-                        // Hysteria 1: "Connected" dans le log serveur
-                        // Déclencheur VPN: "UDP running" comme dans kiaje34
-                        if (line.contains("UDP running") || line.contains("running")) {
-                            serverConnected = true
-                            log("Serveur connecté ✅")
-                        }
-                        if (line.contains("SOCKS5 server up") &&
-                            line.contains("127.0.0.1:")) {
-                            Regex("""127\.0\.0\.1:(\d+)""").find(line)
-                                ?.groupValues?.get(1)?.toIntOrNull()?.let {
-                                    if (it > 0) { socksPort = it; log("Port SOCKS5: $it") }
-                                }
+                        // Filtrer et reformater les logs Hysteria
+                        val lineLower = line.lowercase()
+                        when {
+                            line.contains("Connected") && line.contains("addr") -> {
+                                val addr = Regex("""addr:([\d.]+:\S+)""").find(line)?.groupValues?.get(1) ?: ""
+                                log("Hysteria connecté au serveur" + if (addr.isNotEmpty()) " ($addr)" else "")
+                            }
+                            line.contains("UDP running") || line.contains("running") -> {
+                                serverConnected = true
+                                log("Serveur connecté ✅")
+                            }
+                            line.contains("SOCKS5 server up") && line.contains("127.0.0.1:") -> {
+                                Regex("""127\.0\.0\.1:(\d+)""").find(line)
+                                    ?.groupValues?.get(1)?.toIntOrNull()?.let {
+                                        if (it > 0) { socksPort = it; log("Port SOCKS5: $it") }
+                                    }
+                            }
+                            lineLower.contains("error") || lineLower.contains("fatal") ->
+                                log("Hysteria erreur: $line")
+                            // Ignorer tout le reste (timestamps, INFO verbeux, etc.)
                         }
                     }
                 }
