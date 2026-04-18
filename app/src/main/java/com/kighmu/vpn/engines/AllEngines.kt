@@ -462,35 +462,29 @@ class XrayEngine(
         val cmd = arrayOf(binary.absolutePath, "run", "-c", configFile.absolutePath)
         xrayProcess = Runtime.getRuntime().exec(cmd)
         val proc = xrayProcess!!
-        // Thread stderr Xray - filtré
-        Thread {
-            try {
-                proc.errorStream.bufferedReader().forEachLine { line ->
-                    if (line.length > 500) return@forEachLine
-                    val skip = line.contains("accepted") || line.contains("begin stream")
-                        || line.contains("Reading config") || line.contains("from tcp")
-                        || line.contains("from udp") || line.contains("tunneling")
-                        || line.contains("proxy") || line.contains("dial")
-                        || line.contains("connection") || line.contains("127.0.0.1")
-                        || line.isBlank()
-                    if (!skip) KighmuLogger.error(TAG, "[xray] ${line.take(200)}")
+        // Thread stderr+stdout Xray - filtré et reformaté
+        fun processXrayLine(line: String) {
+            if (line.isBlank() || line.length > 500) return
+            val lineLower = line.lowercase()
+            when {
+                // Xray démarré avec succès
+                lineLower.contains("started") && lineLower.contains("xray") -> {
+                    val ver = Regex("""Xray ([\d.]+)""").find(line)?.groupValues?.get(1) ?: ""
+                    KighmuLogger.info(TAG, "Xray démarré" + if (ver.isNotEmpty()) " v$ver ✅" else " ✅")
                 }
-            } catch (_: Exception) {}
+                // Erreurs critiques seulement
+                lineLower.contains("error") || lineLower.contains("fatal") ->
+                    KighmuLogger.error(TAG, "Xray erreur: ${line.take(150)}")
+                // Ignorer : warnings dépréciations, timestamps, INFO verbeux
+            }
+        }
+        Thread {
+            try { proc.errorStream.bufferedReader().forEachLine { processXrayLine(it) } }
+            catch (_: Exception) {}
         }.start()
-        // Thread stdout Xray - filtré
         Thread {
-            try {
-                proc.inputStream.bufferedReader().forEachLine { line ->
-                    if (line.length > 500) return@forEachLine
-                    val skip = line.contains("accepted") || line.contains("begin stream")
-                        || line.contains("Reading config") || line.contains("from tcp")
-                        || line.contains("from udp") || line.contains("tunneling")
-                        || line.contains("proxy") || line.contains("dial")
-                        || line.contains("connection") || line.contains("127.0.0.1")
-                        || line.isBlank()
-                    if (!skip) KighmuLogger.info(TAG, "[xray] ${line.take(200)}")
-                }
-            } catch (_: Exception) {}
+            try { proc.inputStream.bufferedReader().forEachLine { processXrayLine(it) } }
+            catch (_: Exception) {}
         }.start()
         KighmuLogger.info(TAG, "Xray process started")
     }
