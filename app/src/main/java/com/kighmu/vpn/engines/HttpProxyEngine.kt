@@ -131,9 +131,7 @@ class HttpProxyEngine(
         bridgeThread.isDaemon = true
         bridgeThread.start()
 
-        val conn = Connection("127.0.0.1", bridgePort)
-        conn.connect(null, 30000, 30000)
-        // Lire la banniere SSH directement depuis le socket
+        // Lire la banniere SSH AVANT que Trilead consomme le socket
         val serverBanner = try {
             val bannerSock = java.net.Socket("127.0.0.1", bridgePort)
             bannerSock.soTimeout = 3000
@@ -142,6 +140,8 @@ class HttpProxyEngine(
             banner.trim()
         } catch (_: Exception) { "" }
         if (serverBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $serverBanner")
+        val conn = Connection("127.0.0.1", bridgePort)
+        conn.connect(null, 30000, 30000)
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)

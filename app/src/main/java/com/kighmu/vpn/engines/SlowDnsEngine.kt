@@ -266,14 +266,7 @@ class SlowDnsEngine(
         // trilead se connecte directement comme si c'etait le vrai serveur SSH
         KighmuLogger.info(TAG, "Établissement connexion SSH...")
 
-        val conn = Connection("127.0.0.1", dnsttPort)
-
-        // ── Compression zlib : réduit volume DNS de 40-60% ─────────────────
-        conn.setCompression(true)
-
-        // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 30000, 30000)
-        // Lire la banniere SSH directement depuis le socket
+        // Lire la banniere SSH AVANT que Trilead consomme le socket
         val serverBanner = try {
             val bannerSock = java.net.Socket("127.0.0.1", dnsttPort)
             bannerSock.soTimeout = 3000
@@ -282,6 +275,13 @@ class SlowDnsEngine(
             banner.trim()
         } catch (_: Exception) { "" }
         if (serverBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $serverBanner")
+        val conn = Connection("127.0.0.1", dnsttPort)
+
+        // ── Compression zlib : réduit volume DNS de 40-60% ─────────────────
+        conn.setCompression(true)
+
+        // ── Timeouts réduits : détection rapide des pannes ─────────────────
+        conn.connect(null, 30000, 30000)
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
         val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
