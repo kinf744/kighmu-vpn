@@ -110,17 +110,44 @@ class SshSslEngine(
                         try { bridge.close() } catch (_: Exception) {}
                     }
                 }.start()
-                // Lire la banniere SSH AVANT que Trilead consomme le socket
-                val serverBanner = try {
-                    val bannerSock = java.net.Socket("127.0.0.1", localPort)
-                    bannerSock.soTimeout = 3000
-                    val banner = bannerSock.getInputStream().bufferedReader().readLine() ?: ""
-                    bannerSock.close()
-                    banner.trim()
-                } catch (_: Exception) { "" }
-                if (serverBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $serverBanner")
-                val conn = Connection("127.0.0.1", localPort)
+                // Bridge banniere : lit SSH-2.0-xxx puis relaie tout a Trilead
+                val bannerProxyPort = run {
+                    val ss = java.net.ServerSocket(0); ss.reuseAddress = true; val p = ss.localPort; ss.close(); p
+                }
+                val bannerLatch = java.util.concurrent.CountDownLatch(1)
+                var capturedBanner = ""
+                Thread {
+                    try {
+                        val proxyServer = java.net.ServerSocket(bannerProxyPort)
+                        bannerLatch.countDown()
+                        val trileadSock = proxyServer.accept()
+                        proxyServer.close()
+                        val realSock = java.net.Socket("127.0.0.1", localPort)
+                        realSock.soTimeout = 5000
+                        val realIn = realSock.getInputStream()
+                        val bannerBytes = StringBuilder()
+                        var b: Int
+                        while (realIn.read().also { b = it } != -1) {
+                            bannerBytes.append(b.toChar())
+                            if (bannerBytes.endsWith("\n")) break
+                        }
+                        capturedBanner = bannerBytes.toString().trim()
+                        val trileadOut = trileadSock.getOutputStream()
+                        trileadOut.write(bannerBytes.toString().toByteArray())
+                        trileadOut.flush()
+                        val t1 = Thread { try { realIn.copyTo(trileadSock.getOutputStream()) } catch (_: Exception) {} }
+                        val t2 = Thread { try { trileadSock.getInputStream().copyTo(realSock.getOutputStream()) } catch (_: Exception) {} }
+                        t1.isDaemon = true; t2.isDaemon = true
+                        t1.start(); t2.start()
+                    } catch (e: Exception) {
+                        bannerLatch.countDown()
+                        KighmuLogger.error(TAG, "BannerProxy error: ${e.message}")
+                    }
+                }.also { it.isDaemon = true }.start()
+                bannerLatch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+                val conn = Connection("127.0.0.1", bannerProxyPort)
                 conn.connect(null, 30000, 30000)
+                if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
                 val authenticated = conn.authenticateWithPassword(sslConfig.sshUser, sslConfig.sshPass)
                 if (!authenticated) throw Exception("SSH auth echoue pour ${sslConfig.sshUser}")
                 conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)
