@@ -112,8 +112,15 @@ class SshSslEngine(
                 }.start()
                 val conn = Connection("127.0.0.1", localPort)
                 conn.connect(null, 30000, 30000)
-                val serverVer = conn.connectionInfo?.serverVersion ?: "unknown"
-                KighmuLogger.info(TAG, "Server version: $serverVer")
+                // Lire la banniere SSH directement depuis le socket
+                val serverBanner = try {
+                    val bannerSock = java.net.Socket("127.0.0.1", localPort)
+                    bannerSock.soTimeout = 3000
+                    val banner = bannerSock.getInputStream().bufferedReader().readLine() ?: ""
+                    bannerSock.close()
+                    banner.trim()
+                } catch (_: Exception) { "" }
+                if (serverBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $serverBanner")
                 val authenticated = conn.authenticateWithPassword(sslConfig.sshUser, sslConfig.sshPass)
                 if (!authenticated) throw Exception("SSH auth echoue pour ${sslConfig.sshUser}")
                 conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)

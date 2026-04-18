@@ -133,8 +133,15 @@ class HttpProxyEngine(
 
         val conn = Connection("127.0.0.1", bridgePort)
         conn.connect(null, 30000, 30000)
-        val serverVer = conn.connectionInfo?.serverVersion ?: "unknown"
-        KighmuLogger.info(TAG, "Server version: $serverVer")
+        // Lire la banniere SSH directement depuis le socket
+        val serverBanner = try {
+            val bannerSock = java.net.Socket("127.0.0.1", bridgePort)
+            bannerSock.soTimeout = 3000
+            val banner = bannerSock.getInputStream().bufferedReader().readLine() ?: ""
+            bannerSock.close()
+            banner.trim()
+        } catch (_: Exception) { "" }
+        if (serverBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $serverBanner")
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)
