@@ -472,8 +472,13 @@ class XrayEngine(
                     val ver = Regex("""Xray ([\d.]+)""").find(line)?.groupValues?.get(1) ?: ""
                     KighmuLogger.info(TAG, "Xray démarré" + if (ver.isNotEmpty()) " v$ver ✅" else " ✅")
                 }
-                // Erreurs critiques seulement
-                lineLower.contains("error") || lineLower.contains("fatal") ->
+                // Erreurs critiques seulement (ignorer warnings/deprecations)
+                (lineLower.contains("error") || lineLower.contains("fatal"))
+                && !lineLower.contains("warning")
+                && !lineLower.contains("deprecated")
+                && !lineLower.contains("common/errors")
+                && !lineLower.contains("will be removed")
+                && !lineLower.contains("please") ->
                     KighmuLogger.error(TAG, "Xray erreur: ${line.take(150)}")
                 // Ignorer : warnings dépréciations, timestamps, INFO verbeux
             }
