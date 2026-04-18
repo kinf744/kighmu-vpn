@@ -219,7 +219,17 @@ class HttpProxyEngine(
         var h: String
         do {
             h = readHttpLine(inp)
-            if (h.isNotEmpty()) KighmuLogger.info(TAG, "Header: $h")
+            if (h.isNotEmpty()) {
+                val hLower = h.lowercase()
+                val skip = hLower.startsWith("report-to") ||
+                           hLower.startsWith("nel:") ||
+                           hLower.startsWith("cf-") ||
+                           hLower.startsWith("alt-svc") ||
+                           hLower.startsWith("cf-cache") ||
+                           hLower.startsWith("date:") ||
+                           hLower.startsWith("sec-websocket-accept")
+                if (!skip) KighmuLogger.info(TAG, "Header: $h")
+            }
         } while (h.isNotEmpty())
     }
 
