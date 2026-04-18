@@ -42,14 +42,31 @@ object KighmuLogger {
         msg = msg.replace(Regex("""(auth_str|password|obfs)[:\s"=]+\S+"""), "$1: ***")
         msg = msg.replace(Regex("""-pubkey\s+[A-Fa-f0-9]+"""), "-pubkey ***")
         msg = msg.replace(Regex("""ghp_[A-Za-z0-9]+"""), "***")
-        // Reformater la version SSH du serveur
+        // Reformater la version SSH du serveur avec couleur selon l'OS
         val sshVerRegex = Regex("""SSH-2\.0-([\w_.]+)\s*(.*)""")
         val sshMatch = sshVerRegex.find(msg)
         if (sshMatch != null) {
             val version = sshMatch.groupValues[1]
             val os = sshMatch.groupValues[2].trim()
-            msg = if (os.isNotEmpty()) "[SSH] Serveur: $version ($os)"
-                  else "[SSH] Serveur: $version"
+            val osLower = os.lowercase()
+            val osColor = when {
+                osLower.contains("ubuntu")  -> "#E95420"
+                osLower.contains("debian")  -> "#A80030"
+                osLower.contains("centos")  -> "#932279"
+                osLower.contains("fedora")  -> "#3C6EB4"
+                osLower.contains("alpine")  -> "#0D597F"
+                osLower.contains("arch")    -> "#1793D1"
+                osLower.contains("freebsd") -> "#AB2B28"
+                osLower.contains("windows") -> "#00A4EF"
+                else                        -> "#AAAAAA"
+            }
+            msg = if (os.isNotEmpty())
+                "<b><font color=\"#4FC3F7\">Server version:</font></b> " +
+                "<font color=\"#FFFFFF\">$version</font> " +
+                "<font color=\"$osColor\">($os)</font>"
+            else
+                "<b><font color=\"#4FC3F7\">Server version:</font></b> " +
+                "<font color=\"#FFFFFF\">$version</font>"
         }
         msg = msg.replace(Regex("""/data/app/[^/]+/[^/]+/lib/[^/]+/"""), "lib/")
         msg = msg.replace(Regex("""/data/user/0/[^\s/]+/"""), "data/")

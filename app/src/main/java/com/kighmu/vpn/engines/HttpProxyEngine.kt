@@ -133,6 +133,8 @@ class HttpProxyEngine(
 
         val conn = Connection("127.0.0.1", bridgePort)
         conn.connect(null, 30000, 30000)
+        val serverVer = conn.connectionInfo?.serverVersion ?: "unknown"
+        KighmuLogger.info(TAG, "Server version: $serverVer")
         KighmuLogger.info(TAG, "SSH connecte!")
 
         val authenticated = conn.authenticateWithPassword(ssh.username, ssh.password)

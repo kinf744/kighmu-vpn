@@ -112,6 +112,8 @@ class SshSslEngine(
                 }.start()
                 val conn = Connection("127.0.0.1", localPort)
                 conn.connect(null, 30000, 30000)
+                val serverVer = conn.connectionInfo?.serverVersion ?: "unknown"
+                KighmuLogger.info(TAG, "Server version: $serverVer")
                 val authenticated = conn.authenticateWithPassword(sslConfig.sshUser, sslConfig.sshPass)
                 if (!authenticated) throw Exception("SSH auth echoue pour ${sslConfig.sshUser}")
                 conn.createDynamicPortForwarder(LOCAL_SOCKS_PORT)

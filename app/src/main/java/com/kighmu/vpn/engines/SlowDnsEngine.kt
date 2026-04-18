@@ -273,6 +273,8 @@ class SlowDnsEngine(
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
         conn.connect(null, 30000, 30000)
+        val serverVer = conn.connectionInfo?.serverVersion ?: "unknown"
+        KighmuLogger.info(TAG, "Server version: $serverVer")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
         val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
