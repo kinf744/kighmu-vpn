@@ -301,27 +301,50 @@ class XrayEngine(
         // Normaliser le port SOCKS et nettoyer geoip/geosite via JSON parsing
         try {
             val obj = org.json.JSONObject(jsonConfig)
-            // Forcer le port SOCKS à LOCAL_SOCKS_PORT (10808) et s'assurer qu'il existe
+            // Nettoyer et normaliser les inbounds
             val inbounds = obj.optJSONArray("inbounds")
             var hasSocks = false
+            val cleanedInbounds = org.json.JSONArray()
             if (inbounds != null) {
                 for (i in 0 until inbounds.length()) {
                     val inbound = inbounds.getJSONObject(i)
-                    if (inbound.optString("protocol") == "socks") {
-                        inbound.put("port", LOCAL_SOCKS_PORT)
+                    val proto = inbound.optString("protocol")
+                    val listenAddr = inbound.optString("listen", "127.0.0.1")
+                    val inPort = inbound.optString("port", "0").toIntOrNull() ?: 0
+                    // dokodemo-door : forcer listen 127.0.0.1 et port string->int
+                    if (proto == "dokodemo-door") {
                         inbound.put("listen", "127.0.0.1")
-                        hasSocks = true
-                        KighmuLogger.info(TAG, "SOCKS inbound port forcé à $LOCAL_SOCKS_PORT")
+                        if (inPort > 0) inbound.put("port", inPort)
+                        KighmuLogger.info(TAG, "dokodemo-door normalisé port=$inPort")
                     }
+                    if (listenAddr == "0.0.0.0") {
+                        inbound.put("listen", "127.0.0.1")
+                        KighmuLogger.info(TAG, "listen 0.0.0.0 → 127.0.0.1 (port=$inPort)")
+                    }
+                    if (proto == "socks") {
+                        // Accepter port SOCKS dans la plage 10800-10810, sinon forcer LOCAL_SOCKS_PORT
+                        if (inPort in 10800..10810) {
+                            _socksPort = inPort
+                            inbound.put("listen", "127.0.0.1")
+                            KighmuLogger.info(TAG, "SOCKS inbound existant accepté port=$inPort")
+                        } else {
+                            inbound.put("port", LOCAL_SOCKS_PORT)
+                            inbound.put("listen", "127.0.0.1")
+                            KighmuLogger.info(TAG, "SOCKS inbound port forcé à $LOCAL_SOCKS_PORT")
+                        }
+                        hasSocks = true
+                    }
+                    cleanedInbounds.put(inbound)
                 }
+                obj.put("inbounds", cleanedInbounds)
                 if (!hasSocks) {
                     val socksInbound = org.json.JSONObject()
                     socksInbound.put("listen", "127.0.0.1")
                     socksInbound.put("port", LOCAL_SOCKS_PORT)
                     socksInbound.put("protocol", "socks")
                     socksInbound.put("settings", org.json.JSONObject().put("udp", true))
-                    inbounds.put(socksInbound)
-                    obj.put("inbounds", inbounds)
+                    cleanedInbounds.put(socksInbound)
+                    obj.put("inbounds", cleanedInbounds)
                     KighmuLogger.info(TAG, "SOCKS inbound ajouté sur port $LOCAL_SOCKS_PORT")
                 }
             }
