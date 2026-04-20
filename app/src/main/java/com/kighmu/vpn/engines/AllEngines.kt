@@ -635,11 +635,14 @@ class XrayEngine(
         _socksPort = 0
         dnsttProxyPort = 0
         
+        // Arrêter HevTun2Socks proprement avant le prochain démarrage
+        try { com.kighmu.vpn.engines.HevTun2Socks.stop() } catch (_: Exception) {}
+
         // Commande de secours pour libérer le port SOCKS si nécessaire
         try {
             Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k 10808/tcp")).waitFor()
         } catch (_: Exception) {}
-        
+
         engineScope.cancel()
     }
 
