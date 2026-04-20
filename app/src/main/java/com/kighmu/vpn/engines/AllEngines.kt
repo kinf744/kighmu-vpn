@@ -197,7 +197,7 @@ class SshSslEngine(
                 // On récupère le VpnService depuis le contexte si possible, ou on utilise le relay Kotlin en fallback
                 val vpnService = context as? android.net.VpnService
                 if (vpnService != null) {
-                    HevTun2Socks.start(context, fd, LOCAL_SOCKS_PORT, vpnService, mtu = 1500)
+                    HevTun2Socks.start(context, fd, LOCAL_SOCKS_PORT, vpnService, mtu = 8500)
                     KighmuLogger.info(TAG, "HevTun2Socks démarré avec succès ✅")
                 } else {
                     KighmuLogger.error(TAG, "Contexte n'est pas un VpnService, fallback impossible")
@@ -426,9 +426,9 @@ class XrayEngine(
         }
 
         val outbound = when (xc.protocol) {
-            "vmess" -> """{ "protocol": "vmess", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }] }, $streamSettings, "mux": { "enabled": true, "concurrency": 8 } }"""
-            "vless" -> """{ "protocol": "vless", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }] }, $streamSettings, "mux": { "enabled": true, "concurrency": 8 } }"""
-            "trojan" -> """{ "protocol": "trojan", "settings": { "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }] }, $streamSettings, "mux": { "enabled": true, "concurrency": 8 } }"""
+            "vmess" -> """{ "protocol": "vmess", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "alterId": 0, "security": "${xc.encryption}" }] }] }, $streamSettings, "mux": { "enabled": false } }"""
+            "vless" -> """{ "protocol": "vless", "settings": { "vnext": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "users": [{ "id": "${xc.uuid}", "encryption": "none" }] }] }, $streamSettings, "mux": { "enabled": false } }"""
+            "trojan" -> """{ "protocol": "trojan", "settings": { "servers": [{ "address": "${xc.serverAddress}", "port": ${xc.serverPort}, "password": "${xc.uuid}" }] }, $streamSettings, "mux": { "enabled": false } }"""
             else -> """{ "protocol": "${xc.protocol}", "settings": {} }"""
         }
 
@@ -439,12 +439,12 @@ class XrayEngine(
                     "port": $LOCAL_SOCKS_PORT, 
                     "protocol": "socks", 
                     "settings": { "udp": true, "auth": "noauth" },
-                    "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+                    "sniffing": { "enabled": false }
                 },
                 { 
                     "port": $LOCAL_HTTP_PORT, 
                     "protocol": "http",
-                    "sniffing": { "enabled": true, "destOverride": ["http", "tls"] }
+                    "sniffing": { "enabled": false }
                 }
             ]
         """.trimIndent()
@@ -453,7 +453,7 @@ class XrayEngine(
             "log": { "loglevel": "warning" }, 
             "inbounds": $inbounds, 
             "outbounds": [$outbound, { "protocol": "freedom", "tag": "direct" }], 
-            "routing": { "domainStrategy": "AsIs", "rules": [{ "type": "field", "outboundTag": "direct", "domain": ["geosite:google"] }] } 
+            "routing": { "domainStrategy": "IPIfNonMatch", "rules": [{ "type": "field", "outboundTag": "direct", "domain": ["geosite:google"] }] } 
         }"""
     }
 
@@ -569,9 +569,29 @@ class XrayEngine(
         KighmuLogger.info(TAG, "XrayEngine startTun2Socks fd=$fd port=$targetPort")
         engineScope.launch(Dispatchers.IO) {
             try {
-                // 1. Priorité 1 : Tun2Socks JNI (Standard SSH SlowDNS)
+                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 8500, pas de udpgw)
+                com.kighmu.vpn.engines.HevTun2Socks.init()
+                if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
+                    KighmuLogger.info(TAG, "Utilisation de HevTun2Socks fd=$fd port=$targetPort")
+                    val t = Thread {
+                        try {
+                            vpnService?.let {
+                                com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, 8500)
+                            }
+                            KighmuLogger.info(TAG, "HevTun2Socks démarré ✅")
+                        } catch (e: Exception) {
+                            KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
+                        }
+                    }
+                    t.isDaemon = true
+                    t.start()
+                    KighmuLogger.info(TAG, "fd $fd routé via HevTun2Socks")
+                    return@launch
+                }
+
+                // 2. Fallback : Tun2Socks JNI (UDP limité, requiert udpgw:7300)
                 if (com.kighmu.vpn.engines.Tun2Socks.isAvailable) {
-                    KighmuLogger.info(TAG, "Utilisation de Tun2Socks JNI (Standard SSH) fd=$fd port=$targetPort")
+                    KighmuLogger.warning(TAG, "HevTun2Socks indisponible - fallback Tun2Socks JNI")
                     val t = Thread {
                         val result = com.kighmu.vpn.engines.Tun2Socks.runTun2Socks(
                             fd, 1500, "10.0.0.2", "255.255.255.0",
@@ -587,27 +607,8 @@ class XrayEngine(
                     return@launch
                 }
 
-                // 2. Priorité 2 : HevTun2Socks JNI (Fallback JNI)
-                com.kighmu.vpn.engines.HevTun2Socks.init()
-                if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable) {
-                    KighmuLogger.info(TAG, "Utilisation de HevTun2Socks JNI fd=$fd port=$targetPort")
-                    val t = Thread {
-                        try {
-
-                            vpnService?.let { com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, it, 1500) } // vpnService.protect(fd) a été supprimé de HevTun2Socks.kt
-                            KighmuLogger.info(TAG, "HevTun2Socks JNI démarré")
-                        } catch (e: Exception) {
-                            KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")
-                        }
-                    }
-                    t.isDaemon = true
-                    t.start()
-                    KighmuLogger.info(TAG, "fd $fd routé via HevTun2Socks JNI")
-                    return@launch
-                }
-
-                // 3. Fallback : Relay Kotlin (Dernier recours)
-                KighmuLogger.warning(TAG, "Aucun moteur JNI disponible - Utilisation du Relay Kotlin")
+                // 3. Dernier recours : Relay Kotlin
+                KighmuLogger.warning(TAG, "Aucun moteur JNI disponible - Relay Kotlin")
                 val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                 val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
                 relay.start()
