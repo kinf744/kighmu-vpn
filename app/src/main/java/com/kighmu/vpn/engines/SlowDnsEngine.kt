@@ -128,9 +128,26 @@ class SlowDnsEngine(
                 // Forcer l'initialisation du JNI si nécessaire
                 try { com.kighmu.vpn.engines.HevTun2Socks.init() } catch (_: Exception) {}
 
+                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 8500, pas de udpgw)
+                if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && vpnService != null) {
+                    KighmuLogger.info(TAG, "HevTun2Socks fd=$fd port=$targetPort")
+                    val t = Thread {
+                        try {
+                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, 8500)
+                            KighmuLogger.info(TAG, "HevTun2Socks démarré ✅")
+                        } catch (e: Exception) {
+                            KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
+                        }
+                    }
+                    t.isDaemon = true
+                    t.start()
+                    KighmuLogger.info(TAG, "fd $fd routé via HevTun2Socks")
+                    return@launch
+                }
+
+                // 2. Fallback : Tun2Socks JNI (UDP limité, requiert udpgw:7300)
                 if (Tun2Socks.isAvailable) {
-                    // Utiliser tun2socks JNI SSH Custom (plus rapide)
-                    KighmuLogger.info(TAG, "tun2socks JNI SSC fd=$fd port=$targetPort")
+                    KighmuLogger.warning(TAG, "HevTun2Socks indisponible - fallback Tun2Socks JNI")
                     val t = Thread {
                         val result = Tun2Socks.runTun2Socks(
                             fd, MTU, "10.0.0.2", "255.255.255.0",
@@ -142,32 +159,16 @@ class SlowDnsEngine(
                     t.isDaemon = true
                     t.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, _ -> }
                     t.start()
-                    KighmuLogger.info(TAG, "fd $fd envoye via JNI")
+                    KighmuLogger.info(TAG, "fd $fd routé via Tun2Socks JNI")
                     return@launch
-                } else if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && vpnService != null) {
-                    // Utiliser hev-socks5-tunnel JNI (fallback rapide)
-                    KighmuLogger.info(TAG, "hev tun2socks JNI fd=$fd port=$targetPort")
-                    val t = Thread {
-                        try {
-                            vpnService.protect(fd)
-                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, MTU)
-                            KighmuLogger.info(TAG, "hev tun2socks JNI terminé")
-                        } catch (e: Exception) {
-                            KighmuLogger.error(TAG, "Erreur HevTun2Socks JNI: ${e.message}")
-                        }
-                    }
-                    t.isDaemon = true
-                    t.start()
-                    KighmuLogger.info(TAG, "hev fd $fd démarré via JNI")
-                    return@launch
-                } else {
-                    // Fallback de secours: Relay Kotlin pur (si vpnService null ou JNI indisponible)
-                    KighmuLogger.info(TAG, "Fallback: Démarrage tunnel via Relay Kotlin (port=$targetPort, vpnService=${vpnService != null})")
-                    val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                    val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
-                    relay.start()
-                    KighmuLogger.info(TAG, "Relay Kotlin démarré ✓")
                 }
+
+                // 3. Dernier recours : Relay Kotlin
+                KighmuLogger.info(TAG, "Fallback Relay Kotlin (port=$targetPort)")
+                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
+                relay.start()
+                KighmuLogger.info(TAG, "Relay Kotlin démarré ✓")
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
             }
@@ -337,6 +338,7 @@ class SlowDnsEngine(
 
     override suspend fun stop() {
         running = false
+        try { com.kighmu.vpn.engines.HevTun2Socks.stop() } catch (_: Exception) {}
         try { if (Tun2Socks.isAvailable) Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
         tun2socksProcess = null

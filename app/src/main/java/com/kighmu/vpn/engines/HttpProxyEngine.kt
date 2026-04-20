@@ -30,7 +30,7 @@ class HttpProxyEngine(
         return _socksPort
     }
 
-    private val MTU = 1500
+    private val MTU = 8500
     private var running = false
     private var sshConnection: Connection? = null
     private var proxySocket: Socket? = null

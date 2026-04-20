@@ -167,7 +167,7 @@ class HysteriaEngine(
             log("Démarrage HevTun2Socks (Principe Build #736) fd=$fd port=$socksPort")
             HevTun2Socks.init()
             if (HevTun2Socks.isAvailable) {
-                HevTun2Socks.start(context, fd, socksPort, vpnService, mtu = 1500)
+                HevTun2Socks.start(context, fd, socksPort, vpnService, mtu = 8500)
                 log("HevTun2Socks démarré avec succès ✅")
             } else {
                 log("ERREUR: HevTun2Socks non disponible (libtun2socks.so non chargée)")
