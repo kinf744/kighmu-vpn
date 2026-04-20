@@ -501,7 +501,14 @@ class XrayEngine(
                 && !lineLower.contains("deprecated")
                 && !lineLower.contains("common/errors")
                 && !lineLower.contains("will be removed")
-                && !lineLower.contains("please") ->
+                && !lineLower.contains("please")
+                && !lineLower.contains("read/write on closed pipe")
+                && !lineLower.contains("io: read")
+                && !lineLower.contains("failed to dial")
+                && !lineLower.contains("connection reset")
+                && !lineLower.contains("broken pipe")
+                && !lineLower.contains("use of closed")
+                && !lineLower.contains("EOF") ->
                     KighmuLogger.error(TAG, "Xray erreur: ${line.take(150)}")
                 // Ignorer : warnings dépréciations, timestamps, INFO verbeux
             }
