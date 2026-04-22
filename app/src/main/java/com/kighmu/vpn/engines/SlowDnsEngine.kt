@@ -151,7 +151,7 @@ class SlowDnsEngine(
 
                 // 2. Fallback : Tun2Socks JNI (UDP limité, requiert udpgw:7300)
                 if (Tun2Socks.isAvailable) {
-                    KighmuLogger.warning(TAG, "HevTun2Socks indisponible - fallback Tun2Socks JNI")
+                    KighmuLogger.warning(TAG, "HevTun2Socks indisponible - fallback Tun2Socks JNI (available=${Tun2Socks.isAvailable})")
                     val t = Thread {
                         val result = Tun2Socks.runTun2Socks(
                             fd, MTU, "10.0.0.2", "255.255.255.0",
@@ -168,7 +168,7 @@ class SlowDnsEngine(
                 }
 
                 // 3. Dernier recours : Relay Kotlin
-                KighmuLogger.info(TAG, "Fallback Relay Kotlin (port=$targetPort)")
+                KighmuLogger.warning(TAG, "HevTun2Socks=false Tun2Socks=false → Relay Kotlin port=$targetPort ⚠️")
                 val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
                 val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
                 relay.start()
