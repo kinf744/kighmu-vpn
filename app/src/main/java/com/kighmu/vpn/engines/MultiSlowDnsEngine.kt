@@ -17,7 +17,7 @@ class MultiSlowDnsEngine(
 
     companion object {
         const val TAG = "MultiSlowDnsEngine"
-        const val SESSION_TIMEOUT_MS = 30000L  // 30s max par session
+        const val SESSION_TIMEOUT_MS = 3000L  // 3s max par tentative
     }
 
     private val engines = mutableListOf<SlowDnsEngine>()
@@ -65,7 +65,7 @@ class MultiSlowDnsEngine(
         val totalFlux = selected.sumOf { it.tunnelCount.coerceIn(1, 4) }
         KighmuLogger.info(TAG, "=== STEP 1: Connexion séquentielle $totalFlux flux (${selected.size} profil(s)) ===")
 
-        // STEP 1 : Lancer les sessions séquentiellement - N flux par profil
+        // STEP 1 : Connexion séquentielle avec retry agressif par session
         val results = mutableListOf<Pair<Int, Int>>()
         var globalIdx = 0
         selected.forEach { profile ->
@@ -74,18 +74,40 @@ class MultiSlowDnsEngine(
             repeat(count) { fluxIdx ->
                 val sessionLabel = "${profile.profileName}[${fluxIdx+1}/$count]"
                 KighmuLogger.info(TAG, "Session[${globalIdx+1}/$totalFlux] démarrage: $sessionLabel")
-                val engine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
-                synchronized(engines) { engines.add(engine) }
-                val port = try {
-                    withTimeoutOrNull(SESSION_TIMEOUT_MS) { engine.start() } ?: -1
-                } catch (e: Exception) {
-                    KighmuLogger.error(TAG, "Session[${globalIdx+1}] FAILED: ${e.message}")
-                    -1
+                // Retry agressif : nouvel engine à chaque tentative (ports propres)
+                // La session DOIT se connecter avant de passer à la suivante
+                val MAX_RETRIES = 20
+                val RETRY_DELAY_MS = 1500L
+                var port = -1
+                var attempt = 0
+                var activeEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
+                synchronized(engines) { engines.add(activeEngine) }
+                while (attempt < MAX_RETRIES && port <= 0) {
+                    attempt++
+                    if (attempt > 1) {
+                        KighmuLogger.warning(TAG, "Session[${globalIdx+1}] retry $attempt/$MAX_RETRIES dans ${RETRY_DELAY_MS}ms...")
+                        // Détruire l'engine mort et en créer un neuf avec ports frais
+                        try { activeEngine.stop() } catch (_: Exception) {}
+                        delay(RETRY_DELAY_MS)
+                        activeEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
+                        synchronized(engines) {
+                            engines.removeLastOrNull()
+                            engines.add(activeEngine)
+                        }
+                    }
+                    port = try {
+                        KighmuLogger.info(TAG, "Session[${globalIdx+1}] tentative $attempt/$MAX_RETRIES: $sessionLabel")
+                        withTimeoutOrNull(SESSION_TIMEOUT_MS) { activeEngine.start() } ?: -1
+                    } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "Session[${globalIdx+1}] tentative $attempt FAILED: ${e.message}")
+                        -1
+                    }
                 }
+
                 if (port > 0) {
-                    KighmuLogger.info(TAG, "Session[${globalIdx+1}] CONNECTÉE ✓ port=$port flux=$sessionLabel")
+                    KighmuLogger.info(TAG, "Session[${globalIdx+1}] CONNECTÉE ✓ port=$port (tentative $attempt) flux=$sessionLabel")
                 } else {
-                    KighmuLogger.error(TAG, "Session[${globalIdx+1}] ÉCHEC ✗ flux=$sessionLabel")
+                    KighmuLogger.error(TAG, "Session[${globalIdx+1}] ABANDON après $MAX_RETRIES tentatives ✗ flux=$sessionLabel")
                 }
                 results.add(Pair(globalIdx, port))
                 globalIdx++

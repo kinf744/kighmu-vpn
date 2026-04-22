@@ -91,7 +91,7 @@ class SlowDnsEngine(
         // Attendre que dnstt soit pret (max 15s, check toutes les 200ms)
         KighmuLogger.info(TAG, "Attente dnstt pret...")
         var waited = 0
-        while (waited < 15000) {
+        while (waited < 8000) {
             delay(200)
             waited += 200
             try {
@@ -193,7 +193,7 @@ class SlowDnsEngine(
         startDnsttProcess(dnsttBin)
         // Attendre que dnstt ouvre le listener TCP
         KighmuLogger.info(TAG, "Attente dnstt pret...")
-        delay(3000)
+        delay(1000)
         // Vérifier que dnstt est toujours vivant
         if (dnsttProcess?.isAlive == false) throw Exception("dnstt mort au démarrage")
         KighmuLogger.info(TAG, "DNS tunnel prêt ✓")
@@ -253,7 +253,7 @@ class SlowDnsEngine(
             }
         }.start()
 
-        Thread.sleep(2000)
+        Thread.sleep(500)
         try {
             val exitVal = process.exitValue()
             throw Exception("dnstt crashed (exit=$exitVal)")
@@ -308,7 +308,7 @@ class SlowDnsEngine(
         conn.setCompression(true)
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 30000, 30000)
+        conn.connect(null, 5000, 5000)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
