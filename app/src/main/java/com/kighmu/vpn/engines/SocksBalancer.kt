@@ -66,30 +66,50 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
         return current[idx]
     }
 
+    private fun connectToPort(targetPort: Int): Socket {
+        val server = Socket()
+        try { vpnService?.protect(server) } catch (_: Exception) {}
+        server.connect(InetSocketAddress("127.0.0.1", targetPort), 2000)
+        return server
+    }
+
     private fun relay(client: Socket, targetPort: Int) {
         try {
             client.soTimeout = 30000
             client.setPerformancePreferences(0, 0, 1) // optimiser débit
             client.receiveBufferSize = 65536
             client.sendBufferSize = 65536
-            val server = Socket()
-            // Protéger contre boucle VPN avant connect
-            try { vpnService?.protect(server) } catch (_: Exception) {}
-            server.connect(InetSocketAddress("127.0.0.1", targetPort), 5000)
-            server.soTimeout = 30000
-            server.receiveBufferSize = 65536
-            server.sendBufferSize = 65536
-            server.setPerformancePreferences(0, 0, 1)
+
+            // Essayer targetPort, puis fallback sur les autres ports actifs
+            var server: Socket? = null
+            val ports = activePorts.toList()
+            val candidates = listOf(targetPort) + ports.filter { it != targetPort }
+            for (port in candidates) {
+                try {
+                    server = connectToPort(port)
+                    if (port != targetPort) KighmuLogger.info(TAG, "Fallback port $targetPort → $port")
+                    break
+                } catch (_: Exception) {}
+            }
+            if (server == null) {
+                try { client.close() } catch (_: Exception) {}
+                return
+            }
+            val s = server!!
+            s.soTimeout = 30000
+            s.receiveBufferSize = 65536
+            s.sendBufferSize = 65536
+            s.setPerformancePreferences(0, 0, 1)
 
             val clientIn = client.getInputStream()
             val clientOut = client.getOutputStream()
-            val serverIn = server.getInputStream()
-            val serverOut = server.getOutputStream()
+            val serverIn = s.getInputStream()
+            val serverOut = s.getOutputStream()
 
             Thread { try { pipe(clientIn, serverOut) } catch (_: Exception) {} }.start()
             try { pipe(serverIn, clientOut) } catch (_: Exception) {}
             try { client.close() } catch (_: Exception) {}
-            try { server.close() } catch (_: Exception) {}
+            try { s.close() } catch (_: Exception) {}
 
         } catch (e: Exception) {
             // Ne pas logger les erreurs de connexion refusée (trop verbeux et "sale")
