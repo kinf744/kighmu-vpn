@@ -292,7 +292,7 @@ class SlowDnsEngine(
                 val realSock = java.net.Socket("127.0.0.1", dnsttPort)
                 // Protéger le socket dnstt contre le tunnel VPN
                 try { vpnService?.protect(realSock) } catch (_: Exception) {}
-                realSock.soTimeout = 5000
+                realSock.soTimeout = 0 // pas de timeout: bridge doit vivre tant que SSH vit
                 val realIn = realSock.getInputStream()
                 val bannerBytes = StringBuilder()
                 var b: Int
@@ -304,6 +304,8 @@ class SlowDnsEngine(
                 val trileadOut = trileadSock.getOutputStream()
                 trileadOut.write(bannerBytes.toString().toByteArray())
                 trileadOut.flush()
+                try { realSock.tcpNoDelay = true } catch (_: Exception) {}
+                try { trileadSock.tcpNoDelay = true } catch (_: Exception) {}
                 val t1 = Thread { try { realIn.copyTo(trileadSock.getOutputStream()) } catch (_: Exception) {} }
                 val t2 = Thread { try { trileadSock.getInputStream().copyTo(realSock.getOutputStream()) } catch (_: Exception) {} }
                 t1.isDaemon = true; t2.isDaemon = true
@@ -320,7 +322,7 @@ class SlowDnsEngine(
         conn.setCompression(true)
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 800, 5000)
+        conn.connect(null, 3000, 8000)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
