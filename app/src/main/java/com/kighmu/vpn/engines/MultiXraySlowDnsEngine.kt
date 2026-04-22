@@ -166,7 +166,7 @@ class MultiXraySlowDnsEngine(
         }
 
         // Balancer sur tous les ports SOCKS Xray
-        val balancer = SocksBalancer(xraySocksPorts)
+        val balancer = SocksBalancer(xraySocksPorts, vpnService)
         balancer.start()
         socksBalancer = balancer
         activePorts = xraySocksPorts

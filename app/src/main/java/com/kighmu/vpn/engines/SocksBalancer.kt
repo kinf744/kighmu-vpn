@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * Ecoute sur un port local et distribue les connexions en round-robin
  * sur tous les ports SOCKS actifs (10800, 10801, 10802...)
  */
-class SocksBalancer(initialPorts: List<Int>) {
+class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net.VpnService? = null) {
 
     companion object {
         const val TAG = "SocksBalancer"
@@ -73,6 +73,8 @@ class SocksBalancer(initialPorts: List<Int>) {
             client.receiveBufferSize = 65536
             client.sendBufferSize = 65536
             val server = Socket()
+            // Protéger contre boucle VPN avant connect
+            try { vpnService?.protect(server) } catch (_: Exception) {}
             server.connect(InetSocketAddress("127.0.0.1", targetPort), 5000)
             server.soTimeout = 30000
             server.receiveBufferSize = 65536

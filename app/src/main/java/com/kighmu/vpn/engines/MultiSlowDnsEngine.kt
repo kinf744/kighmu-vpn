@@ -127,7 +127,7 @@ class MultiSlowDnsEngine(
         val connectedPorts = successPorts.ifEmpty { listOf(SlowDnsEngine.BASE_SOCKS_PORT) }
 
         KighmuLogger.info(TAG, "Ports SOCKS actifs: $connectedPorts")
-        val balancer = SocksBalancer(connectedPorts)
+        val balancer = SocksBalancer(connectedPorts, vpnService)
         balancer.start()
         socksBalancer = balancer
         activePort = SocksBalancer.BALANCER_PORT
