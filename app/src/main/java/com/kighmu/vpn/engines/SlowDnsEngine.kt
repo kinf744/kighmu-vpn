@@ -325,9 +325,8 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "SSH authentifié ✓")
 
         // ── SOCKS5 proxy local port libre garanti ───────────────────────────
-        val socksServer = java.net.ServerSocket(0)
-        _socksPort = socksServer.localPort
-        socksServer.close()
+        // Utiliser le port déjà calculé dans socksPort getter (évite race condition)
+        if (_socksPort == 0) _socksPort = findFreePort(10800 + profileIndex)
         conn.createDynamicPortForwarder(_socksPort)
         KighmuLogger.info(TAG, "SOCKS5 actif sur port $_socksPort ✓")
 
