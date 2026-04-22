@@ -24,6 +24,9 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private var running = false
     private val counter = AtomicInteger(0)
     @Volatile private var activePorts: List<Int> = initialPorts
+    private val totalConnections = AtomicInteger(0)
+    private val successConnections = AtomicInteger(0)
+    private val failedConnections = AtomicInteger(0)
 
     fun start() {
         running = true
@@ -36,6 +39,10 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             while (running) {
                 try {
                     val client = serverSocket?.accept() ?: break
+                    val total = totalConnections.incrementAndGet()
+                    if (total % 10 == 0 || total <= 5) {
+                        KighmuLogger.info(TAG, "Balancer stats: total=$total ok=${successConnections.get()} fail=${failedConnections.get()} ports=$activePorts")
+                    }
                     val targetPort = nextPort()
                     Thread { relay(client, targetPort) }.start()
                 } catch (e: Exception) {
@@ -96,10 +103,12 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
                 } catch (_: Exception) {}
             }
             if (server == null) {
-                KighmuLogger.error(TAG, "Tous les ports SOCKS inaccessibles ❌ ports=$ports")
+                failedConnections.incrementAndGet()
+                KighmuLogger.error(TAG, "Tous les ports SOCKS inaccessibles ❌ ports=$ports total_fail=${failedConnections.get()}")
                 try { client.close() } catch (_: Exception) {}
                 return
             }
+            successConnections.incrementAndGet()
             val s = server!!
             s.soTimeout = 30000
             s.receiveBufferSize = 65536
