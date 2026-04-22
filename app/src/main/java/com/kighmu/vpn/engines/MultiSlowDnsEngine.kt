@@ -193,6 +193,7 @@ class MultiSlowDnsEngine(
         val tunnelCount = engines.count { it.isRunning() }
         KighmuLogger.info(TAG, "tun2socks → Balancer:$balancerPort ($tunnelCount tunnels actifs)")
         try {
+            try { HevTun2Socks.stop() } catch (_: Exception) {}
             try { HevTun2Socks.init() } catch (_: Exception) {}
             if (HevTun2Socks.isAvailable && vpnService != null) {
                 val activePorts = engines.filter { it.isRunning() }.mapNotNull { it.getSocksPort() }
