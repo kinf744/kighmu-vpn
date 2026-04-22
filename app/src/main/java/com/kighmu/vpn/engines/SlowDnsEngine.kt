@@ -283,7 +283,11 @@ class SlowDnsEngine(
                 bannerLatch.countDown()
                 val trileadSock = proxyServer.accept()
                 proxyServer.close()
+                // Protéger le socket trilead contre le tunnel VPN
+                try { vpnService?.protect(trileadSock) } catch (_: Exception) {}
                 val realSock = java.net.Socket("127.0.0.1", dnsttPort)
+                // Protéger le socket dnstt contre le tunnel VPN
+                try { vpnService?.protect(realSock) } catch (_: Exception) {}
                 realSock.soTimeout = 5000
                 val realIn = realSock.getInputStream()
                 val bannerBytes = StringBuilder()
