@@ -1,4 +1,6 @@
 #include <jni.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <android/log.h>
@@ -8,7 +10,6 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
 #if defined(__arm__) || defined(__i386__)
-// ── armeabi-v7a : libtun2socks.so est hev-socks5-tunnel ──────────────────────
 
 extern "C" {
     int  hev_socks5_tunnel_main_from_str(const char* config_str, int tun_fd);
@@ -77,7 +78,6 @@ Java_hev_htproxy_TProxyService_TProxyStopService(JNIEnv*, jclass) {
 }
 
 #else
-// ── arm64-v8a : libtun2socks.so est epro/tun2socks — stubs vides ─────────────
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -94,7 +94,6 @@ Java_hev_htproxy_TProxyService_TProxyStopService(JNIEnv*, jclass) {
 
 #endif
 
-// ── Commun aux deux ABI ───────────────────────────────────────────────────────
 extern "C"
 JNIEXPORT jlongArray JNICALL
 Java_hev_htproxy_TProxyService_TProxyGetStats(JNIEnv* env, jclass) {
