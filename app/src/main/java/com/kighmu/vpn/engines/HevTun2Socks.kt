@@ -14,8 +14,16 @@ object HevTun2Socks {
                 Class.forName("hev.htproxy.TProxyService")
                 hev.htproxy.TProxyService.load()
                 loaded = hev.htproxy.TProxyService.isAvailable
+                Log.i(TAG, "Init OK loaded=$loaded")
             } catch (e: Throwable) {
-                Log.e(TAG, "Init failed: ${e.message}")
+                Log.e(TAG, "Init failed: ${e.message} | cause: ${e.cause?.message}")
+                // Tentative directe sans Class.forName
+                try {
+                    System.loadLibrary("hev_jni")
+                    Log.i(TAG, "hev_jni chargé directement ✅")
+                } catch (e2: Throwable) {
+                    Log.e(TAG, "hev_jni direct load failed: ${e2.message}")
+                }
             }
         }
     }
