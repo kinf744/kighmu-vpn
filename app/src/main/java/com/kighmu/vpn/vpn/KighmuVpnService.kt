@@ -287,6 +287,10 @@ class KighmuVpnService : VpnService() {
 
                 try { tempVpn?.close() } catch (_: Exception) {}
 
+                // Fermer interface VPN precedente (evite tun1, tun2...)
+                try { vpnInterface?.close() } catch (_: Exception) {}
+                vpnInterface = null
+
                 updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
                 vpnInterface = buildVpnInterface(localPort)
                 if (vpnInterface == null) {
