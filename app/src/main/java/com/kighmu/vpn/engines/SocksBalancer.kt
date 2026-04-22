@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * Ecoute sur un port local et distribue les connexions en round-robin
  * sur tous les ports SOCKS actifs (10800, 10801, 10802...)
  */
-class SocksBalancer(private val ports: List<Int>) {
+class SocksBalancer(initialPorts: List<Int>) {
 
     companion object {
         const val TAG = "SocksBalancer"
@@ -23,13 +23,14 @@ class SocksBalancer(private val ports: List<Int>) {
     private var serverSocket: ServerSocket? = null
     private var running = false
     private val counter = AtomicInteger(0)
+    @Volatile private var activePorts: List<Int> = initialPorts
 
     fun start() {
         running = true
         val ss = ServerSocket(0)
         BALANCER_PORT = ss.localPort
         serverSocket = ss
-        KighmuLogger.info(TAG, "Balancer demarre sur port $BALANCER_PORT -> ports: $ports")
+        KighmuLogger.info(TAG, "Balancer demarre sur port $BALANCER_PORT -> ports: $activePorts")
 
         Thread {
             while (running) {
@@ -46,7 +47,9 @@ class SocksBalancer(private val ports: List<Int>) {
 
     fun updatePorts(newPorts: List<Int>) {
         if (newPorts.isNotEmpty()) {
-            KighmuLogger.info(TAG, "Balancer ports mis à jour: $newPorts")
+            activePorts = newPorts.toList()
+            counter.set(0)
+            KighmuLogger.info(TAG, "Balancer ports mis à jour: $activePorts")
         }
     }
 
@@ -57,8 +60,10 @@ class SocksBalancer(private val ports: List<Int>) {
     }
 
     private fun nextPort(): Int {
-        val idx = counter.getAndIncrement() % ports.size
-        return ports[idx]
+        val current = activePorts
+        if (current.isEmpty()) return 10800
+        val idx = counter.getAndIncrement() % current.size
+        return current[idx]
     }
 
     private fun relay(client: Socket, targetPort: Int) {

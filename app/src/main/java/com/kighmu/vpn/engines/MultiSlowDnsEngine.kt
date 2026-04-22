@@ -187,15 +187,32 @@ class MultiSlowDnsEngine(
             KighmuLogger.error(TAG, "Erreur protection FD: ${e.message}")
         }
         
-        // Utiliser le premier engine mais avec le port du balancer
+        // Démarrer tun2socks directement sur le port du balancer
         // Le balancer distribue le trafic sur tous les tunnels actifs
-        val firstConnected = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
-        if (firstConnected != null) {
-            KighmuLogger.info(TAG, "tun2socks → Balancer:${SocksBalancer.BALANCER_PORT} (${engines.count { it.isRunning() }} tunnels)")
-            // Passer le port du balancer à tun2socks via le premier engine
-            firstConnected.startTun2SocksOnPort(fd, SocksBalancer.BALANCER_PORT)
-        } else {
-            KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
+        val balancerPort = SocksBalancer.BALANCER_PORT
+        val tunnelCount = engines.count { it.isRunning() }
+        KighmuLogger.info(TAG, "tun2socks → Balancer:$balancerPort ($tunnelCount tunnels actifs)")
+        try {
+            try { HevTun2Socks.init() } catch (_: Exception) {}
+            if (HevTun2Socks.isAvailable && vpnService != null) {
+                val activePorts = engines.filter { it.isRunning() }.mapNotNull { it.getSocksPort() }
+                KighmuLogger.info(TAG, "HevTun2Socks multi-port: $activePorts via balancer:$balancerPort")
+                Thread {
+                    try {
+                        HevTun2Socks.start(context, fd, balancerPort, vpnService, 8500)
+                        KighmuLogger.info(TAG, "HevTun2Socks démarré ✅ port=$balancerPort")
+                    } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "HevTun2Socks erreur: ${e.message}")
+                    }
+                }.also { it.isDaemon = true }.start()
+            } else {
+                // Fallback: déléguer au premier engine
+                val firstEngine = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
+                firstEngine?.startTun2SocksOnPort(fd, balancerPort)
+                    ?: KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
+            }
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "startTun2Socks erreur: ${e.message}")
         }
     }
 
