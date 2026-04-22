@@ -87,11 +87,16 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             for (port in candidates) {
                 try {
                     server = connectToPort(port)
-                    if (port != targetPort) KighmuLogger.info(TAG, "Fallback port $targetPort → $port")
+                    if (port != targetPort) {
+                        KighmuLogger.warning(TAG, "Fallback port $targetPort → $port ⚠️")
+                    } else {
+                        KighmuLogger.info(TAG, "Relay OK → port $port ✅")
+                    }
                     break
                 } catch (_: Exception) {}
             }
             if (server == null) {
+                KighmuLogger.error(TAG, "Tous les ports SOCKS inaccessibles ❌ ports=$ports")
                 try { client.close() } catch (_: Exception) {}
                 return
             }
