@@ -327,7 +327,7 @@ class SlowDnsEngine(
         // ── SOCKS5 proxy local port libre garanti ───────────────────────────
         // Utiliser le port déjà calculé dans socksPort getter (évite race condition)
         if (_socksPort == 0) _socksPort = findFreePort(10800 + profileIndex)
-        conn.createDynamicPortForwarder("127.0.0.1", _socksPort, 5000)
+        conn.createDynamicPortForwarder(java.net.InetSocketAddress("127.0.0.1", _socksPort))
         KighmuLogger.info(TAG, "SOCKS5 actif sur port $_socksPort ✓")
 
         // ── Keep-alive toutes les 25s : évite les déconnexions silencieuses ─
