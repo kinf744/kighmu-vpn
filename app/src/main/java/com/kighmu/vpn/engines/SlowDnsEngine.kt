@@ -54,6 +54,8 @@ class SlowDnsEngine(
     private var running = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
+    private var relayPfd: android.os.ParcelFileDescriptor? = null
+    private var relayInstance: com.kighmu.vpn.vpn.Tun2SocksRelay? = null
     private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val dns get() = config.slowDns
     private val cleanPublicKey get() = config.slowDns.publicKey
@@ -169,9 +171,10 @@ class SlowDnsEngine(
 
                 // 3. Dernier recours : Relay Kotlin
                 KighmuLogger.warning(TAG, "HevTun2Socks=false Tun2Socks=false → Relay Kotlin port=$targetPort ⚠️")
-                val pfd = android.os.ParcelFileDescriptor.fromFd(fd)
-                val relay = com.kighmu.vpn.vpn.Tun2SocksRelay(pfd.fileDescriptor, "127.0.0.1", targetPort)
-                relay.start()
+                relayPfd?.close()
+                relayPfd = android.os.ParcelFileDescriptor.fromFd(fd)
+                relayInstance = com.kighmu.vpn.vpn.Tun2SocksRelay(relayPfd!!.fileDescriptor, "127.0.0.1", targetPort)
+                relayInstance!!.start()
                 KighmuLogger.info(TAG, "Relay Kotlin démarré ✓")
             } catch (e: Exception) {
                 KighmuLogger.error(TAG, "tun2socks error: ${e.message}")
@@ -369,6 +372,10 @@ class SlowDnsEngine(
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $dnsttPort/tcp 2>/dev/null")) } catch (_: Exception) {}
         
         dnsttProcess = null
+        try { relayInstance?.stop() } catch (_: Exception) {}
+        relayInstance = null
+        try { relayPfd?.close() } catch (_: Exception) {}
+        relayPfd = null
         engineScope.cancel()
         
         // Délai de grâce optimisé (500ms) pour libérer les sockets noyau sans ralentir l'UI
