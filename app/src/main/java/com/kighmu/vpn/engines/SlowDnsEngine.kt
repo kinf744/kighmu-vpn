@@ -353,7 +353,7 @@ class SlowDnsEngine(
 
     override suspend fun stop() {
         running = false
-        try { com.kighmu.vpn.engines.HevTun2Socks.stop() } catch (_: Exception) {}
+        // HevTun2Socks géré globalement par MultiSlowDnsEngine
         try { if (Tun2Socks.isAvailable) Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
         tun2socksProcess = null

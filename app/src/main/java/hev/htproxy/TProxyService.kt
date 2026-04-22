@@ -10,9 +10,12 @@ class TProxyService {
         fun load() {
             if (!loaded) {
                 try {
-                    System.loadLibrary("tun2socks")
+                    // hev_jni.cpp contient les wrappers JNI
+                    // qui appellent hev_socks5_tunnel_main_from_str
+                    // depuis libtun2socks.so (chargé automatiquement via linkage)
+                    System.loadLibrary("hev_jni")
                     loaded = true
-                    Log.i(TAG, "hev chargé ✅")
+                    Log.i(TAG, "hev_jni chargé ✅")
                 } catch (e: Throwable) {
                     Log.e(TAG, "Load failed: ${e.message}")
                 }
