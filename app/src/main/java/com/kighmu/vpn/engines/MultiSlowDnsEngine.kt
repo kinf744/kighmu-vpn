@@ -17,7 +17,7 @@ class MultiSlowDnsEngine(
 
     companion object {
         const val TAG = "MultiSlowDnsEngine"
-        const val SESSION_TIMEOUT_MS = 3000L  // 3s max par tentative
+        const val SESSION_TIMEOUT_MS = 1000L  // 1s max par tentative
     }
 
     private val engines = mutableListOf<SlowDnsEngine>()
@@ -76,8 +76,8 @@ class MultiSlowDnsEngine(
                 KighmuLogger.info(TAG, "Session[${globalIdx+1}/$totalFlux] démarrage: $sessionLabel")
                 // Retry agressif : nouvel engine à chaque tentative (ports propres)
                 // La session DOIT se connecter avant de passer à la suivante
-                val MAX_RETRIES = 20
-                val RETRY_DELAY_MS = 1500L
+                val MAX_RETRIES = 30
+                val RETRY_DELAY_MS = 800L
                 var port = -1
                 var attempt = 0
                 var activeEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
@@ -86,14 +86,9 @@ class MultiSlowDnsEngine(
                     attempt++
                     if (attempt > 1) {
                         KighmuLogger.warning(TAG, "Session[${globalIdx+1}] retry $attempt/$MAX_RETRIES dans ${RETRY_DELAY_MS}ms...")
-                        // Détruire l'engine mort et en créer un neuf avec ports frais
-                        try { activeEngine.stop() } catch (_: Exception) {}
+                        // Tuer seulement SSH, garder dnstt vivant pour retry rapide
+                        try { activeEngine.stopSshOnly() } catch (_: Exception) {}
                         delay(RETRY_DELAY_MS)
-                        activeEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
-                        synchronized(engines) {
-                            engines.removeLastOrNull()
-                            engines.add(activeEngine)
-                        }
                     }
                     port = try {
                         KighmuLogger.info(TAG, "Session[${globalIdx+1}] tentative $attempt/$MAX_RETRIES: $sessionLabel")

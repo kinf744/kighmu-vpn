@@ -85,26 +85,30 @@ class SlowDnsEngine(
         if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
         if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
 
-        val dnsttBin = extractDnsttBinary()
-        startDnsttProcess(dnsttBin)
+        // Phase 1 : démarrer dnstt seulement si pas déjà vivant
+        if (dnsttProcess == null || dnsttProcess?.isAlive == false) {
+            val dnsttBin = extractDnsttBinary()
+            startDnsttProcess(dnsttBin)
 
-        // Attendre que dnstt soit pret (max 15s, check toutes les 200ms)
-        KighmuLogger.info(TAG, "Attente dnstt pret...")
-        var waited = 0
-        while (waited < 8000) {
-            delay(200)
-            waited += 200
-            try {
-                val sock = java.net.Socket()
-                sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 100)
-                sock.close()
-                KighmuLogger.info(TAG, "dnstt pret en ${waited}ms")
-                break
-            } catch (_: Exception) {}
+            // Attendre que dnstt soit prêt (max 8s, check toutes les 200ms)
+            KighmuLogger.info(TAG, "Attente dnstt prêt...")
+            var waited = 0
+            while (waited < 8000) {
+                delay(200)
+                waited += 200
+                try {
+                    val sock = java.net.Socket()
+                    sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 100)
+                    sock.close()
+                    KighmuLogger.info(TAG, "dnstt prêt en ${waited}ms")
+                    break
+                } catch (_: Exception) {}
+            }
+        } else {
+            KighmuLogger.info(TAG, "dnstt déjà vivant - réutilisation ✓")
         }
 
-        // dnstt expose le flux SSH brut directement sur port 7000
-        // trilead se connecte directement a 127.0.0.1:7000
+        // Phase 2 : SSH uniquement (rapide, retry possible sans relancer dnstt)
         startSsh()
         KighmuLogger.info(TAG, "=== Tunnel SlowDNS actif ✓ ===")
 
@@ -308,7 +312,7 @@ class SlowDnsEngine(
         conn.setCompression(true)
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 5000, 5000)
+        conn.connect(null, 800, 800)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
@@ -334,6 +338,14 @@ class SlowDnsEngine(
         }
 
         sshConnection = conn
+    }
+
+    // Arrêter seulement SSH - garder dnstt vivant pour retry rapide
+    fun stopSshOnly() {
+        try { sshConnection?.close() } catch (_: Exception) {}
+        sshConnection = null
+        _socksPort = 0
+        KighmuLogger.info(TAG, "SSH fermé (dnstt conservé pour retry)")
     }
 
     override suspend fun stop() {
