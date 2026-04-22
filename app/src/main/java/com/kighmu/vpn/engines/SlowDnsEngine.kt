@@ -284,7 +284,7 @@ class SlowDnsEngine(
                 val trileadSock = proxyServer.accept()
                 proxyServer.close()
                 val realSock = java.net.Socket("127.0.0.1", dnsttPort)
-                realSock.soTimeout = 5000
+                realSock.soTimeout = 15000
                 val realIn = realSock.getInputStream()
                 val bannerBytes = StringBuilder()
                 var b: Int
@@ -312,7 +312,7 @@ class SlowDnsEngine(
         conn.setCompression(true)
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 800, 800)
+        conn.connect(null, 5000, 800)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 

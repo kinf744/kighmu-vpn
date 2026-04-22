@@ -17,7 +17,7 @@ class MultiSlowDnsEngine(
 
     companion object {
         const val TAG = "MultiSlowDnsEngine"
-        const val SESSION_TIMEOUT_MS = 1000L  // 1s max par tentative
+        const val SESSION_TIMEOUT_MS = 6000L  // 6s: kex SSH sur DNS peut prendre 3-5s
     }
 
     private val engines = mutableListOf<SlowDnsEngine>()
