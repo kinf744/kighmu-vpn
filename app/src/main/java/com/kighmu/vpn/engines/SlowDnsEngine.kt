@@ -336,20 +336,21 @@ class SlowDnsEngine(
 
         // ── Keep-alive toutes les 20s avec détection de mort ─────────────────
         engineScope.launch {
-            while (running) {
+            var keepAliveRunning = true
+            while (running && keepAliveRunning) {
                 delay(20_000)
-                if (!running) break
+                if (!running) { keepAliveRunning = false; continue }
                 try {
-                    withTimeoutOrNull(5_000) { conn.sendIgnorePacket() }
-                        ?: run {
-                            KighmuLogger.error(TAG, "Keep-alive timeout → tunnel mort, marquage sshAlive=false")
-                            sshAlive = false
-                            break
-                        }
+                    val ok = withTimeoutOrNull(5_000) { conn.sendIgnorePacket(); true } ?: false
+                    if (!ok) {
+                        KighmuLogger.error(TAG, "Keep-alive timeout → tunnel mort, marquage sshAlive=false")
+                        sshAlive = false
+                        keepAliveRunning = false
+                    }
                 } catch (e: Exception) {
                     KighmuLogger.error(TAG, "Keep-alive erreur → tunnel mort: ${e.message}")
                     sshAlive = false
-                    break
+                    keepAliveRunning = false
                 }
             }
         }
