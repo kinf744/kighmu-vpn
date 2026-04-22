@@ -312,7 +312,7 @@ class SlowDnsEngine(
         conn.setCompression(true)
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 5000, 800)
+        conn.connect(null, 800, 5000)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
