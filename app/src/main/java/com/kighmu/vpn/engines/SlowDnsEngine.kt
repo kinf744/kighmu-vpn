@@ -284,7 +284,7 @@ class SlowDnsEngine(
                 val trileadSock = proxyServer.accept()
                 proxyServer.close()
                 val realSock = java.net.Socket("127.0.0.1", dnsttPort)
-                realSock.soTimeout = 15000
+                realSock.soTimeout = 5000
                 val realIn = realSock.getInputStream()
                 val bannerBytes = StringBuilder()
                 var b: Int
