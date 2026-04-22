@@ -82,7 +82,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
 
     private fun relay(client: Socket, targetPort: Int) {
         try {
-            client.soTimeout = 30000
+            client.soTimeout = 8000
             client.setPerformancePreferences(0, 0, 1) // optimiser débit
             client.receiveBufferSize = 65536
             client.sendBufferSize = 65536
@@ -110,7 +110,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             }
             successConnections.incrementAndGet()
             val s = server!!
-            s.soTimeout = 30000
+            s.soTimeout = 8000
             s.receiveBufferSize = 65536
             s.sendBufferSize = 65536
             s.setPerformancePreferences(0, 0, 1)

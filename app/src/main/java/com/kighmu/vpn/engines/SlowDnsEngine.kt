@@ -52,6 +52,7 @@ class SlowDnsEngine(
         return java.net.ServerSocket(0).use { it.localPort }
     }
     private var running = false
+    @Volatile private var sshAlive = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
     private var relayPfd: android.os.ParcelFileDescriptor? = null
@@ -333,21 +334,33 @@ class SlowDnsEngine(
         conn.createDynamicPortForwarder(java.net.InetSocketAddress("127.0.0.1", _socksPort))
         KighmuLogger.info(TAG, "SOCKS5 actif sur port $_socksPort ✓")
 
-        // ── Keep-alive toutes les 25s : évite les déconnexions silencieuses ─
+        // ── Keep-alive toutes les 20s avec détection de mort ─────────────────
         engineScope.launch {
-            while (running && sshConnection?.isAuthenticationComplete == true) {
-                delay(25_000)
+            while (running) {
+                delay(20_000)
+                if (!running) break
                 try {
-                    conn.sendIgnorePacket()
-                } catch (_: Exception) { break }
+                    withTimeoutOrNull(5_000) { conn.sendIgnorePacket() }
+                        ?: run {
+                            KighmuLogger.error(TAG, "Keep-alive timeout → tunnel mort, marquage sshAlive=false")
+                            sshAlive = false
+                            break
+                        }
+                } catch (e: Exception) {
+                    KighmuLogger.error(TAG, "Keep-alive erreur → tunnel mort: ${e.message}")
+                    sshAlive = false
+                    break
+                }
             }
         }
 
         sshConnection = conn
+        sshAlive = true
     }
 
     // Arrêter seulement SSH - garder dnstt vivant pour retry rapide
     fun stopSshOnly() {
+        sshAlive = false
         try { sshConnection?.close() } catch (_: Exception) {}
         sshConnection = null
         _socksPort = 0
@@ -356,6 +369,7 @@ class SlowDnsEngine(
 
     override suspend fun stop() {
         running = false
+        sshAlive = false
         // HevTun2Socks géré globalement par MultiSlowDnsEngine
         try { if (Tun2Socks.isAvailable) Tun2Socks.terminateTun2Socks() } catch (_: Exception) {}
         try { tun2socksProcess?.destroyForcibly() } catch (_: Exception) {}
@@ -386,5 +400,5 @@ class SlowDnsEngine(
 
     override suspend fun sendData(data: ByteArray, length: Int) {}
     override suspend fun receiveData(): ByteArray? = null
-    override fun isRunning() = running && sshConnection?.isAuthenticationComplete == true
+    override fun isRunning() = running && sshAlive
 }

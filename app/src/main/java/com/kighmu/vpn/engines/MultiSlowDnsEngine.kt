@@ -202,31 +202,41 @@ class MultiSlowDnsEngine(
                 if (total > 0) {
                     KighmuLogger.info(TAG, "Sessions actives: $alive/$total")
                 }
-                if (alive == 0 && total > 0) {
-                    KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage...")
-                    // Redémarrer toutes les sessions
-                    try { start() } catch (e: Exception) {
-                        KighmuLogger.error(TAG, "Echec redémarrage sessions: ${e.message}")
-                    }
-                    break
-                }
-                // Redémarrer les sessions mortes individuellement
+                // Redémarrer les sessions mortes individuellement avec un nouvel engine
                 engines.forEachIndexed { idx, engine ->
-                    if (!engine.isRunning() && profiles.size > idx) {
-                        KighmuLogger.warning(TAG, "Session[$idx] morte - redémarrage...")
+                    if (!engine.isRunning() && isActive) {
+                        KighmuLogger.warning(TAG, "Session[$idx] morte - remplacement engine...")
                         scope.launch {
                             try {
-                                val port = engine.start()
+                                // Arrêter proprement l'ancien engine
+                                try { engine.stop() } catch (_: Exception) {}
+                                // Créer un nouvel engine avec un scope frais
+                                val profile = if (idx < profiles.size) profiles[idx] else return@launch
+                                val newEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, idx)
+                                synchronized(engines) { engines[idx] = newEngine }
+                                val port = withTimeoutOrNull(SESSION_TIMEOUT_MS * 5) { newEngine.start() } ?: -1
                                 if (port > 0) {
-                                    KighmuLogger.info(TAG, "Session[$idx] redémarrée port=$port")
-                                    // Mettre à jour le balancer
-                                    val alivePorts = engines.filter { it.isRunning() }
-                                        .mapNotNull { it.getSocksPort() }
-                                    socksBalancer?.updatePorts(alivePorts)
+                                    KighmuLogger.info(TAG, "Session[$idx] remplacée port=$port ✓")
+                                    val alivePorts = synchronized(engines) {
+                                        engines.filter { it.isRunning() }.mapNotNull { it.getSocksPort() }
+                                    }
+                                    if (alivePorts.isNotEmpty()) socksBalancer?.updatePorts(alivePorts)
+                                } else {
+                                    KighmuLogger.error(TAG, "Session[$idx] remplacement échoué")
                                 }
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {
+                                KighmuLogger.error(TAG, "Session[$idx] erreur remplacement: ${e.message}")
+                            }
                         }
                     }
+                }
+                // Si toutes les sessions sont mortes → redémarrage complet
+                if (alive == 0 && total > 0) {
+                    KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage complet...")
+                    try { start() } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "Echec redémarrage complet: ${e.message}")
+                    }
+                    break
                 }
             }
         }
@@ -261,10 +271,15 @@ class MultiSlowDnsEngine(
                     }
                 }.also { it.isDaemon = true }.start()
             } else {
-                // Fallback: déléguer au premier engine
+                // Fallback: HevTun2Socks non disponible - utiliser Tun2Socks JNI ou Relay Kotlin
+                KighmuLogger.warning(TAG, "HevTun2Socks non disponible (isAvailable=false) → fallback engine")
                 val firstEngine = engines.firstOrNull { it.isRunning() } ?: engines.firstOrNull()
-                firstEngine?.startTun2SocksOnPort(fd, balancerPort)
-                    ?: KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
+                if (firstEngine != null) {
+                    KighmuLogger.warning(TAG, "Fallback → startTun2SocksOnPort fd=$fd port=$balancerPort")
+                    firstEngine.startTun2SocksOnPort(fd, balancerPort)
+                } else {
+                    KighmuLogger.error(TAG, "Aucune session disponible pour tun2socks!")
+                }
             }
         } catch (e: Exception) {
             KighmuLogger.error(TAG, "startTun2Socks erreur: ${e.message}")
