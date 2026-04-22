@@ -264,7 +264,7 @@ class XrayEngine(
                     var ready = false
                     repeat(20) {
                         if (!ready) {
-                            delay(500)
+                            delay(200)
                             try {
                                 val s = java.net.Socket()
                                 s.connect(java.net.InetSocketAddress("127.0.0.1", LOCAL_SOCKS_PORT), 200)

@@ -22,7 +22,7 @@ class MultiXraySlowDnsEngine(
         const val TAG = "MultiXraySlo"
         const val MAX_RETRIES = 30
         const val RETRY_DELAY_MS = 800L
-        const val SESSION_TIMEOUT_MS = 6000L
+        const val SESSION_TIMEOUT_MS = 10000L
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
