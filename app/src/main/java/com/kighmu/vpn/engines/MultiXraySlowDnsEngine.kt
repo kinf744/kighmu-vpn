@@ -20,9 +20,9 @@ class MultiXraySlowDnsEngine(
 
     companion object {
         const val TAG = "MultiXraySlo"
-        const val MAX_RETRIES = 20
-        const val RETRY_DELAY_MS = 2000L
-        const val SESSION_TIMEOUT_MS = 30000L
+        const val MAX_RETRIES = 30
+        const val RETRY_DELAY_MS = 800L
+        const val SESSION_TIMEOUT_MS = 6000L
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -184,9 +184,9 @@ class MultiXraySlowDnsEngine(
             return
         }
         if (HevTun2Socks.isAvailable) {
-            val targetPort = if (activePorts.size > 1) SocksBalancer.BALANCER_PORT
-                             else activePorts.firstOrNull() ?: return
-            KighmuLogger.info(TAG, "hev V2ray+DNS -> port=$targetPort (${activePorts.size} tunnel(s))")
+            // Toujours pointer le balancer - distribue sur tous les tunnels actifs
+            val targetPort = SocksBalancer.BALANCER_PORT
+            KighmuLogger.info(TAG, "hev V2ray+DNS -> balancer:$targetPort (${activePorts.size} tunnel(s))")
             HevTun2Socks.start(context, fd, targetPort, svc)
         } else {
             xrayEngines.firstOrNull()?.startTun2Socks(fd)
