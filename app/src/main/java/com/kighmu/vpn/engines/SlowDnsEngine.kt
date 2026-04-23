@@ -384,9 +384,12 @@ class SlowDnsEngine(
             dnsttProcess?.destroy()
         } catch (_: Exception) {}
         
-        // Principe du build #736 : Nettoyage ciblé du port dnstt
-        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "kill -9 \$(lsof -ti:$dnsttPort) 2>/dev/null")) } catch (_: Exception) {}
-        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k $dnsttPort/tcp 2>/dev/null")) } catch (_: Exception) {}
+        // Nettoyage complet: TCP + UDP pour libérer dnstt sans mode avion
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "kill -9 \$(lsof -ti:$dnsttPort) 2>/dev/null")).waitFor() } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/tcp 2>/dev/null")).waitFor() } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/udp 2>/dev/null")).waitFor() } catch (_: Exception) {}
+        // Attendre libération noyau des sockets UDP (critique pour éviter mode avion)
+        try { Thread.sleep(300) } catch (_: Exception) {}
         
         dnsttProcess = null
         try { relayInstance?.stop() } catch (_: Exception) {}

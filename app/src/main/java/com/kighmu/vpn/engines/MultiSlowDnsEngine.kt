@@ -202,37 +202,48 @@ class MultiSlowDnsEngine(
                 if (total > 0) {
                     KighmuLogger.info(TAG, "Sessions actives: $alive/$total")
                 }
-                // Redémarrer les sessions mortes individuellement avec un nouvel engine
+                // Warm replacement: démarrer le nouveau tunnel AVANT de tuer l'ancien
                 engines.forEachIndexed { idx, engine ->
                     if (!engine.isRunning() && isActive) {
-                        KighmuLogger.warning(TAG, "Session[$idx] morte - remplacement engine...")
+                        KighmuLogger.warning(TAG, "Session[$idx] morte - warm replacement...")
                         scope.launch {
                             try {
-                                // Arrêter proprement l'ancien engine
-                                try { engine.stop() } catch (_: Exception) {}
-                                // Créer un nouvel engine avec un scope frais
                                 val profile = if (idx < profiles.size) profiles[idx] else return@launch
+                                // 1. Créer et démarrer le nouveau tunnel d'abord
                                 val newEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, idx)
-                                synchronized(engines) { engines[idx] = newEngine }
                                 val port = withTimeoutOrNull(SESSION_TIMEOUT_MS * 5) { newEngine.start() } ?: -1
                                 if (port > 0) {
-                                    KighmuLogger.info(TAG, "Session[$idx] remplacée port=$port ✓")
+                                    // 2. Nouveau tunnel prêt → basculer dans le balancer immédiatement
+                                    synchronized(engines) { engines[idx] = newEngine }
                                     val alivePorts = synchronized(engines) {
                                         engines.filter { it.isRunning() }.mapNotNull { it.getSocksPort() }
                                     }
                                     if (alivePorts.isNotEmpty()) socksBalancer?.updatePorts(alivePorts)
+                                    KighmuLogger.info(TAG, "Session[$idx] warm replacement OK port=$port ✓")
+                                    // 3. Tuer l'ancien tunnel seulement après bascule
+                                    try { engine.stop() } catch (_: Exception) {}
                                 } else {
-                                    KighmuLogger.error(TAG, "Session[$idx] remplacement échoué")
+                                    // Nouveau tunnel échoué → garder l'ancien si encore vivant
+                                    KighmuLogger.error(TAG, "Session[$idx] warm replacement échoué - conservation ancien tunnel")
+                                    try { newEngine.stop() } catch (_: Exception) {}
+                                    // Retry: forcer libération UDP pour éviter blocage sans mode avion
+                                    try { engine.stop() } catch (_: Exception) {}
                                 }
                             } catch (e: Exception) {
-                                KighmuLogger.error(TAG, "Session[$idx] erreur remplacement: ${e.message}")
+                                KighmuLogger.error(TAG, "Session[$idx] erreur warm replacement: ${e.message}")
                             }
                         }
                     }
                 }
-                // Si toutes les sessions sont mortes → redémarrage complet
+                // Si toutes les sessions sont mortes → redémarrage complet sans mode avion
                 if (alive == 0 && total > 0) {
                     KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage complet...")
+                    // Libérer tous les ports UDP dnstt avant redémarrage
+                    synchronized(engines) {
+                        engines.forEach { e -> try { e.stop() } catch (_: Exception) {} }
+                        engines.clear()
+                    }
+                    delay(1000) // laisser le noyau libérer les sockets UDP
                     try { start() } catch (e: Exception) {
                         KighmuLogger.error(TAG, "Echec redémarrage complet: ${e.message}")
                     }
