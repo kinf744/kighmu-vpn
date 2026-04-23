@@ -195,6 +195,7 @@ class MultiSlowDnsEngine(
     }
 
     private fun startThroughputWatchdog() {
+        return // désactivé temporairement
         scope.launch {
             var lastBytes = 0L
             var staleSeconds = 0
