@@ -213,14 +213,14 @@ class SlowDnsEngine(
 
 
     private fun startSshViaHttpConnect() {
-        val proxyHost = dns.proxyHost
-        val proxyPort = dns.proxyPort
+        val proxyHost = dns.proxyHost.ifBlank { "127.0.0.1" }
+        val proxyPort = if (dns.proxyPort > 0) dns.proxyPort else 22
+        if (_socksPort == 0) _socksPort = findFreePort(10800 + profileIndex)
         val payload = dns.dnsPayload.ifBlank {
-            "CONNECT ${sshHostVal}:${sshPortVal} HTTP/1.1\r\nHost: ${sshHostVal}:${sshPortVal}\r\nProxy-Connection: Keep-Alive\r\n\r\n"
-        }.replace("[host]", sshHostVal)
-         .replace("[port]", sshPortVal.toString())
-         .replace("[crlf]", "\r\n")
-         .replace("\\r\\n", "\r\n")
+            "CONNECT 127.0.0.1:${_socksPort} HTTP/1.0\r\n\r\n"
+        }
+
+
 
         KighmuLogger.info(TAG, "HTTP CONNECT: $proxyHost:$proxyPort -> $sshHostVal:$sshPortVal")
 

@@ -62,8 +62,8 @@ object ProfileEditDialog {
 
 
         label("HTTP CONNECT PROXY (optionnel - plus stable que SlowDNS)")
-        val etProxyHost = field("Proxy Host (ex: proxy.operateur.com)", p.proxyHost)
-        val etProxyPort = field("Proxy Port (ex: 8080)", p.proxyPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
+        val etProxyHost = field("Proxy Host (défaut: 127.0.0.1)", p.proxyHost)
+        val etProxyPort = field("Proxy Port (défaut: 22)", p.proxyPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
         val etPayload = field("Payload personnalisé (optionnel)", p.customPayload)
         TextView(context).apply {
             text = "Si Proxy Host renseigné: SSH passe via HTTP CONNECT (stable)\nSinon: SlowDNS via DNS tunnel"
