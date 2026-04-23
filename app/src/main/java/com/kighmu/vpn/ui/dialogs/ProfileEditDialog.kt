@@ -123,12 +123,5 @@ object ProfileEditDialog {
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     (context.resources.displayMetrics.heightPixels * 0.90).toInt()
                 )
-            }.also { dialog ->
-                // Forcer hauteur maximale pour afficher tous les champs
-                dialog.window?.setLayout(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    (context.resources.displayMetrics.heightPixels * 0.90).toInt()
-                )
             }
     }
-}
