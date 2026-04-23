@@ -227,7 +227,7 @@ class SlowDnsEngine(
         // 1. Connexion TCP au proxy
         val proxySock = java.net.Socket()
         try { vpnService?.protect(proxySock) } catch (_: Exception) {}
-        proxySock.connect(java.net.InetSocketAddress(proxyHost, proxyPort), 10000)
+        proxySock.connect(java.net.InetSocketAddress(proxyHost as String, proxyPort), 10000)
         proxySock.soTimeout = 0
         proxySock.tcpNoDelay = true
 

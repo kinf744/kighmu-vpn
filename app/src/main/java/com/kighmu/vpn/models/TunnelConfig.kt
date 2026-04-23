@@ -60,7 +60,9 @@ data class SlowDnsConfig(
     @SerializedName("sshHost") var sshHost: String = "",
     @SerializedName("sshPort") var sshPort: Int = 22,
     @SerializedName("sshUser") var sshUser: String = "",
-    @SerializedName("sshPass") var sshPass: String = ""
+    @SerializedName("sshPass") var sshPass: String = "",
+    @SerializedName("proxyHost") var proxyHost: String = "127.0.0.1",
+    @SerializedName("proxyPort") var proxyPort: Int = 22
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
