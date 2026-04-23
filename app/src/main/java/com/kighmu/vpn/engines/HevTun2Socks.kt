@@ -60,14 +60,13 @@ object HevTun2Socks {
     }
 
     private fun buildConfig(socksPort: Int, mtu: Int): String {
-        val effectiveMtu = mtu
         return """
 tunnel:
-  mtu: ${'$'}effectiveMtu
+  mtu: $mtu
   ipv4: 198.18.0.1
 
 socks5:
-  port: ${'$'}socksPort
+  port: $socksPort
   address: 127.0.0.1
   udp: udp
 
@@ -77,14 +76,13 @@ misc:
     }
 
     private fun buildConfigMulti(mainPort: Int, ports: List<Int>, mtu: Int): String {
-        val effectiveMtu = mtu
         return """
 tunnel:
-  mtu: ${'$'}effectiveMtu
+  mtu: $mtu
   ipv4: 198.18.0.1
 
 socks5:
-  port: ${'$'}mainPort
+  port: $mainPort
   address: 127.0.0.1
   udp: udp
 
