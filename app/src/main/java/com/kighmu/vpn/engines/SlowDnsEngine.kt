@@ -135,12 +135,12 @@ class SlowDnsEngine(
                 // Forcer l'initialisation du JNI si nécessaire
                 try { com.kighmu.vpn.engines.HevTun2Socks.init() } catch (_: Exception) {}
 
-                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 8500, pas de udpgw)
+                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 1500)
                 if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && vpnService != null) {
                     KighmuLogger.info(TAG, "HevTun2Socks fd=$fd port=$targetPort")
                     val t = Thread {
                         try {
-                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, 8500)
+                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, 1500)
                             KighmuLogger.info(TAG, "HevTun2Socks démarré ✅")
                         } catch (e: Exception) {
                             KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
