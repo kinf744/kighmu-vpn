@@ -185,7 +185,7 @@ class MultiSlowDnsEngine(
             KighmuLogger.error(TAG, "Balancer port $activePort: INACCESSIBLE ❌ (${e.message})")
         }
 
-        KighmuLogger.info(TAG, "=== STEP 3: VPN prêt - port=$activePort, ${successPorts.size} tunnels actifs ===")
+        KighmuLogger.info(TAG, "VPN prêt: ${successPorts.size} tunnels actifs port=$activePort")
 
         // Surveiller les sessions en background
         monitorSessions(selected)
