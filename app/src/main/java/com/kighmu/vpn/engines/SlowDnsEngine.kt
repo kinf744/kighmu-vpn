@@ -87,7 +87,7 @@ class SlowDnsEngine(
 
         // Choisir transport: HTTP CONNECT (stable) ou dnstt (SlowDNS)
         if (dns.proxyHost.isNotBlank()) {
-            KighmuLogger.info(TAG, "Transport: HTTP CONNECT via \${dns.proxyHost}:\${dns.proxyPort}")
+            KighmuLogger.info(TAG, "Transport: HTTP CONNECT via ${dns.proxyHost}:${dns.proxyPort}")
             startSshViaHttpConnect()
         } else {
             if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
