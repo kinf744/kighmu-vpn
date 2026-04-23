@@ -319,7 +319,7 @@ class SlowDnsEngine(
         val conn = Connection("127.0.0.1", bannerProxyPort)
 
         // ── Compression zlib : réduit volume DNS de 40-60% ─────────────────
-        conn.setCompression(true)
+        // conn.setCompression(true) // désactivé: surcharge CPU sous charge intensive
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
         conn.connect(null, 3000, 8000)
