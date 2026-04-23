@@ -27,6 +27,9 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private val totalConnections = AtomicInteger(0)
     private val successConnections = AtomicInteger(0)
     private val failedConnections = AtomicInteger(0)
+    private val totalBytesTransferred = java.util.concurrent.atomic.AtomicLong(0)
+    fun getBytesTransferred(): Long = totalBytesTransferred.get()
+    fun resetBytesTransferred() = totalBytesTransferred.set(0)
 
     fun start() {
         running = true
@@ -145,6 +148,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
                 n = inp.read(buf)
                 if (n == -1) break
                 out.write(buf, 0, n)
+                totalBytesTransferred.addAndGet(n.toLong())
                 // flush intelligent: seulement si le flux semble se calmer
                 if (inp.available() == 0) out.flush()
             }

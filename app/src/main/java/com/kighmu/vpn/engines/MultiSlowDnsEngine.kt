@@ -189,8 +189,65 @@ class MultiSlowDnsEngine(
 
         // Surveiller les sessions en background
         monitorSessions(selected)
+        startThroughputWatchdog()
 
         return activePort
+    }
+
+    private fun startThroughputWatchdog() {
+        scope.launch {
+            var lastBytes = 0L
+            var staleSeconds = 0
+            while (isActive) {
+                delay(15_000)
+                val currentBytes = socksBalancer?.getBytesTransferred() ?: 0L
+                val delta = currentBytes - lastBytes
+                lastBytes = currentBytes
+                val alive = engines.count { it.isRunning() }
+                KighmuLogger.info(TAG, "Watchdog: +${delta/1024}KB/15s tunnels=$alive")
+                if (delta == 0L && alive > 0) {
+                    staleSeconds += 15
+                    KighmuLogger.warning(TAG, "Watchdog: débit nul depuis ${staleSeconds}s")
+                    if (staleSeconds >= 15) {
+                        // Débit nul → forcer rotation du tunnel le plus ancien
+                        KighmuLogger.error(TAG, "Watchdog: rotation forcée tunnel dégradé")
+                        val deadEngine = synchronized(engines) {
+                            engines.firstOrNull { !it.isRunning() } ?: engines.firstOrNull()
+                        }
+                        if (deadEngine != null) {
+                            val idx = synchronized(engines) { engines.indexOf(deadEngine) }
+                            if (idx >= 0) {
+                                scope.launch {
+                                    try {
+                                        val profiles = com.kighmu.vpn.profiles.ProfileRepository(context).getSelected()
+                                        val profile = if (idx < profiles.size) profiles[idx] else profiles.firstOrNull() ?: return@launch
+                                        val newEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, idx)
+                                        val port = withTimeoutOrNull(SESSION_TIMEOUT_MS * 5) { newEngine.start() } ?: -1
+                                        if (port > 0) {
+                                            synchronized(engines) { if (idx < engines.size) engines[idx] = newEngine }
+                                            val alivePorts = synchronized(engines) {
+                                                engines.filter { it.isRunning() }.mapNotNull { it.getSocksPort() }
+                                            }
+                                            if (alivePorts.isNotEmpty()) socksBalancer?.updatePorts(alivePorts)
+                                            socksBalancer?.resetBytesTransferred()
+                                            KighmuLogger.info(TAG, "Watchdog: tunnel[$idx] remplacé port=$port ✓")
+                                            try { deadEngine.stop() } catch (_: Exception) {}
+                                        } else {
+                                            try { newEngine.stop() } catch (_: Exception) {}
+                                        }
+                                    } catch (e: Exception) {
+                                        KighmuLogger.error(TAG, "Watchdog rotation erreur: ${e.message}")
+                                    }
+                                }
+                                staleSeconds = 0
+                            }
+                        }
+                    }
+                } else {
+                    staleSeconds = 0
+                }
+            }
+        }
     }
 
     private fun monitorSessions(profiles: List<SlowDnsProfile>) {
