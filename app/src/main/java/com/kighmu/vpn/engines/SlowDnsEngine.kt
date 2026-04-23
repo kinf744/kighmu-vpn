@@ -248,6 +248,9 @@ class SlowDnsEngine(
                 process.inputStream.bufferedReader().forEachLine { line ->
                     val skipDnstt = line.contains("begin stream") ||
                             line.contains("end stream") ||
+                            line.contains("network is unreachable") ||
+                            line.contains("sendto:") ||
+                            line.contains("write udp") ||
                             line.contains("accepted") ||
                             line.contains("connection reset") ||
                             line.contains("broken pipe") ||
