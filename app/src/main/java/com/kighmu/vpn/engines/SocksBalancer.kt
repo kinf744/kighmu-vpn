@@ -43,9 +43,6 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
                 try {
                     val client = serverSocket?.accept() ?: break
                     val total = totalConnections.incrementAndGet()
-                    if (total % 100 == 0 || total <= 3) {
-                        KighmuLogger.info(TAG, "Balancer stats: total=$total ok=${successConnections.get()} fail=${failedConnections.get()} ports=$activePorts")
-                    }
                     val targetPort = nextPort()
                     Thread { relay(client, targetPort) }.start()
                 } catch (e: Exception) {

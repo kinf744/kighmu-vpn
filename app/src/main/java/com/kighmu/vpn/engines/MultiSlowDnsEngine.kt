@@ -199,9 +199,6 @@ class MultiSlowDnsEngine(
                 delay(10000)
                 val alive = engines.count { it.isRunning() }
                 val total = engines.size
-                if (total > 0) {
-                    KighmuLogger.info(TAG, "Sessions actives: $alive/$total")
-                }
                 // Warm replacement: démarrer le nouveau tunnel AVANT de tuer l'ancien
                 engines.forEachIndexed { idx, engine ->
                     if (!engine.isRunning() && isActive) {
