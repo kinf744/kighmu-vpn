@@ -510,7 +510,9 @@ class ConfigFragment : Fragment() {
 
     private fun showAddProfileDialog(existing: com.kighmu.vpn.profiles.SlowDnsProfile? = null) {
         pendingProfileEdit = existing
-        com.kighmu.vpn.ui.activities.ProfileEditActivity.start(requireActivity(), existing)
+        val intent = android.content.Intent(requireContext(), com.kighmu.vpn.ui.activities.ProfileEditActivity::class.java)
+        if (existing != null) intent.putExtra(com.kighmu.vpn.ui.activities.ProfileEditActivity.EXTRA_PROFILE, com.google.gson.Gson().toJson(existing))
+        startActivityForResult(intent, com.kighmu.vpn.ui.activities.ProfileEditActivity.REQUEST_CODE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
