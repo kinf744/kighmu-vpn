@@ -402,7 +402,10 @@ class MultiSlowDnsEngine(
                 sshPass = p.sshPass,
                 dnsServer = p.dnsServer,
                 nameserver = p.nameserver,
-                publicKey = p.publicKey.trim().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
+                publicKey = p.publicKey.trim().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", ""),
+                proxyHost = p.proxyHost,
+                proxyPort = p.proxyPort,
+                dnsPayload = p.customPayload
             )
         )
     }

@@ -16,6 +16,10 @@ data class SlowDnsProfile(
     var dnsServer: String = "8.8.8.8",
     var nameserver: String = "",
     var publicKey: String = "",
+    // HTTP CONNECT proxy (fallback transport plus stable)
+    var proxyHost: String = "",
+    var proxyPort: Int = 8080,
+    var customPayload: String = "",
     // Tunnels parallèles
     var tunnelCount: Int = 1,
     // État
