@@ -60,19 +60,11 @@ object ProfileEditDialog {
         val etNs     = field("Nameserver", p.nameserver)
         val etPubKey = field("Public Key", p.publicKey)
 
+        label("HTTP CONNECT PROXY")
+        val etProxyHost = field("Proxy Host", p.proxyHost)
+        val etProxyPort = field("Proxy Port", p.proxyPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
+        val etPayload = field("Payload (optionnel)", p.customPayload)
 
-        label("HTTP CONNECT PROXY (optionnel - plus stable que SlowDNS)")
-        val etProxyHost = field("Proxy Host (défaut: 127.0.0.1)", p.proxyHost)
-        val etProxyPort = field("Proxy Port (défaut: 22)", p.proxyPort.toString(), android.text.InputType.TYPE_CLASS_NUMBER)
-        val etPayload = field("Payload personnalisé (optionnel)", p.customPayload)
-        TextView(context).apply {
-            text = "Si Proxy Host renseigné: SSH passe via HTTP CONNECT (stable)\nSinon: SlowDNS via DNS tunnel"
-            setTextColor(0xFF888888.toInt())
-            textSize = 11f
-            setPadding(0, 2, 0, 8)
-            layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2)
-            layout.addView(this)
-        }
         label("TUNNELS PARALLELES")
         val tvTunnelCount = TextView(context).apply {
             text = "Flux simultanes : ${p.tunnelCount}"
