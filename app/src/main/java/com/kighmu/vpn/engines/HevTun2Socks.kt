@@ -86,6 +86,9 @@ socks5:
   address: 127.0.0.1
   udp: udp
 
+multi:
+  ports: ${ports.joinToString(", ")}
+
 misc:
   log-level: warn
 """.trimIndent()

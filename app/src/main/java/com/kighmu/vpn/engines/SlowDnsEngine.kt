@@ -85,38 +85,35 @@ class SlowDnsEngine(
         KighmuLogger.info(TAG, "Connexion SlowDNS en cours...")
         KighmuLogger.info(TAG, "Serveur SSH configuré ✓")
 
-        // Choisir transport: HTTP CONNECT (stable) ou dnstt (SlowDNS)
-        if (dns.proxyHost.isNotBlank()) {
-            KighmuLogger.info(TAG, "Transport: HTTP CONNECT via ${dns.proxyHost}:${dns.proxyPort}")
-            startSshViaHttpConnect()
-        } else {
-            if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
-            if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
+        if (dns.nameserver.isBlank()) throw Exception("Nameserver manquant")
+        if (cleanPublicKey.isBlank()) throw Exception("Public Key manquante")
 
-            // Phase 1 : démarrer dnstt seulement si pas déjà vivant
-            if (dnsttProcess == null || dnsttProcess?.isAlive == false) {
-                val dnsttBin = extractDnsttBinary()
-                startDnsttProcess(dnsttBin)
-                KighmuLogger.info(TAG, "Attente dnstt prêt...")
-                var waited = 0
-                while (waited < 8000) {
-                    delay(200)
-                    waited += 200
-                    try {
-                        val sock = java.net.Socket()
-                        sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 100)
-                        sock.close()
-                        KighmuLogger.info(TAG, "dnstt prêt en \${waited}ms")
-                        break
-                    } catch (_: Exception) {}
-                }
-            } else {
-                KighmuLogger.info(TAG, "dnstt déjà vivant - réutilisation ✓")
+        // Phase 1 : démarrer dnstt seulement si pas déjà vivant
+        if (dnsttProcess == null || dnsttProcess?.isAlive == false) {
+            val dnsttBin = extractDnsttBinary()
+            startDnsttProcess(dnsttBin)
+
+            // Attendre que dnstt soit prêt (max 8s, check toutes les 200ms)
+            KighmuLogger.info(TAG, "Attente dnstt prêt...")
+            var waited = 0
+            while (waited < 8000) {
+                delay(200)
+                waited += 200
+                try {
+                    val sock = java.net.Socket()
+                    sock.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 100)
+                    sock.close()
+                    KighmuLogger.info(TAG, "dnstt prêt en ${waited}ms")
+                    break
+                } catch (_: Exception) {}
             }
-
-            // Phase 2 : SSH via dnstt
-            startSsh()
+        } else {
+            KighmuLogger.info(TAG, "dnstt déjà vivant - réutilisation ✓")
         }
+
+        // Phase 2 : SSH uniquement (rapide, retry possible sans relancer dnstt)
+        startSsh()
+        KighmuLogger.info(TAG, "=== Tunnel SlowDNS actif ✓ ===")
 
         _socksPort
     }
@@ -138,7 +135,7 @@ class SlowDnsEngine(
                 // Forcer l'initialisation du JNI si nécessaire
                 try { com.kighmu.vpn.engines.HevTun2Socks.init() } catch (_: Exception) {}
 
-                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 1500)
+                // 1. Priorité 1 : HevTun2Socks (UDP natif, MTU 8500, pas de udpgw)
                 if (com.kighmu.vpn.engines.HevTun2Socks.isAvailable && vpnService != null) {
                     KighmuLogger.info(TAG, "HevTun2Socks fd=$fd port=$targetPort")
                     val t = Thread {
@@ -211,128 +208,6 @@ class SlowDnsEngine(
         return dnsttPort
     }
 
-
-    private fun startSshViaHttpConnect() {
-        val proxyHost = dns.proxyHost.ifBlank { "127.0.0.1" }
-        val proxyPort = if (dns.proxyPort > 0) dns.proxyPort else 22
-        if (_socksPort == 0) _socksPort = findFreePort(10800 + profileIndex)
-        val payload = dns.dnsPayload.ifBlank {
-            "CONNECT 127.0.0.1:${_socksPort} HTTP/1.0\r\n\r\n"
-        }
-
-
-
-        KighmuLogger.info(TAG, "HTTP CONNECT: $proxyHost:$proxyPort -> $sshHostVal:$sshPortVal")
-
-        // 1. Connexion TCP au proxy
-        val proxySock = java.net.Socket()
-        try { vpnService?.protect(proxySock) } catch (_: Exception) {}
-        proxySock.connect(java.net.InetSocketAddress(proxyHost as String, proxyPort), 10000)
-        proxySock.soTimeout = 0
-        proxySock.tcpNoDelay = true
-
-        // 2. Envoi payload HTTP CONNECT
-        val out = proxySock.getOutputStream()
-        val inp = proxySock.getInputStream()
-        out.write(payload.toByteArray(Charsets.ISO_8859_1))
-        out.flush()
-
-        // 3. Lire réponse proxy
-        val sb = StringBuilder()
-        var prev = -1
-        while (true) {
-            val b = inp.read()
-            if (b == -1) break
-            if (prev == 13 && b == 10 && sb.endsWith("\r")) { sb.deleteCharAt(sb.length - 1); break }
-            if (b == 10) break
-            sb.append(b.toChar()); prev = b
-        }
-        val firstLine = sb.toString().trim()
-        KighmuLogger.info(TAG, "Proxy réponse: $firstLine")
-        if (!firstLine.contains("200") && !firstLine.contains("101")) {
-            proxySock.close()
-            throw Exception("HTTP CONNECT refusé: $firstLine")
-        }
-        // Consommer headers restants
-        var line = StringBuilder(); var p2 = -1
-        while (true) {
-            val b = inp.read(); if (b == -1) break
-            if (p2 == 13 && b == 10) { if (line.toString().trim().isEmpty()) break; line.clear(); p2 = b; continue }
-            line.append(b.toChar()); p2 = b
-        }
-
-        KighmuLogger.info(TAG, "HTTP CONNECT tunnel ouvert ✓")
-
-        // 4. SSH via Trilead sur le socket proxy (même bridge banner que startSsh)
-        val bannerProxyPort = run {
-            val ss = java.net.ServerSocket(0); ss.reuseAddress = true; val p3 = ss.localPort; ss.close(); p3
-        }
-        val bannerLatch = java.util.concurrent.CountDownLatch(1)
-        var capturedBanner = ""
-        Thread {
-            try {
-                val proxyServer = java.net.ServerSocket(bannerProxyPort)
-                bannerLatch.countDown()
-                val trileadSock = proxyServer.accept()
-                proxyServer.close()
-                try { vpnService?.protect(trileadSock) } catch (_: Exception) {}
-                trileadSock.tcpNoDelay = true
-                val realIn = inp
-                val bannerBytes = StringBuilder()
-                var b2: Int
-                while (realIn.read().also { b2 = it } != -1) {
-                    bannerBytes.append(b2.toChar())
-                    if (bannerBytes.endsWith("\n")) break
-                }
-                capturedBanner = bannerBytes.toString().trim()
-                val trileadOut = trileadSock.getOutputStream()
-                trileadOut.write(bannerBytes.toString().toByteArray())
-                trileadOut.flush()
-                val t1 = Thread { try { realIn.copyTo(trileadSock.getOutputStream()) } catch (_: Exception) {} }
-                val t2 = Thread { try { trileadSock.getInputStream().copyTo(out) } catch (_: Exception) {} }
-                t1.isDaemon = true; t2.isDaemon = true
-                t1.start(); t2.start()
-            } catch (e: Exception) {
-                bannerLatch.countDown()
-                KighmuLogger.error(TAG, "BannerProxy HTTP CONNECT error: ${e.message}")
-            }
-        }.also { it.isDaemon = true }.start()
-        bannerLatch.await(3, java.util.concurrent.TimeUnit.SECONDS)
-
-        val conn = Connection("127.0.0.1", bannerProxyPort)
-        conn.setCompression(true)
-        conn.connect(null, 3000, 8000)
-        if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
-        KighmuLogger.info(TAG, "SSH connecté via HTTP CONNECT ✓")
-
-        val authenticated = conn.authenticateWithPassword(sshUserVal, sshPassVal)
-        if (!authenticated) throw Exception("SSH auth échoué pour $sshUserVal")
-        KighmuLogger.info(TAG, "SSH authentifié ✓")
-
-        if (_socksPort == 0) _socksPort = findFreePort(10800 + profileIndex)
-        conn.createDynamicPortForwarder(java.net.InetSocketAddress("127.0.0.1", _socksPort))
-        KighmuLogger.info(TAG, "SOCKS5 actif sur port $_socksPort via HTTP CONNECT ✓")
-
-        // Keep-alive
-        engineScope.launch {
-            var keepAliveRunning = true
-            while (running && keepAliveRunning) {
-                delay(20_000)
-                if (!running) { keepAliveRunning = false; continue }
-                try {
-                    val ok = withTimeoutOrNull(5_000) { conn.sendIgnorePacket(); true } ?: false
-                    if (!ok) { sshAlive = false; keepAliveRunning = false
-                        KighmuLogger.error(TAG, "Keep-alive HTTP CONNECT timeout")
-                    }
-                } catch (e: Exception) {
-                    sshAlive = false; keepAliveRunning = false
-                    KighmuLogger.error(TAG, "Keep-alive HTTP CONNECT erreur: ${e.message}")
-                }
-            }
-        }
-        sshConnection = conn
-        sshAlive = true
-    }
 
     private fun startDnsttProcess(bin: File) {
         // DNSTT ne supporte pas le flag -mtu en ligne de commande. 
