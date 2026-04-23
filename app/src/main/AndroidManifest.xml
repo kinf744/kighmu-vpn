@@ -60,6 +60,8 @@
             android:exported="false"
             android:parentActivityName=".ui.activities.MainActivity"/>
 
+        <activity android:name=".ui.activities.ProfileEditActivity" android:exported="false"/>
+
         <activity
             android:name=".ui.activities.SettingsActivity"
             android:exported="false"

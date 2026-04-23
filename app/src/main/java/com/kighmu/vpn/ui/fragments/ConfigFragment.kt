@@ -506,52 +506,30 @@ class ConfigFragment : Fragment() {
         }
     }
 
-    private fun showAddProfileDialog(existing: com.kighmu.vpn.profiles.SlowDnsProfile? = null) {
-        val ctx = requireContext()
-        val layout = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-        }
-        fun et(hint: String, value: String = "", pwd: Boolean = false) = android.widget.EditText(ctx).apply {
-            this.hint = hint; setText(value)
-            if (pwd) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-            layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2).apply { topMargin = 16 }
-            layout.addView(this)
-        }
-        val etName = et("Nom du profil", existing?.profileName ?: "")
-        val etHost = et("Host / IP", existing?.sshHost ?: "")
-        val etPort = et("Port SSH (22)", existing?.sshPort?.toString() ?: "22")
-        val etUser = et("Username", existing?.sshUser ?: "")
-        val etPass = et("Password", existing?.sshPass ?: "", pwd = true)
-        val etNs   = et("Nameserver (NS)", existing?.nameserver ?: "")
-        val etKey  = et("Clé publique", existing?.publicKey ?: "")
-        val etDns  = et("DNS Server (8.8.8.8)", existing?.dnsServer ?: "8.8.8.8")
+    private var pendingProfileEdit: com.kighmu.vpn.profiles.SlowDnsProfile? = null
 
-        android.app.AlertDialog.Builder(ctx)
-            .setTitle(if (existing == null) "Nouveau profil SlowDNS" else "Modifier profil")
-            .setView(layout)
-            .setPositiveButton("Enregistrer") { _, _ ->
-                val profile = (existing ?: com.kighmu.vpn.profiles.SlowDnsProfile()).apply {
-                    profileName = etName.text.toString()
-                    sshHost = etHost.text.toString()
-                    sshPort = etPort.text.toString().toIntOrNull() ?: 22
-                    sshUser = etUser.text.toString()
-                    sshPass = etPass.text.toString()
-                    nameserver = etNs.text.toString()
-                    publicKey = etKey.text.toString()
-                    dnsServer = etDns.text.toString()
-                }
-                if (existing == null) {
-                    dnsProfiles.add(profile)
-                } else {
-                    val idx = dnsProfiles.indexOf(existing)
-                    if (idx >= 0) dnsProfiles[idx] = profile
-                }
-                slowDnsProfileAdapter?.notifyDataSetChanged()
-                view?.let { saveConfig(it) }
+    private fun showAddProfileDialog(existing: com.kighmu.vpn.profiles.SlowDnsProfile? = null) {
+        pendingProfileEdit = existing
+        com.kighmu.vpn.ui.activities.ProfileEditActivity.start(requireActivity(), existing)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == com.kighmu.vpn.ui.activities.ProfileEditActivity.REQUEST_CODE
+            && resultCode == android.app.Activity.RESULT_OK) {
+            val json = data?.getStringExtra(com.kighmu.vpn.ui.activities.ProfileEditActivity.EXTRA_RESULT) ?: return
+            val updated = com.google.gson.Gson().fromJson(json, com.kighmu.vpn.profiles.SlowDnsProfile::class.java)
+            val existing = pendingProfileEdit
+            if (existing == null) {
+                dnsProfiles.add(updated)
+            } else {
+                val idx = dnsProfiles.indexOfFirst { it.id == existing.id }
+                if (idx >= 0) dnsProfiles[idx] = updated
             }
-            .setNegativeButton("Annuler", null)
-            .show()
+            pendingProfileEdit = null
+            slowDnsProfileAdapter?.notifyDataSetChanged()
+            view?.let { saveConfig(it) }
+        }
     }
 
     private fun setupHttpProxyProfiles(view: View) {
