@@ -60,11 +60,11 @@ object HevTun2Socks {
     }
 
     private fun buildConfig(socksPort: Int, mtu: Int): String {
-        val effectiveMtu = if (mtu > 1500) 1500 else mtu
+        val effectiveMtu = mtu
         return """
 tunnel:
   mtu: ${'$'}effectiveMtu
-  ipv4: 10.0.0.1
+  ipv4: 198.18.0.1
 
 socks5:
   port: ${'$'}socksPort
@@ -77,11 +77,11 @@ misc:
     }
 
     private fun buildConfigMulti(mainPort: Int, ports: List<Int>, mtu: Int): String {
-        val effectiveMtu = if (mtu > 1500) 1500 else mtu
+        val effectiveMtu = mtu
         return """
 tunnel:
   mtu: ${'$'}effectiveMtu
-  ipv4: 10.0.0.1
+  ipv4: 198.18.0.1
 
 socks5:
   port: ${'$'}mainPort

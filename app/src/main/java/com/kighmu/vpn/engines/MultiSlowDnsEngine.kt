@@ -273,7 +273,7 @@ class MultiSlowDnsEngine(
                 KighmuLogger.info(TAG, "HevTun2Socks multi-port: $activePorts via balancer:$balancerPort")
                 Thread {
                     try {
-                        HevTun2Socks.start(context, fd, balancerPort, vpnService, 1500)
+                        HevTun2Socks.start(context, fd, balancerPort, vpnService, 8500)
                         KighmuLogger.info(TAG, "HevTun2Socks démarré ✅ port=$balancerPort")
                     } catch (e: Exception) {
                         KighmuLogger.error(TAG, "HevTun2Socks erreur: ${e.message}")

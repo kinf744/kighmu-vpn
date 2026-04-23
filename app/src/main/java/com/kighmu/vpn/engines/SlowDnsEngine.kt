@@ -140,7 +140,7 @@ class SlowDnsEngine(
                     KighmuLogger.info(TAG, "HevTun2Socks fd=$fd port=$targetPort")
                     val t = Thread {
                         try {
-                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, 1500)
+                            com.kighmu.vpn.engines.HevTun2Socks.start(context, fd, targetPort, vpnService, 8500)
                             KighmuLogger.info(TAG, "HevTun2Socks démarré ✅")
                         } catch (e: Exception) {
                             KighmuLogger.error(TAG, "Erreur HevTun2Socks: ${e.message}")
