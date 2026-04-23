@@ -238,11 +238,9 @@ class MultiSlowDnsEngine(
                 // Si toutes les sessions sont mortes → redémarrage complet sans mode avion
                 if (alive == 0 && total > 0) {
                     KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage complet...")
-                    // Libérer tous les ports UDP dnstt avant redémarrage
-                    synchronized(engines) {
-                        engines.forEach { e -> try { e.stop() } catch (_: Exception) {} }
-                        engines.clear()
-                    }
+                    // Extraire la liste hors du synchronized pour éviter suspend dans section critique
+                    val toStop = synchronized(engines) { engines.toList().also { engines.clear() } }
+                    toStop.forEach { e -> try { e.stop() } catch (_: Exception) {} }
                     delay(1000) // laisser le noyau libérer les sockets UDP
                     try { start() } catch (e: Exception) {
                         KighmuLogger.error(TAG, "Echec redémarrage complet: ${e.message}")
