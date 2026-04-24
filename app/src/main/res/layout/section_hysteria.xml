@@ -96,12 +96,12 @@
                     app:hintTextColor="@color/text_hint"
                     android:hint="Upload (Mbps)">
                     <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_upload_speed"
+                        android:id="@+id/et_hys_upload"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textColor="@color/text_primary"
                         android:inputType="number"
-                        android:text="10" />
+                        android:text="" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
@@ -114,12 +114,12 @@
                     app:hintTextColor="@color/text_hint"
                     android:hint="Download (Mbps)">
                     <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_download_speed"
+                        android:id="@+id/et_hys_download"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textColor="@color/text_primary"
                         android:inputType="number"
-                        android:text="50" />
+                        android:text="" />
                 </com.google.android.material.textfield.TextInputLayout>
 
             </LinearLayout>
