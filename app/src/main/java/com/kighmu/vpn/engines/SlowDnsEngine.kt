@@ -309,8 +309,8 @@ class SlowDnsEngine(
                 trileadOut.flush()
                 try { realSock.tcpNoDelay = true } catch (_: Exception) {}
                 try { trileadSock.tcpNoDelay = true } catch (_: Exception) {}
-                val t1 = Thread { try { realIn.copyTo(trileadSock.getOutputStream()) } catch (_: Exception) {} }
-                val t2 = Thread { try { trileadSock.getInputStream().copyTo(realSock.getOutputStream()) } catch (_: Exception) {} }
+                val t1 = Thread { pipeBanner(realIn, trileadSock.getOutputStream()) }
+                val t2 = Thread { pipeBanner(trileadSock.getInputStream(), realSock.getOutputStream()) }
                 t1.isDaemon = true; t2.isDaemon = true
                 t1.start(); t2.start()
             } catch (e: Exception) {
@@ -343,7 +343,7 @@ class SlowDnsEngine(
         engineScope.launch {
             var keepAliveRunning = true
             while (running && keepAliveRunning) {
-                delay(20_000)
+                delay(8_000)
                 if (!running) { keepAliveRunning = false; continue }
                 try {
                     val ok = withTimeoutOrNull(5_000) { conn.sendIgnorePacket(); true } ?: false
@@ -365,6 +365,17 @@ class SlowDnsEngine(
     }
 
     // Arrêter seulement SSH - garder dnstt vivant pour retry rapide
+
+    private fun pipeBanner(inp: java.io.InputStream, out: java.io.OutputStream) {
+        val buf = ByteArray(65536)
+        try {
+            var n: Int
+            while (inp.read(buf).also { n = it } != -1) {
+                out.write(buf, 0, n)
+                if (inp.available() == 0) out.flush()
+            }
+        } catch (_: Exception) {}
+    }
     fun stopSshOnly() {
         sshAlive = false
         try { sshConnection?.close() } catch (_: Exception) {}

@@ -7,6 +7,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.Executors
 
 /**
  * SOCKS5 Load Balancer local
@@ -24,6 +25,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private var running = false
     private val counter = AtomicInteger(0)
     @Volatile private var activePorts: List<Int> = initialPorts
+    private val threadPool = Executors.newFixedThreadPool(40)
     private val totalConnections = AtomicInteger(0)
     private val successConnections = AtomicInteger(0)
     private val failedConnections = AtomicInteger(0)
@@ -44,7 +46,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
                     val client = serverSocket?.accept() ?: break
                     val total = totalConnections.incrementAndGet()
                     val targetPort = nextPort()
-                    Thread { relay(client, targetPort) }.start()
+                    threadPool.execute { relay(client, targetPort) }
                 } catch (e: Exception) {
                     if (running) KighmuLogger.error(TAG, "Accept error: ${e.message}")
                 }
@@ -62,6 +64,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
 
     fun stop() {
         running = false
+        threadPool.shutdown()
         try { serverSocket?.close() } catch (_: Exception) {}
         KighmuLogger.info(TAG, "Balancer arrete")
     }
@@ -76,13 +79,13 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private fun connectToPort(targetPort: Int): Socket {
         val server = Socket()
         try { vpnService?.protect(server) } catch (_: Exception) {}
-        server.connect(InetSocketAddress("127.0.0.1", targetPort), 2000)
+        server.connect(InetSocketAddress("127.0.0.1", targetPort), 5000)
         return server
     }
 
     private fun relay(client: Socket, targetPort: Int) {
         try {
-            client.soTimeout = 8000
+            client.soTimeout = 0
             client.setPerformancePreferences(0, 0, 1) // optimiser débit
             client.receiveBufferSize = 65536
             client.sendBufferSize = 65536
@@ -108,7 +111,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             }
             successConnections.incrementAndGet()
             val s = server!!
-            s.soTimeout = 8000
+            s.soTimeout = 0
             s.receiveBufferSize = 65536
             s.sendBufferSize = 65536
             s.setPerformancePreferences(0, 0, 1)
@@ -118,7 +121,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             val serverIn = s.getInputStream()
             val serverOut = s.getOutputStream()
 
-            Thread { try { pipe(clientIn, serverOut) } catch (_: Exception) {} }.start()
+            threadPool.execute { try { pipe(clientIn, serverOut) } catch (_: Exception) {} }
             try { pipe(serverIn, clientOut) } catch (_: Exception) {}
             try { client.close() } catch (_: Exception) {}
             try { s.close() } catch (_: Exception) {}
