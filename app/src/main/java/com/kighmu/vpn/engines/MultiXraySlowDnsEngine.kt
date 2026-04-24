@@ -276,6 +276,10 @@ class MultiXraySlowDnsEngine(
         }
     }
 
+    override suspend fun sendData(data: ByteArray, length: Int) {}
+    override suspend fun receiveData(): ByteArray? = null
+    override fun isRunning(): Boolean = synchronized(xrayEngines) { xrayEngines.any { it.isRunning() } }
+
     override suspend fun stop() {
         KighmuLogger.info(TAG, "Arrêt MultiXraySlowDnsEngine...")
         scope.cancel()
