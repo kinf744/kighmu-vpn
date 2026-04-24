@@ -29,6 +29,10 @@ import kotlinx.coroutines.runBlocking
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.InetAddress
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 
 class KighmuVpnService : VpnService() {
 
@@ -64,11 +68,14 @@ class KighmuVpnService : VpnService() {
     private var vpnJob: Job? = null
     private var tun2socksRelay: Tun2SocksRelay? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         configManager = ConfigManager(this)
+        registerNetworkCallback()
         createNotificationChannel()
         // Capturer et sauvegarder les crashes dans un fichier
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -159,6 +166,7 @@ class KighmuVpnService : VpnService() {
         vpnJob?.cancel()
         statsJob?.cancel()
         serviceJob.cancel()
+        unregisterNetworkCallback()
         tunnelEngine = null
         // Fermer interface TUN - clé VPN disparaît ICI
         try { vpnInterface?.close() } catch (_: Exception) {}
@@ -395,6 +403,41 @@ class KighmuVpnService : VpnService() {
                 withContext(Dispatchers.Main) { stopSelf() }
             }
         }
+    }
+
+    private fun registerNetworkCallback() {
+        try {
+            connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            networkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    KighmuLogger.info(TAG, "Réseau disponible → reconnexion immédiate")
+                    if (!userRequestedStop && currentStatus != ConnectionStatus.CONNECTED) {
+                        serviceScope.launch {
+                            delay(500) // laisser le réseau se stabiliser
+                            reconnect()
+                        }
+                    }
+                }
+                override fun onLost(network: Network) {
+                    KighmuLogger.info(TAG, "Réseau perdu → attente rétablissement")
+                }
+            }
+            connectivityManager?.registerNetworkCallback(request, networkCallback!!)
+            KighmuLogger.info(TAG, "ConnectivityManager enregistré ✓")
+        } catch (e: Exception) {
+            KighmuLogger.error(TAG, "Erreur registerNetworkCallback: ${e.message}")
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        try {
+            networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
+            networkCallback = null
+            connectivityManager = null
+        } catch (_: Exception) {}
     }
 
     private fun reconnect() {

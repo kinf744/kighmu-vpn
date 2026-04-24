@@ -363,6 +363,32 @@ class SlowDnsEngine(
 
         sshConnection = conn
         sshAlive = true
+
+        // ── Health check dnstt indépendant du SSH ─────────────────────────────
+        engineScope.launch {
+            var dnsttFailCount = 0
+            while (running) {
+                delay(15_000)
+                if (!running) break
+                val alive = try {
+                    val s = java.net.Socket()
+                    s.connect(java.net.InetSocketAddress("127.0.0.1", dnsttPort), 1000)
+                    s.close()
+                    true
+                } catch (_: Exception) { false }
+                if (!alive) {
+                    dnsttFailCount++
+                    KighmuLogger.error(TAG, "dnstt health check échoué ($dnsttFailCount/2)")
+                    if (dnsttFailCount >= 2) {
+                        KighmuLogger.error(TAG, "dnstt mort détecté → isDegraded=true")
+                        isDegraded = true
+                        break
+                    }
+                } else {
+                    dnsttFailCount = 0
+                }
+            }
+        }
     }
 
     // Arrêter seulement SSH - garder dnstt vivant pour retry rapide
@@ -382,6 +408,7 @@ class SlowDnsEngine(
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/tcp 2>/dev/null")).waitFor() } catch (_: Exception) {}
         try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/udp 2>/dev/null")).waitFor() } catch (_: Exception) {}
         dnsttProcess = null
+        _dnsttPort = 0  // Force nouveau port UDP au prochain démarrage
         KighmuLogger.info(TAG, "dnstt arrêté (SSH conservé pour retry)")
     }
 
