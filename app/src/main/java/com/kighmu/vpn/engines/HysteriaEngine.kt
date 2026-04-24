@@ -13,7 +13,8 @@ class HysteriaEngine(
     private val config: KighmuConfig,
     private val context: Context,
     private val vpnService: VpnService?,
-    private val assignedSocksPort: Int = 0 // Port assigné par MultiHysteriaEngine
+    private val assignedSocksPort: Int = 0, // Port assigné par MultiHysteriaEngine
+    private val profileIndex: Int = 0
 ) : TunnelEngine {
 
     companion object {
@@ -86,7 +87,7 @@ class HysteriaEngine(
     }
 
     private fun writeConfig(server: String): File {
-        val file = File(context.filesDir, "hysteria_config.json")
+        val file = File(context.filesDir, "hysteria_config_$profileIndex.json")
         val config = """{
   "server": "$server",
   "obfs": "${hConfig.obfsPassword}",
