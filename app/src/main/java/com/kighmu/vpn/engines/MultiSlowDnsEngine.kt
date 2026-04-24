@@ -201,8 +201,14 @@ class MultiSlowDnsEngine(
                 val total = engines.size
                 // Warm replacement: démarrer le nouveau tunnel AVANT de tuer l'ancien
                 engines.forEachIndexed { idx, engine ->
-                    if (!engine.isRunning() && isActive) {
-                        KighmuLogger.warning(TAG, "Session[$idx] morte - warm replacement...")
+                    val degraded = engine.isDegraded && isActive
+                    val dead = !engine.isRunning() && isActive
+                    if ((dead || degraded) && isActive) {
+                        if (degraded && !dead) {
+                            KighmuLogger.warning(TAG, "Session[$idx] dégradée - reconnexion préventive...")
+                        } else {
+                            KighmuLogger.warning(TAG, "Session[$idx] morte - warm replacement...")
+                        }
                         scope.launch {
                             try {
                                 val profile = if (idx < profiles.size) profiles[idx] else return@launch
@@ -218,6 +224,7 @@ class MultiSlowDnsEngine(
                                     if (alivePorts.isNotEmpty()) socksBalancer?.updatePorts(alivePorts)
                                     KighmuLogger.info(TAG, "Session[$idx] warm replacement OK port=$port ✓")
                                     // 3. Tuer l'ancien tunnel seulement après bascule
+                                    engine.isDegraded = false
                                     try { engine.stop() } catch (_: Exception) {}
                                 } else {
                                     // Nouveau tunnel échoué → garder l'ancien si encore vivant

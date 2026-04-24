@@ -53,6 +53,7 @@ class SlowDnsEngine(
     }
     private var running = false
     @Volatile private var sshAlive = false
+    @Volatile var isDegraded = false
     private var sshConnection: Connection? = null
     private var dnsttProcess: Process? = null
     private var relayPfd: android.os.ParcelFileDescriptor? = null
