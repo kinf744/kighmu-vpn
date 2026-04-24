@@ -376,6 +376,14 @@ class SlowDnsEngine(
             }
         } catch (_: Exception) {}
     }
+    fun stopDnsttOnly() {
+        try { dnsttProcess?.destroyForcibly(); dnsttProcess?.destroy() } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/tcp 2>/dev/null")).waitFor() } catch (_: Exception) {}
+        try { Runtime.getRuntime().exec(arrayOf("sh", "-c", "fuser -k ${dnsttPort}/udp 2>/dev/null")).waitFor() } catch (_: Exception) {}
+        dnsttProcess = null
+        KighmuLogger.info(TAG, "dnstt arrêté (SSH conservé pour retry)")
+    }
+
     fun stopSshOnly() {
         sshAlive = false
         try { sshConnection?.close() } catch (_: Exception) {}
