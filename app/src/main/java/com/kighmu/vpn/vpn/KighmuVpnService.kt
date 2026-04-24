@@ -413,11 +413,19 @@ class KighmuVpnService : VpnService() {
                 .build()
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    KighmuLogger.info(TAG, "Réseau disponible → reconnexion immédiate")
-                    if (!userRequestedStop && currentStatus != ConnectionStatus.CONNECTED) {
+                    KighmuLogger.info(TAG, "Réseau disponible → vérification état")
+                    if (!userRequestedStop &&
+                        (currentStatus == ConnectionStatus.DISCONNECTED ||
+                         currentStatus == ConnectionStatus.ERROR)) {
                         serviceScope.launch {
-                            delay(500) // laisser le réseau se stabiliser
-                            reconnect()
+                            delay(3000) // laisser le réseau + VPN se stabiliser
+                            // Revérifier après délai - évite reconnexion si VPN déjà actif
+                            if (!userRequestedStop &&
+                                currentStatus != ConnectionStatus.CONNECTED &&
+                                currentStatus != ConnectionStatus.CONNECTING) {
+                                KighmuLogger.info(TAG, "Réseau rétabli → reconnexion")
+                                reconnect()
+                            }
                         }
                     }
                 }
