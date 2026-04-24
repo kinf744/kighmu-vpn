@@ -3,6 +3,7 @@ package com.kighmu.vpn.engines
 import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.profiles.V2rayDnsProfileRepository
+import com.kighmu.vpn.profiles.V2rayDnsProfile
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.*
 
@@ -173,7 +174,84 @@ class MultiXraySlowDnsEngine(
         val finalPort = SocksBalancer.BALANCER_PORT
 
         KighmuLogger.info(TAG, "=== V2ray+DNS pret - balancer=$finalPort, ${xraySocksPorts.size} tunnel(s) actif(s) ===")
+        monitorSessions(selected, successXrayConfigs, xraySocksPorts)
         return finalPort
+    }
+
+    private fun monitorSessions(
+        profiles: List<V2rayDnsProfile>,
+        configs: List<Pair<Int, KighmuConfig>>,
+        portMap: MutableList<Int>
+    ) {
+        scope.launch {
+            while (isActive) {
+                delay(3000)
+                xrayEngines.forEachIndexed { idx, xray ->
+                    if (!xray.isRunning() && isActive) {
+                        KighmuLogger.warning(TAG, "XrayEngine[$idx] mort - warm replacement...")
+                        scope.launch {
+                            try {
+                                val (dnsttPort, xrayCfg) = configs.getOrNull(idx) ?: return@launch
+                                // 1. Demarrer nouveau dnstt
+                                val newDnstt = SlowDnsEngine(
+                                    dnsttEngines.getOrNull(idx)?.let {
+                                        configs.getOrNull(idx)?.second ?: return@launch
+                                    } ?: return@launch,
+                                    context, null, idx
+                                )
+                                val newDnsttPort = withTimeoutOrNull(10000) {
+                                    newDnstt.startDnsttOnly()
+                                } ?: -1
+                                if (newDnsttPort <= 0) {
+                                    KighmuLogger.error(TAG, "XrayEngine[$idx] dnstt replacement echec")
+                                    try { newDnstt.stop() } catch (_: Exception) {}
+                                    return@launch
+                                }
+                                // 2. Demarrer nouveau Xray sur nouveau dnstt
+                                val newXray = XrayEngine(xrayCfg, context, newDnsttPort, idx, vpnService)
+                                val newPort = withTimeoutOrNull(10000) { newXray.start() } ?: -1
+                                if (newPort > 0) {
+                                    // 3. Basculer dans les listes avant de tuer l'ancien
+                                    synchronized(xrayEngines) { xrayEngines[idx] = newXray }
+                                    synchronized(dnsttEngines) {
+                                        if (idx < dnsttEngines.size) dnsttEngines[idx] = newDnstt
+                                    }
+                                    if (idx < portMap.size) portMap[idx] = newPort
+                                    val alivePorts = synchronized(xrayEngines) {
+                                        xrayEngines.mapIndexedNotNull { i, e ->
+                                            if (e.isRunning()) portMap.getOrNull(i) else null
+                                        }
+                                    }
+                                    if (alivePorts.isNotEmpty()) socksBalancer?.updatePorts(alivePorts)
+                                    KighmuLogger.info(TAG, "XrayEngine[$idx] warm replacement OK port=$newPort")
+                                    try { xray.stop() } catch (_: Exception) {}
+                                } else {
+                                    KighmuLogger.error(TAG, "XrayEngine[$idx] warm replacement echec")
+                                    try { newXray.stop() } catch (_: Exception) {}
+                                    try { newDnstt.stop() } catch (_: Exception) {}
+                                }
+                            } catch (e: Exception) {
+                                KighmuLogger.error(TAG, "XrayEngine[$idx] erreur replacement: ${e.message}")
+                            }
+                        }
+                    }
+                }
+                // Si tous morts -> redemarrage complet
+                val alive = xrayEngines.count { it.isRunning() }
+                if (alive == 0 && xrayEngines.isNotEmpty()) {
+                    KighmuLogger.error(TAG, "Tous les XrayEngines morts - redemarrage complet...")
+                    val toStopX = synchronized(xrayEngines) { xrayEngines.toList().also { xrayEngines.clear() } }
+                    val toStopD = synchronized(dnsttEngines) { dnsttEngines.toList().also { dnsttEngines.clear() } }
+                    toStopX.forEach { try { it.stop() } catch (_: Exception) {} }
+                    toStopD.forEach { try { it.stop() } catch (_: Exception) {} }
+                    delay(1000)
+                    try { start() } catch (e: Exception) {
+                        KighmuLogger.error(TAG, "Echec redemarrage complet: ${e.message}")
+                    }
+                    break
+                }
+            }
+        }
     }
 
     override fun startTun2Socks(fd: Int) {

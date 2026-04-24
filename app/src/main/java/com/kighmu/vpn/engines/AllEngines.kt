@@ -33,6 +33,7 @@ class SshSslEngine(
     }
 
     private var _socksPort: Int = 0
+    fun getSocksPort(): Int = _socksPort
     private val LOCAL_SOCKS_PORT: Int get() {
         if (_socksPort == 0) _socksPort = Companion.getFreePort()
         return _socksPort
@@ -233,6 +234,7 @@ class XrayEngine(
     private val vpnService: VpnService? = null
 ) : TunnelEngine {
     private var _socksPort: Int = 0
+    fun getSocksPort(): Int = _socksPort
     private val LOCAL_SOCKS_PORT: Int get() {
         if (_socksPort == 0) _socksPort = Companion.getFreePort()
         return _socksPort
