@@ -196,7 +196,7 @@ class MultiSlowDnsEngine(
     private fun monitorSessions(profiles: List<SlowDnsProfile>) {
         scope.launch {
             while (isActive) {
-                delay(10000)
+                delay(3000)
                 val alive = engines.count { it.isRunning() }
                 val total = engines.size
                 // Warm replacement: démarrer le nouveau tunnel AVANT de tuer l'ancien

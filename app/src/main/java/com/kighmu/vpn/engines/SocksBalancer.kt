@@ -25,6 +25,8 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private var running = false
     private val counter = AtomicInteger(0)
     @Volatile private var activePorts: List<Int> = initialPorts
+    @Volatile private var healthyPorts: List<Int> = initialPorts
+    private val failCount = java.util.concurrent.ConcurrentHashMap<Int, Int>()
     private val threadPool = Executors.newCachedThreadPool()
     private val totalConnections = AtomicInteger(0)
     private val successConnections = AtomicInteger(0)
@@ -57,6 +59,8 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     fun updatePorts(newPorts: List<Int>) {
         if (newPorts.isNotEmpty()) {
             activePorts = newPorts.toList()
+            healthyPorts = newPorts.toList()
+            failCount.clear()
             counter.set(0)
             KighmuLogger.info(TAG, "Balancer ports mis à jour: $activePorts")
         }
@@ -70,10 +74,30 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     }
 
     private fun nextPort(): Int {
-        val current = activePorts
+        val current = healthyPorts.ifEmpty { activePorts }
         if (current.isEmpty()) return 10800
         val idx = counter.getAndIncrement() % current.size
         return current[idx]
+    }
+
+    private fun markPortFailed(port: Int) {
+        val fails = (failCount[port] ?: 0) + 1
+        failCount[port] = fails
+        if (fails >= 2) {
+            val h = healthyPorts.filter { it != port }
+            if (h.isNotEmpty()) {
+                healthyPorts = h
+                KighmuLogger.warning(TAG, "Port $port retire (echecs=$fails) -> healthy: $healthyPorts")
+            }
+        }
+    }
+
+    private fun markPortSuccess(port: Int) {
+        failCount[port] = 0
+        if (!healthyPorts.contains(port) && activePorts.contains(port)) {
+            healthyPorts = (healthyPorts + port).distinct()
+            KighmuLogger.info(TAG, "Port $port restaure -> healthy: $healthyPorts")
+        }
     }
 
     private fun connectToPort(targetPort: Int): Socket {
@@ -105,11 +129,13 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
             }
             if (server == null) {
                 failedConnections.incrementAndGet()
+                markPortFailed(targetPort)
                 KighmuLogger.error(TAG, "Tous les ports SOCKS inaccessibles ❌ ports=$ports total_fail=${failedConnections.get()}")
                 try { client.close() } catch (_: Exception) {}
                 return
             }
             successConnections.incrementAndGet()
+            markPortSuccess(targetPort)
             val s = server!!
             s.soTimeout = 0
             s.receiveBufferSize = 65536

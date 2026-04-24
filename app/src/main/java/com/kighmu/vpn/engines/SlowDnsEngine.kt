@@ -379,6 +379,7 @@ class SlowDnsEngine(
     fun stopSshOnly() {
         sshAlive = false
         try { sshConnection?.close() } catch (_: Exception) {}
+        _dnsttPort = 0
         sshConnection = null
         _socksPort = 0
         KighmuLogger.info(TAG, "SSH fermé (dnstt conservé pour retry)")
