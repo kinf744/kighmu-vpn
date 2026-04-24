@@ -25,7 +25,7 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private var running = false
     private val counter = AtomicInteger(0)
     @Volatile private var activePorts: List<Int> = initialPorts
-    private val threadPool = Executors.newFixedThreadPool(40)
+    private val threadPool = Executors.newCachedThreadPool()
     private val totalConnections = AtomicInteger(0)
     private val successConnections = AtomicInteger(0)
     private val failedConnections = AtomicInteger(0)
