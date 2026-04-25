@@ -17,7 +17,7 @@ class MultiSlowDnsEngine(
 
     companion object {
         const val TAG = "MultiSlowDnsEngine"
-        const val SESSION_TIMEOUT_MS = 6000L  // 6s: kex SSH sur DNS peut prendre 3-5s
+        const val SESSION_TIMEOUT_MS = 15000L // 15s: kex SSH via dnstt peut prendre 8-12s
     }
 
     private val engines = mutableListOf<SlowDnsEngine>()
@@ -77,7 +77,7 @@ class MultiSlowDnsEngine(
                 // Retry agressif : nouvel engine à chaque tentative (ports propres)
                 // La session DOIT se connecter avant de passer à la suivante
                 val MAX_RETRIES = 30
-                val RETRY_DELAY_MS = 800L
+                val RETRY_DELAY_MS = 300L
                 var port = -1
                 var attempt = 0
                 var activeEngine = SlowDnsEngine(buildConfig(profile), context, vpnService, globalIdx)
