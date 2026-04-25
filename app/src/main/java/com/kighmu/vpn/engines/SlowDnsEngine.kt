@@ -326,7 +326,7 @@ class SlowDnsEngine(
         // conn.setCompression(true) // désactivé: surcharge CPU sous charge intensive
 
         // ── Timeouts réduits : détection rapide des pannes ─────────────────
-        conn.connect(null, 3000, 8000)
+        conn.connect(null, 5000, 30000)
         if (capturedBanner.isNotEmpty()) KighmuLogger.info(TAG, "Server version: $capturedBanner")
         KighmuLogger.info(TAG, "SSH connecté ✓")
 
