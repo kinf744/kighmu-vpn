@@ -104,6 +104,19 @@ object KighmuLogger {
             LogEntry.LogLevel.WARNING -> Log.w(tag, safeMessage)
             LogEntry.LogLevel.ERROR   -> Log.e(tag, safeMessage)
         }
+        // Persist WARNING/ERROR vers fichier pour diagnostic coupures
+        if (level == LogEntry.LogLevel.WARNING || level == LogEntry.LogLevel.ERROR) {
+            try {
+                val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                val line = "[$ts] ${level.name} [$tag] $safeMessage
+"
+                val f = java.io.File(
+                    android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS),
+                    "kighmu_debug.txt")
+                f.appendText(line)
+            } catch (_: Exception) {}
+        }
     }
 
     fun info(tag: String, message: String)    = log(message, LogEntry.LogLevel.INFO, tag)
