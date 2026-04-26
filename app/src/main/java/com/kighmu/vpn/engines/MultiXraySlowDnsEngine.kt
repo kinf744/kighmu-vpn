@@ -39,6 +39,7 @@ class MultiXraySlowDnsEngine(
     private val xrayEngines  = mutableListOf<XrayEngine>()
     private var activePorts  = listOf<Int>()
     private var socksBalancer: SocksBalancer? = null
+    @Volatile private var replacingCount = 0
     private val fluxConfigs = mutableListOf<FluxConfig>()
 
     override suspend fun start(): Int {
@@ -201,6 +202,7 @@ class MultiXraySlowDnsEngine(
                 deadIndexes.forEach { idx ->
                     KighmuLogger.warning(TAG, "XrayEngine[$idx] mort - warm replacement...")
                     scope.launch {
+                        replacingCount++
                         try {
                             val flux = synchronized(fluxConfigs) { fluxConfigs.getOrNull(idx) } ?: return@launch
                             val newDnstt = SlowDnsEngine(flux.dnsCfg, context, null, idx)
@@ -236,11 +238,13 @@ class MultiXraySlowDnsEngine(
                             }
                         } catch (e: Exception) {
                             KighmuLogger.error(TAG, "XrayEngine[$idx] erreur replacement: ${e.message}")
+                        } finally {
+                            replacingCount--
                         }
                     }
                 }
                 val alive = synchronized(xrayEngines) { xrayEngines.count { it.isRunning() } }
-                if (alive == 0 && synchronized(xrayEngines) { xrayEngines.isNotEmpty() }) {
+                if (alive == 0 && replacingCount == 0 && synchronized(xrayEngines) { xrayEngines.isNotEmpty() }) {
                     KighmuLogger.error(TAG, "Tous les XrayEngines morts - redémarrage complet...")
                     synchronized(xrayEngines) {
                         xrayEngines.forEach { try { runBlocking { it.stop() } } catch (_: Exception) {} }
