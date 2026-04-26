@@ -108,8 +108,7 @@ object KighmuLogger {
         if (level == LogEntry.LogLevel.WARNING || level == LogEntry.LogLevel.ERROR) {
             try {
                 val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-                val line = "[$ts] ${level.name} [$tag] $safeMessage
-"
+                val line = "[$ts] ${level.name} [$tag] $safeMessage\n"
                 val f = java.io.File(
                     android.os.Environment.getExternalStoragePublicDirectory(
                         android.os.Environment.DIRECTORY_DOWNLOADS),
