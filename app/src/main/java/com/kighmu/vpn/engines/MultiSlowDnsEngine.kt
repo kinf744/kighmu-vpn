@@ -25,6 +25,7 @@ class MultiSlowDnsEngine(
     private var activePort = 10800
     private var tunFd: Int = -1
     private var socksBalancer: SocksBalancer? = null
+    @Volatile private var replacingCount = 0
 
     override suspend fun start(): Int {
         val repo = ProfileRepository(context)
@@ -210,6 +211,7 @@ class MultiSlowDnsEngine(
                             KighmuLogger.warning(TAG, "Session[$idx] morte - warm replacement...")
                         }
                         scope.launch {
+                            replacingCount++
                             try {
                                 val profile = if (idx < profiles.size) profiles[idx] else return@launch
                                 // 1. Créer et démarrer le nouveau tunnel d'abord
@@ -235,12 +237,14 @@ class MultiSlowDnsEngine(
                                 }
                             } catch (e: Exception) {
                                 KighmuLogger.error(TAG, "Session[$idx] erreur warm replacement: ${e.message}")
+                            } finally {
+                                replacingCount--
                             }
                         }
                     }
                 }
                 // Si toutes les sessions sont mortes → redémarrage complet sans mode avion
-                if (alive == 0 && total > 0) {
+                if (alive == 0 && total > 0 && replacingCount == 0) {
                     KighmuLogger.error(TAG, "Toutes les sessions tombées - redémarrage complet...")
                     // Extraire la liste hors du synchronized pour éviter suspend dans section critique
                     val toStop = synchronized(engines) { engines.toList().also { engines.clear() } }
