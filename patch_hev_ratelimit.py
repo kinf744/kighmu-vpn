@@ -39,7 +39,7 @@ rate_limit_code = '''
 #include "hev-config.h"
 #include <time.h>
 
-static long g_tokens = 0;
+static long g_tokens = -1;  /* -1 = non initialisé */
 static long g_last_refill_ms = 0;
 
 static long
@@ -56,10 +56,18 @@ rate_limit_acquire (int bytes)
     long limit = hev_config_get_misc_rate_limit_bps ();
     if (limit <= 0) return;
     long now = get_time_ms ();
+    /* Initialisation au premier appel */
+    if (g_tokens < 0) {
+        g_tokens = 0;
+        g_last_refill_ms = now;
+    }
     long elapsed = now - g_last_refill_ms;
-    if (elapsed >= 50) {
-        g_tokens += limit * elapsed / 1000;
-        if (g_tokens > limit) g_tokens = limit;
+    if (elapsed >= 10) {
+        /* Refill limité à 1 intervalle max pour éviter burst */
+        long refill = limit * elapsed / 1000;
+        if (refill > limit / 10) refill = limit / 10; /* max 100ms de tokens */
+        g_tokens += refill;
+        if (g_tokens > limit / 5) g_tokens = limit / 5; /* bucket max = 200ms */
         g_last_refill_ms = now;
     }
     if (g_tokens < bytes) {
