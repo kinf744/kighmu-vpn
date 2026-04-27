@@ -14,7 +14,7 @@ import java.util.concurrent.Executors
  * Ecoute sur un port local et distribue les connexions en round-robin
  * sur tous les ports SOCKS actifs (10800, 10801, 10802...)
  */
-class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net.VpnService? = null) {
+class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net.VpnService? = null, private val maxBytesPerSec: Long = 0) {
 
     companion object {
         const val TAG = "SocksBalancer"
@@ -167,13 +167,31 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
         // Buffer agrandi (128KB) pour maximiser le débit streaming
         val buf = ByteArray(131072)
         var n: Int
+        // Token bucket pour rate limiting (SlowDNS uniquement)
+        var tokens = maxBytesPerSec
+        var lastRefill = System.currentTimeMillis()
         try {
             while (true) {
                 n = inp.read(buf)
                 if (n == -1) break
+                // Rate limiting si activé
+                if (maxBytesPerSec > 0) {
+                    val now = System.currentTimeMillis()
+                    val elapsed = now - lastRefill
+                    if (elapsed >= 100) {
+                        tokens = minOf(maxBytesPerSec, tokens + (maxBytesPerSec * elapsed / 1000))
+                        lastRefill = now
+                    }
+                    if (tokens < n) {
+                        val waitMs = ((n - tokens) * 1000 / maxBytesPerSec) + 1
+                        Thread.sleep(waitMs)
+                        tokens = 0
+                    } else {
+                        tokens -= n
+                    }
+                }
                 out.write(buf, 0, n)
                 totalBytesTransferred.addAndGet(n.toLong())
-                // flush intelligent: seulement si le flux semble se calmer
                 if (inp.available() == 0) out.flush()
             }
         } catch (_: Exception) {}

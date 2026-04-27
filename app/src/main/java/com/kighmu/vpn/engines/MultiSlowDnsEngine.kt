@@ -170,7 +170,7 @@ class MultiSlowDnsEngine(
         KighmuLogger.info(TAG, "HevTun2Socks disponible: ${HevTun2Socks.isAvailable}")
         KighmuLogger.info(TAG, "VpnService null: ${vpnService == null}")
 
-        val balancer = SocksBalancer(connectedPorts, vpnService)
+        val balancer = SocksBalancer(connectedPorts, vpnService, maxBytesPerSec = 358400L)
         balancer.start()
         socksBalancer = balancer
         activePort = SocksBalancer.BALANCER_PORT
