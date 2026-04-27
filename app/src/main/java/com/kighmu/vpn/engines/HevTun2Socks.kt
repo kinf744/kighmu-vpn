@@ -30,8 +30,8 @@ object HevTun2Socks {
 
     val isAvailable get() = loaded
 
-    fun start(context: Context, fd: Int, socksPort: Int, vpnService: android.net.VpnService, mtu: Int = 8500) {
-        val config = buildConfig(socksPort, mtu)
+    fun start(context: Context, fd: Int, socksPort: Int, vpnService: android.net.VpnService, mtu: Int = 8500, rateLimitBps: Long = 0) {
+        val config = buildConfig(socksPort, mtu, rateLimitBps)
         val configFile = File(context.cacheDir, "hev_config.yaml")
         configFile.writeText(config)
         Log.i(TAG, "Démarrage hev fd=$fd port=$socksPort")
@@ -59,7 +59,8 @@ object HevTun2Socks {
         if (loaded) hev.htproxy.TProxyService.TProxyStopService()
     }
 
-    private fun buildConfig(socksPort: Int, mtu: Int): String {
+    private fun buildConfig(socksPort: Int, mtu: Int, rateLimitBps: Long = 0): String {
+        val rateSection = if (rateLimitBps > 0) "\n  rate-limit-bps: $rateLimitBps" else ""
         return """
 tunnel:
   mtu: $mtu
@@ -71,7 +72,7 @@ socks5:
   udp: udp
 
 misc:
-  log-level: warn
+  log-level: warn${"$"}{rateSection}
 """.trimIndent()
     }
 
