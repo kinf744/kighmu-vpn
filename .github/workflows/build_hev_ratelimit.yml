@@ -8,6 +8,9 @@ on:
       - 'patch_hev_ratelimit.py'
       - '.github/workflows/build_hev_ratelimit.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
