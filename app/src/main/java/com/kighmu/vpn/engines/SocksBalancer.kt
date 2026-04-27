@@ -24,6 +24,9 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
     private var serverSocket: ServerSocket? = null
     private var running = false
     private val counter = AtomicInteger(0)
+    // Token bucket global partagé entre toutes les connexions
+    private val globalTokens = java.util.concurrent.atomic.AtomicLong(0)
+    private val lastRefillTime = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
     @Volatile private var activePorts: List<Int> = initialPorts
     @Volatile private var healthyPorts: List<Int> = initialPorts
     private val failCount = java.util.concurrent.ConcurrentHashMap<Int, Int>()
@@ -163,33 +166,38 @@ class SocksBalancer(initialPorts: List<Int>, private val vpnService: android.net
         }
     }
 
+    private fun acquireTokens(bytes: Int) {
+        if (maxBytesPerSec <= 0) return
+        while (true) {
+            val now = System.currentTimeMillis()
+            val last = lastRefillTime.get()
+            val elapsed = now - last
+            if (elapsed >= 50) {
+                val refill = maxBytesPerSec * elapsed / 1000
+                val current = globalTokens.get()
+                val newVal = minOf(maxBytesPerSec, current + refill)
+                if (globalTokens.compareAndSet(current, newVal)) {
+                    lastRefillTime.set(now)
+                }
+            }
+            val current = globalTokens.get()
+            if (current >= bytes) {
+                if (globalTokens.compareAndSet(current, current - bytes)) return
+            } else {
+                val waitMs = ((bytes - current) * 1000 / maxBytesPerSec) + 1
+                Thread.sleep(waitMs)
+            }
+        }
+    }
+
     private fun pipe(inp: InputStream, out: OutputStream) {
-        // Buffer agrandi (128KB) pour maximiser le débit streaming
-        val buf = ByteArray(131072)
+        val buf = ByteArray(8192) // Buffer réduit pour rate limiting précis
         var n: Int
-        // Token bucket pour rate limiting (SlowDNS uniquement)
-        var tokens = maxBytesPerSec
-        var lastRefill = System.currentTimeMillis()
         try {
             while (true) {
                 n = inp.read(buf)
                 if (n == -1) break
-                // Rate limiting si activé
-                if (maxBytesPerSec > 0) {
-                    val now = System.currentTimeMillis()
-                    val elapsed = now - lastRefill
-                    if (elapsed >= 100) {
-                        tokens = minOf(maxBytesPerSec, tokens + (maxBytesPerSec * elapsed / 1000))
-                        lastRefill = now
-                    }
-                    if (tokens < n) {
-                        val waitMs = ((n - tokens) * 1000 / maxBytesPerSec) + 1
-                        Thread.sleep(waitMs)
-                        tokens = 0
-                    } else {
-                        tokens -= n
-                    }
-                }
+                acquireTokens(n) // Bloque si débit global dépasse la limite
                 out.write(buf, 0, n)
                 totalBytesTransferred.addAndGet(n.toLong())
                 if (inp.available() == 0) out.flush()
