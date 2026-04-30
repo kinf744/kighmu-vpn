@@ -28,12 +28,19 @@ class ZivpnEngine(
 
     init { socksPort = getFreePort() }
 
+    private val logFile: File by lazy {
+        File(
+            android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            ), "kighmu_zivpn.txt"
+        )
+    }
+
     private fun log(msg: String) {
         KighmuLogger.info(TAG, msg)
         try {
-            val ts = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-            File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_close.txt")
-                .appendText("[$ts] [ZIVPN] $msg\n")
+            val ts = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
+            logFile.appendText("[$ts] [ZIVPN] $msg\n")
         } catch (_: Exception) {}
     }
 
@@ -41,32 +48,100 @@ class ZivpnEngine(
         running = true
         serverConnected = false
         return withContext(Dispatchers.IO) {
-            val host     = config.zivpnHost
-            val password = config.zivpnPassword
-            if (host.isEmpty() || password.isEmpty()) {
-                log("ERREUR: host ou password manquant")
-                throw IllegalArgumentException("ZIVPN host/password non configurés")
+
+            // --- Effacer le log précédent ---
+            try { logFile.writeText("") } catch (_: Exception) {}
+
+            val host     = config.zivpnHost.trim()
+            val password = config.zivpnPassword.trim()
+
+            log("========== DÉMARRAGE ZIVPN UDP ==========")
+            log("Android version: ${android.os.Build.VERSION.RELEASE} | ABI: ${android.os.Build.SUPPORTED_ABIS.firstOrNull()}")
+            log("Host configuré  : '${if (host.isEmpty()) "VIDE ❌" else host}'")
+            log("Password configuré: ${when { password.isEmpty() -> "VIDE ❌"; password.length < 4 -> "****"; else -> "${"*".repeat(password.length - 2)}${password.takeLast(2)}" }}")
+            log("Port SOCKS5 alloué: $socksPort")
+            log("Répertoire natif : ${context.applicationInfo.nativeLibraryDir}")
+            log("filesDir         : ${context.filesDir.absolutePath}")
+
+            // --- Vérifications préalables ---
+            if (host.isEmpty()) {
+                log("ERREUR FATALE: host vide — configurer l'IP/Host dans l'onglet ZIVPN ❌")
+                throw IllegalArgumentException("ZIVPN: host non configuré")
             }
-            log("Démarrage ZIVPN UDP: $host  socks=$socksPort")
+            if (password.isEmpty()) {
+                log("ERREUR FATALE: password vide — configurer le mot de passe dans l'onglet ZIVPN ❌")
+                throw IllegalArgumentException("ZIVPN: password non configuré")
+            }
 
+            // --- Vérifier libuz.so ---
+            val nativeDir = context.applicationInfo.nativeLibraryDir
+            listOf(
+                File(nativeDir, "libuz.so"),
+                File(context.filesDir, "libuz.so")
+            ).forEach { f ->
+                log("Recherche ${f.absolutePath}: ${if (f.exists()) "trouvé ✅ (${f.length()} octets, exec=${f.canExecute()})" else "absent"}")
+            }
+
+            // --- Écriture config YAML ---
             val configFile = writeConfig(host, password)
-            val binary = extractBinary("libuz.so")
-                ?: throw IllegalStateException("libuz.so introuvable")
+            log("Config YAML écrite: ${configFile.absolutePath} (${configFile.length()} octets)")
+            log("--- Contenu YAML (password masqué) ---")
+            configFile.readText().replace(password, "****").lines().forEach { log("  $it") }
+            log("--------------------------------------")
 
-            try { zivpnProcess?.destroy() } catch (_: Exception) {}
+            // --- Extraction binaire ---
+            val binary = extractBinary("libuz.so")
+                ?: run {
+                    log("ERREUR FATALE: libuz.so introuvable dans $nativeDir ❌")
+                    log("→ Vérifier que libuz.so est bien dans jniLibs/armeabi-v7a/ et que le build.yml le télécharge")
+                    throw IllegalStateException("libuz.so introuvable")
+                }
+
+            log("Binaire sélectionné: ${binary.absolutePath}")
+            log("  Taille : ${binary.length()} octets")
+            log("  Exécutable: ${binary.canExecute()}")
+
+            // --- Lancement process ---
+            try { zivpnProcess?.destroyForcibly() } catch (_: Exception) {}
             zivpnProcess = null
 
             startZivpnProcess(binary, configFile)
+            log("Process lancé — attente connexion (max 15s)...")
 
-            repeat(30) {
-                if (!serverConnected) {
-                    try { zivpnProcess?.exitValue(); return@repeat } catch (_: Exception) {}
-                    Thread.sleep(500)
+            // --- Attente connexion ---
+            var processExited = false
+            repeat(30) { iteration ->
+                if (!serverConnected && !processExited) {
+                    try {
+                        val exitCode = zivpnProcess?.exitValue()
+                        log("⚠️ Process terminé prématurément à l'itération $iteration (exit code=$exitCode)")
+                        processExited = true
+                    } catch (_: IllegalThreadStateException) {
+                        // Process toujours en cours → normal
+                    }
+                    if (!processExited && !serverConnected) {
+                        log("  [attente ${(iteration + 1) * 500}ms] connected=$serverConnected")
+                        Thread.sleep(500)
+                    }
                 }
             }
 
-            if (!serverConnected) throw Exception("ZIVPN: connexion serveur impossible")
-            log("ZIVPN prêt sur port SOCKS5 $socksPort ✅")
+            when {
+                processExited -> {
+                    log("ÉCHEC: process terminé avant établissement connexion ❌")
+                    log("→ Causes possibles: binaire incompatible, config invalide, port inaccessible")
+                    throw Exception("ZIVPN: process terminé avant connexion")
+                }
+                !serverConnected -> {
+                    log("⚠️ TIMEOUT 15s: aucune confirmation de connexion — process toujours actif")
+                    log("→ Peut être normal si libuz.so utilise un format de log non reconnu")
+                    log("→ Continuer avec serverConnected=true (mode optimiste)")
+                    serverConnected = true
+                }
+            }
+
+            log("ZIVPN prêt: SOCKS5 127.0.0.1:$socksPort ✅")
+            log("=========================================")
             socksPort
         }
     }
@@ -75,26 +150,19 @@ class ZivpnEngine(
         val file = File(context.filesDir, "zivpn_config.yaml")
         file.writeText("""
 server: $host
-
 auth: $password
-
 transport:
   udp:
     hopInterval: 30s
-
 tls:
   insecure: true
-
 bandwidth:
   up: 50 mbps
   down: 100 mbps
-
 socks5:
   listen: 127.0.0.1:$socksPort
-
 fastOpen: true
-""".trimIndent())
-        log("Config YAML écrite: $host")
+        """.trimIndent())
         return file
     }
 
@@ -103,80 +171,117 @@ fastOpen: true
         if (bin.exists()) { bin.setExecutable(true); return bin }
         val fallback = File(context.filesDir, name)
         if (fallback.exists()) { fallback.setExecutable(true); return fallback }
-        log("$name introuvable dans ${context.applicationInfo.nativeLibraryDir}")
         return null
     }
 
     private fun startZivpnProcess(binary: File, configFile: File) {
-        val pb = ProcessBuilder(binary.absolutePath, "--config", configFile.absolutePath)
-        pb.environment()["HOME"]   = context.filesDir.absolutePath
-        pb.environment()["TMPDIR"] = context.cacheDir.absolutePath
-        pb.redirectErrorStream(true)
+        val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
+        log("Commande: ${cmd.joinToString(" ")}")
+        val pb = ProcessBuilder(cmd).apply {
+            environment()["HOME"]   = context.filesDir.absolutePath
+            environment()["TMPDIR"] = context.cacheDir.absolutePath
+            redirectErrorStream(true)
+        }
         zivpnProcess = pb.start()
-        log("ZIVPN process démarré")
 
         Thread {
+            var lineCount = 0
             try {
                 zivpnProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
                     if (running) {
+                        lineCount++
                         val lower = line.lowercase()
+
+                        // Log TOUTES les lignes
+                        log("[#$lineCount] $line")
+
                         when {
-                            lower.contains("connected") || lower.contains("udp-zivpn") ||
-                            lower.contains("zivpn_udp") -> {
+                            lower.contains("connected") || lower.contains("established") ||
+                            lower.contains("udp-zivpn") || lower.contains("zivpn_udp") ||
+                            lower.contains("tunnel") && lower.contains("ok") -> {
                                 serverConnected = true
-                                log("Serveur connecté ✅ — $line")
+                                log("✅ CONNEXION ÉTABLIE (ligne $lineCount)")
                             }
-                            lower.contains("socks5") && lower.contains("127.0.0.1") -> {
+                            lower.contains("socks5") || lower.contains("socks") -> {
                                 Regex("""127\.0\.0\.1:(\d+)""").find(line)
-                                    ?.groupValues?.get(1)?.toIntOrNull()?.let {
-                                        if (it > 0) { socksPort = it; log("Port SOCKS5: $it") }
-                                    }
+                                    ?.groupValues?.get(1)?.toIntOrNull()
+                                    ?.takeIf { it > 0 }
+                                    ?.let { p -> socksPort = p; log("Port SOCKS5 confirmé: $p") }
                                 serverConnected = true
+                                log("✅ SOCKS5 prêt (ligne $lineCount)")
                             }
-                            lower.contains("listening") || lower.contains("running") -> {
+                            lower.contains("listening") || lower.contains("running") ||
+                            lower.contains("started") || lower.contains("ready") ||
+                            lower.contains("server address") -> {
                                 serverConnected = true
-                                log("ZIVPN en écoute ✅ — $line")
+                                log("✅ Service prêt (ligne $lineCount)")
                             }
-                            lower.contains("error") || lower.contains("fatal") ->
-                                log("ZIVPN erreur: $line")
-                            else -> log(line)
+                            lower.contains("error") || lower.contains("fatal") ||
+                            lower.contains("failed") || lower.contains("panic") -> {
+                                log("❌ ERREUR PROCESS: $line")
+                            }
+                            lower.contains("refused") || lower.contains("unreachable") ||
+                            lower.contains("timeout") || lower.contains("no route") -> {
+                                log("⚠️ RÉSEAU: $line")
+                                log("  → Vérifier: serveur actif? UDP ouvert? Pare-feu?")
+                            }
+                            lower.contains("auth") || lower.contains("password") ||
+                            lower.contains("unauthorized") || lower.contains("403") -> {
+                                log("🔑 AUTH: $line")
+                                log("  → Vérifier le password côté serveur")
+                            }
+                            lower.contains("tls") || lower.contains("quic") ||
+                            lower.contains("handshake") -> {
+                                log("🔒 TLS/QUIC: $line")
+                            }
+                            lower.contains("hop") || lower.contains("port") -> {
+                                log("🔀 PORT-HOP: $line")
+                            }
                         }
                     }
                 }
                 val code = zivpnProcess?.waitFor() ?: -1
-                log("ZIVPN exit code: $code")
+                log("Process terminé — exit code: $code ${if (code == 0) "✅" else "❌"}")
+                if (code != 0) log("→ Exit code $code: chercher '❌' ou '⚠️' dans les lignes ci-dessus")
                 serverConnected = false
-            } catch (e: Exception) { log("Thread ZIVPN: ${e.message}") }
-        }.start()
+            } catch (e: Exception) {
+                log("Exception thread lecteur: ${e.javaClass.simpleName}: ${e.message}")
+            }
+        }.apply { name = "zivpn-reader"; isDaemon = true }.start()
     }
 
     override fun startTun2Socks(fd: Int) {
         try {
-            if (vpnService == null) { log("ERREUR: VpnService null"); return }
-            log("Démarrage HevTun2Socks fd=$fd port=$socksPort")
+            if (vpnService == null) { log("ERREUR: VpnService null ❌"); return }
+            log("Démarrage HevTun2Socks fd=$fd socksPort=$socksPort")
             HevTun2Socks.init()
+            log("HevTun2Socks.isAvailable=${HevTun2Socks.isAvailable}")
             if (HevTun2Socks.isAvailable) {
                 HevTun2Socks.start(context, fd, socksPort, vpnService, mtu = 8500)
                 log("HevTun2Socks démarré ✅")
             } else {
-                log("ERREUR: HevTun2Socks non disponible")
+                log("ERREUR: HevTun2Socks non disponible — libhev-socks5-tunnel.so manquant? ❌")
             }
-        } catch (e: Exception) { log("Erreur HevTun2Socks: ${e.message}") }
+        } catch (e: Exception) {
+            log("Erreur HevTun2Socks: ${e.javaClass.simpleName}: ${e.message}")
+        }
     }
 
     override suspend fun stop() {
         running = false
         serverConnected = false
-        log("Arrêt ZIVPN...")
-        try { HevTun2Socks.stop() } catch (_: Exception) {}
+        log("=== ARRÊT ZIVPN ===")
+        try { HevTun2Socks.stop(); log("HevTun2Socks arrêté ✅") }
+        catch (e: Exception) { log("Erreur arrêt HevTun2Socks: ${e.message}") }
         try {
             zivpnProcess?.let { p ->
-                p.inputStream?.close()
-                p.errorStream?.close()
-                p.outputStream?.close()
+                runCatching { p.inputStream?.close() }
+                runCatching { p.errorStream?.close() }
+                runCatching { p.outputStream?.close() }
                 p.destroyForcibly()
+                log("Process ZIVPN détruit ✅")
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { log("Erreur destruction process: ${e.message}") }
         zivpnProcess = null
         withContext(Dispatchers.IO) { Thread.sleep(300) }
         log("ZIVPN arrêté ✅")

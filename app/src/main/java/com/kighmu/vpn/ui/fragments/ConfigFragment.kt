@@ -57,6 +57,7 @@ class ConfigFragment : Fragment() {
             view.findViewById<LinearLayout>(R.id.panel_xray),
             view.findViewById<LinearLayout>(R.id.panel_v2dns),
             view.findViewById<LinearLayout>(R.id.panel_hysteria),
+            view.findViewById<LinearLayout>(R.id.section_zivpn),
         )
 
         fun selectTab(index: Int) {
