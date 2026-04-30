@@ -34,6 +34,7 @@ jobs:
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/arm64-v8a/libtun2socks_ssc.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/385094917"
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libhev-socks5-tunnel.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/406297759"
           curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/arm64-v8a/libhev-socks5-tunnel.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/406297767"
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" -o app/src/main/jniLibs/armeabi-v7a/libzib.so "https://api.github.com/repos/kinf744/kighmu-vpn/releases/assets/408956032"
           mkdir -p app/libs
           echo "libtun2socks.so already in repo (hev multi-SOCKS), skipping download"
           ls -la app/src/main/jniLibs/armeabi-v7a/
