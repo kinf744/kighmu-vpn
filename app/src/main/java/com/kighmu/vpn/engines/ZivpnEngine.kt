@@ -150,11 +150,16 @@ class ZivpnEngine(
     private fun writeConfig(host: String, password: String): File {
         val file = File(context.filesDir, "zivpn_config.yaml")
         file.writeText("""
-server: $host:${"6000-19999"}
+server: $host:6000-19999
 auth: $password
 transport:
   udp:
     hopInterval: 30s
+quic:
+  initStreamReceiveWindow: 8388608
+  maxStreamReceiveWindow: 8388608
+  initConnReceiveWindow: 20971520
+  maxConnReceiveWindow: 20971520
 tls:
   insecure: true
 bandwidth:
