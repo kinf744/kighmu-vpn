@@ -183,6 +183,7 @@ data class KighmuConfig(
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
     @SerializedName("zivpnHost") var zivpnHost: String = "",
+    @SerializedName("zivpnPort") var zivpnPort: String = "443",
     @SerializedName("zivpnPassword") var zivpnPassword: String = "",
     @SerializedName("xray") var xray: XrayConfig = XrayConfig(),
     @SerializedName("hysteria") var hysteria: HysteriaConfig = HysteriaConfig(),
