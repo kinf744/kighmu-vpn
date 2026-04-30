@@ -173,11 +173,23 @@ fastOpen: true
     }
 
     private fun extractBinary(name: String): File? {
-        val bin = File(context.applicationInfo.nativeLibraryDir, name)
-        if (bin.exists()) { bin.setExecutable(true); return bin }
-        val fallback = File(context.filesDir, name)
-        if (fallback.exists()) { fallback.setExecutable(true); return fallback }
-        return null
+        val src = File(context.applicationInfo.nativeLibraryDir, name)
+        if (!src.exists()) {
+            log("ERREUR: $name introuvable dans nativeLibraryDir")
+            return null
+        }
+        // Copier dans filesDir — SELinux interdit l'exec depuis /data/app/
+        val dest = File(context.filesDir, name)
+        try {
+            src.copyTo(dest, overwrite = true)
+            dest.setExecutable(true)
+            log("Binaire copié: ${src.absolutePath} → ${dest.absolutePath}")
+            log("  dest existe: ${dest.exists()}, exec: ${dest.canExecute()}, taille: ${dest.length()}")
+        } catch (e: Exception) {
+            log("ERREUR copie binaire: ${e.message}")
+            return null
+        }
+        return dest
     }
 
     private fun startZivpnProcess(binary: File, configFile: File) {
