@@ -4,6 +4,7 @@ import android.content.Context
 import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.models.TunnelMode
 import com.kighmu.vpn.utils.KighmuLogger
+import com.kighmu.vpn.engines.ZivpnEngine
 
 object TunnelEngineFactory {
     private const val TAG = "TunnelEngineFactory"
@@ -18,6 +19,7 @@ object TunnelEngineFactory {
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context, 0, 0, vpnService)
             TunnelMode.V2RAY_SLOWDNS -> MultiXraySlowDnsEngine(config, context, vpnService)
             TunnelMode.HYSTERIA_UDP  -> MultiHysteriaEngine(config, context, vpnService)
+            TunnelMode.ZIVPN_UDP     -> ZivpnEngine(config, context)
         }
     }
 }

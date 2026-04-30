@@ -47,6 +47,7 @@ class ConfigFragment : Fragment() {
             view.findViewById<Button>(R.id.tab_xray),
             view.findViewById<Button>(R.id.tab_v2dns),
             view.findViewById<Button>(R.id.tab_hysteria),
+            view.findViewById<Button>(R.id.tab_zivpn),
         )
 
         val panels = listOf(
@@ -247,6 +248,9 @@ class ConfigFragment : Fragment() {
         // V2DNS config is now handled by V2rayDnsProfileRepository
         // Hysteria
         view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
+        // ZIVPN
+        view.findViewById<EditText>(R.id.et_zivpn_host).setText(c.zivpnHost)
+        view.findViewById<EditText>(R.id.et_zivpn_password).setText(c.zivpnPassword)
         view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
         view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
         view.findViewById<EditText>(R.id.et_hys_download).setText(c.hysteria.downloadMbps.toString())
@@ -261,6 +265,7 @@ class ConfigFragment : Fragment() {
             com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY -> 3
             com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS -> 4
             com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP -> 5
+            com.kighmu.vpn.models.TunnelMode.ZIVPN_UDP -> 6
         }
         currentTab = tabIndex
     }
@@ -345,6 +350,7 @@ class ConfigFragment : Fragment() {
             3 -> com.kighmu.vpn.models.TunnelMode.V2RAY_XRAY
             4 -> com.kighmu.vpn.models.TunnelMode.V2RAY_SLOWDNS
             5 -> com.kighmu.vpn.models.TunnelMode.HYSTERIA_UDP
+            6 -> com.kighmu.vpn.models.TunnelMode.ZIVPN_UDP
             else -> c.tunnelMode
         }
 
@@ -357,6 +363,8 @@ class ConfigFragment : Fragment() {
             slowDns = dns,
             xray = xray,
             hysteria = hys,
+            zivpnHost = view.findViewById<EditText>(R.id.et_zivpn_host).text.toString(),
+            zivpnPassword = view.findViewById<EditText>(R.id.et_zivpn_password).text.toString(),
             slowDnsProfiles = dnsProfiles.map { p -> com.kighmu.vpn.models.SlowDnsConfig(dnsServer = p.dnsServer, nameserver = p.nameserver, publicKey = p.publicKey, sshHost = p.sshHost, sshPort = p.sshPort, sshUser = p.sshUser, sshPass = p.sshPass) }.toMutableList()
         ))
         Toast.makeText(requireContext(), "Config saved!", Toast.LENGTH_SHORT).show()

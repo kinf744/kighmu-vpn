@@ -13,7 +13,8 @@ enum class TunnelMode(val id: Int, val label: String) {
     SSH_SSL_TLS(3, "SSH SSL/TLS"),
     V2RAY_XRAY(4, "V2Ray / Xray"),
     V2RAY_SLOWDNS(5, "V2Ray + SlowDNS"),
-    HYSTERIA_UDP(6, "Hysteria UDP");
+    HYSTERIA_UDP(6, "Hysteria UDP"),
+    ZIVPN_UDP(7, "ZIVPN UDP");
 
     companion object {
         fun fromId(id: Int) = values().firstOrNull { it.id == id } ?: HTTP_PROXY
@@ -181,6 +182,8 @@ data class KighmuConfig(
     @SerializedName("exportConfig") var exportConfig: ExportConfig? = null,
     @SerializedName("httpProxy") var httpProxy: HttpProxyConfig = HttpProxyConfig(),
     @SerializedName("sshSsl") var sshSsl: SshSslConfig = SshSslConfig(),
+    @SerializedName("zivpnHost") var zivpnHost: String = "",
+    @SerializedName("zivpnPassword") var zivpnPassword: String = "",
     @SerializedName("xray") var xray: XrayConfig = XrayConfig(),
     @SerializedName("hysteria") var hysteria: HysteriaConfig = HysteriaConfig(),
 
