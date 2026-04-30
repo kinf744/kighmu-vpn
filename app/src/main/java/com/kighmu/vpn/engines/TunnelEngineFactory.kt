@@ -19,7 +19,7 @@ object TunnelEngineFactory {
             TunnelMode.V2RAY_XRAY    -> XrayEngine(config, context, 0, 0, vpnService)
             TunnelMode.V2RAY_SLOWDNS -> MultiXraySlowDnsEngine(config, context, vpnService)
             TunnelMode.HYSTERIA_UDP  -> MultiHysteriaEngine(config, context, vpnService)
-            TunnelMode.ZIVPN_UDP     -> ZivpnEngine(config, context)
+            TunnelMode.ZIVPN_UDP     -> ZivpnEngine(config, context, vpnService)
         }
     }
 }
