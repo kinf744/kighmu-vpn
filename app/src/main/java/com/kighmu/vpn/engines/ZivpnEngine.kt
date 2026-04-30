@@ -148,26 +148,28 @@ class ZivpnEngine(
     }
 
     private fun writeConfig(host: String, password: String): File {
-        val file = File(context.filesDir, "zivpn_config.yaml")
+        val file = File(context.filesDir, "zivpn_config.json")
         file.writeText("""
-server: $host:6000-19999
-auth: $password
-transport:
-  udp:
-    hopInterval: 30s
-quic:
-  initStreamReceiveWindow: 8388608
-  maxStreamReceiveWindow: 8388608
-  initConnReceiveWindow: 20971520
-  maxConnReceiveWindow: 20971520
-tls:
-  insecure: true
-bandwidth:
-  up: 50 mbps
-  down: 100 mbps
-socks5:
-  listen: 127.0.0.1:$socksPort
-fastOpen: true
+{
+  "server": "$host:6000-19999",
+  "auth": "$password",
+  "transport": {
+    "udp": {
+      "hopInterval": "30s"
+    }
+  },
+  "tls": {
+    "insecure": true
+  },
+  "bandwidth": {
+    "up": "50 mbps",
+    "down": "100 mbps"
+  },
+  "socks5": {
+    "listen": "127.0.0.1:$socksPort"
+  },
+  "fastOpen": true
+}
         """.trimIndent())
         return file
     }
@@ -195,7 +197,7 @@ fastOpen: true
     private fun startZivpnProcess(binary: File, configFile: File) {
         // Test 1: lancer --help pour voir si le binaire répond
         try {
-            val helpProc = ProcessBuilder(listOf(binary.absolutePath, "--help"))
+            val helpProc = ProcessBuilder(listOf(binary.absolutePath, "client", "--help"))
                 .apply {
                     environment()["HOME"]   = context.filesDir.absolutePath
                     environment()["TMPDIR"] = context.cacheDir.absolutePath
@@ -210,7 +212,7 @@ fastOpen: true
             log("HELP failed: ${e.message}")
         }
 
-        val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
+        val cmd = listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
         log("Commande: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
