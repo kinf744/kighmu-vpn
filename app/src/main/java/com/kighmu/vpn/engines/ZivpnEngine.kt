@@ -84,7 +84,7 @@ class ZivpnEngine(
 
             // --- Écriture config YAML ---
             val configFile = writeConfig(host, password)
-            log("Port ZIVPN utilisé: " + config.zivpnPort.trim().ifBlank { "6000-19999" })
+            log("Port ZIVPN utilisé: " + "6000-19999")
             log("Config YAML écrite: ${configFile.absolutePath} (${configFile.length()} octets)")
             log("--- Contenu YAML (password masqué) ---")
             configFile.readText().replace(password, "****").lines().forEach { log("  $it") }
@@ -150,7 +150,7 @@ class ZivpnEngine(
     private fun writeConfig(host: String, password: String): File {
         val file = File(context.filesDir, "zivpn_config.yaml")
         file.writeText("""
-server: $host:${config.zivpnPort.trim().ifBlank { "6000-19999" }}
+server: $host:${"6000-19999"}
 auth: $password
 transport:
   udp:

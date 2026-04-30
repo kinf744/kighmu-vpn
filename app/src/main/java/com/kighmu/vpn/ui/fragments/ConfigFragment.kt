@@ -251,6 +251,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<EditText>(R.id.et_hys_host).setText(c.hysteria.serverAddress)
         // ZIVPN
         view.findViewById<EditText>(R.id.et_zivpn_host).setText(c.zivpnHost)
+        view.findViewById<EditText>(R.id.et_zivpn_port).setText("6000-19999")
         view.findViewById<EditText>(R.id.et_zivpn_password).setText(c.zivpnPassword)
         view.findViewById<EditText>(R.id.et_hys_auth).setText(c.hysteria.authPassword)
         view.findViewById<EditText>(R.id.et_hys_upload).setText(c.hysteria.uploadMbps.toString())
@@ -365,6 +366,7 @@ class ConfigFragment : Fragment() {
             xray = xray,
             hysteria = hys,
             zivpnHost = view.findViewById<EditText>(R.id.et_zivpn_host).text.toString(),
+                zivpnPort = view.findViewById<EditText>(R.id.et_zivpn_port).text.toString(),
             zivpnPassword = view.findViewById<EditText>(R.id.et_zivpn_password).text.toString(),
             slowDnsProfiles = dnsProfiles.map { p -> com.kighmu.vpn.models.SlowDnsConfig(dnsServer = p.dnsServer, nameserver = p.nameserver, publicKey = p.publicKey, sshHost = p.sshHost, sshPort = p.sshPort, sshUser = p.sshUser, sshPass = p.sshPass) }.toMutableList()
         ))
