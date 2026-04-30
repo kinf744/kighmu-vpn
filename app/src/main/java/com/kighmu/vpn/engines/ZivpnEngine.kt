@@ -184,8 +184,10 @@ fastOpen: true
         val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
         log("Commande: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).apply {
-            environment()["HOME"]   = context.filesDir.absolutePath
-            environment()["TMPDIR"] = context.cacheDir.absolutePath
+            environment()["HOME"]        = context.filesDir.absolutePath
+            environment()["TMPDIR"]      = context.cacheDir.absolutePath
+            environment()["ZIVPN_LOG_LEVEL"]  = "debug"
+            environment()["ZIVPN_LOG_FORMAT"] = "console"
             redirectErrorStream(true)
         }
         zivpnProcess = pb.start()
