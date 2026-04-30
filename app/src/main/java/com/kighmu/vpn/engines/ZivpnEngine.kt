@@ -181,15 +181,113 @@ fastOpen: true
     }
 
     private fun startZivpnProcess(binary: File, configFile: File) {
+        // Test 1: lancer --help pour voir si le binaire répond
+        try {
+            val helpProc = ProcessBuilder(listOf(binary.absolutePath, "--help"))
+                .apply {
+                    environment()["HOME"]   = context.filesDir.absolutePath
+                    environment()["TMPDIR"] = context.cacheDir.absolutePath
+                    redirectErrorStream(true)
+                }.start()
+            val helpOut = helpProc.inputStream.bufferedReader().readText()
+            helpProc.waitFor()
+            log("=== HELP OUTPUT ===")
+            helpOut.lines().take(20).forEach { log("  HELP: $it") }
+            log("===================")
+        } catch (e: Exception) {
+            log("HELP failed: ${e.message}")
+        }
+
         val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
         log("Commande: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).apply {
-            environment()["HOME"]        = context.filesDir.absolutePath
-            environment()["TMPDIR"]      = context.cacheDir.absolutePath
+            environment()["HOME"]             = context.filesDir.absolutePath
+            environment()["TMPDIR"]           = context.cacheDir.absolutePath
             environment()["ZIVPN_LOG_LEVEL"]  = "debug"
             environment()["ZIVPN_LOG_FORMAT"] = "console"
             redirectErrorStream(true)
         }
+        zivpnProcess = pb.start()
+
+        // Lire stdout dans un thread séparé IMMÉDIATEMENT
+        Thread {
+            var lineCount = 0
+            try {
+                val reader = zivpnProcess?.inputStream?.bufferedReader()
+                // Lire ligne par ligne avec timeout
+                var line: String?
+                while (running) {
+                    line = reader?.readLine()
+                    if (line == null) break
+                    lineCount++
+                    val lower = line.lowercase()
+                    log("[#$lineCount] $line")
+                    when {
+                        lower.contains("connected") || lower.contains("established") ||
+                        lower.contains("udp-zivpn") || lower.contains("zivpn_udp") ||
+                        lower.contains("tunnel") && lower.contains("ok") -> {
+                            serverConnected = true
+                            log("✅ CONNEXION ÉTABLIE (ligne $lineCount)")
+                        }
+                        lower.contains("socks5") || lower.contains("socks") -> {
+                            Regex("""127\.0\.0\.1:(\d+)""").find(line)
+                                ?.groupValues?.get(1)?.toIntOrNull()
+                                ?.takeIf { it > 0 }
+                                ?.let { p -> socksPort = p; log("Port SOCKS5 confirmé: $p") }
+                            serverConnected = true
+                            log("✅ SOCKS5 prêt (ligne $lineCount)")
+                        }
+                        lower.contains("listening") || lower.contains("running") ||
+                        lower.contains("started") || lower.contains("ready") -> {
+                            serverConnected = true
+                            log("✅ Service prêt (ligne $lineCount)")
+                        }
+                        lower.contains("error") || lower.contains("fatal") ||
+                        lower.contains("failed") || lower.contains("panic") -> {
+                            log("❌ ERREUR: $line")
+                        }
+                        lower.contains("refused") || lower.contains("unreachable") ||
+                        lower.contains("timeout") || lower.contains("no route") -> {
+                            log("⚠️ RÉSEAU: $line")
+                        }
+                        lower.contains("auth") || lower.contains("password") -> {
+                            log("🔑 AUTH: $line")
+                        }
+                        lower.contains("tls") || lower.contains("quic") ||
+                        lower.contains("handshake") -> {
+                            log("🔒 TLS/QUIC: $line")
+                        }
+                        lower.contains("hop") || lower.contains("port") -> {
+                            log("🔀 PORT-HOP: $line")
+                        }
+                    }
+                }
+                val code = zivpnProcess?.waitFor() ?: -1
+                log("Process terminé — exit code: $code ${if (code == 0) "✅" else "❌"}")
+                if (code != 0) log("→ Exit code $code: total $lineCount lignes lues")
+                if (lineCount == 0) log("⚠️ AUCUNE LIGNE LUE — crash avant toute écriture stdout/stderr")
+                serverConnected = false
+            } catch (e: Exception) {
+                log("Exception thread lecteur: ${e.javaClass.simpleName}: ${e.message}")
+            }
+        }.apply { name = "zivpn-reader"; isDaemon = true; priority = Thread.MAX_PRIORITY }.start()
+
+        // Attendre 100ms et vérifier si le process est déjà mort
+        Thread.sleep(100)
+        try {
+            val earlyExit = zivpnProcess?.exitValue()
+            log("⚠️ CRASH IMMÉDIAT après 100ms — exit code: $earlyExit")
+            log("⚠️ Causes: SELinux? linker manquant? ABI incompatible?")
+            // Vérifier les libs dynamiques nécessaires
+            log("Vérification libs système...")
+            listOf("/system/bin/linker", "/system/lib/libc.so", "/system/lib/libdl.so").forEach { lib ->
+                log("  $lib: ${if (java.io.File(lib).exists()) "✅" else "❌ MANQUANT"}")
+            }
+        } catch (_: IllegalThreadStateException) {
+            log("✅ Process toujours actif après 100ms — bon signe")
+        }
+    }
+
         zivpnProcess = pb.start()
 
         Thread {
