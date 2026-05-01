@@ -217,6 +217,32 @@ class ZivpnEngine(
             log("HELP failed: ${e.message}")
         }
 
+        // === DIAGNOSTIC PRE-LANCEMENT ===
+        log("=== DIAGNOSTIC PRE-LANCEMENT ===")
+        log("Config JSON:")
+        configFile.readText().lines().forEachIndexed { idx, ln -> log("  [${idx}] $ln") }
+        log("Taille: ${configFile.length()} octets")
+        try {
+            org.json.JSONObject(configFile.readText())
+            log("JSON valide OK")
+        } catch (e: Exception) {
+            log("JSON INVALIDE: ${e.message}")
+        }
+        Thread {
+            try {
+                val sp = portRange.split("-").firstOrNull()?.trim()?.toIntOrNull() ?: 6000
+                val sock = java.net.DatagramSocket()
+                val buf = ByteArray(16)
+                val addr = java.net.InetSocketAddress(host, sp)
+                sock.send(java.net.DatagramPacket(buf, buf.size, addr))
+                log("UDP test $host:$sp OK")
+                sock.close()
+            } catch (e: Exception) {
+                log("UDP test: ${e.javaClass.simpleName}: ${e.message}")
+            }
+        }.apply { isDaemon = true }.start()
+        log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
+        log("=================================")
         val cmd = listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
         log("Commande directe: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
