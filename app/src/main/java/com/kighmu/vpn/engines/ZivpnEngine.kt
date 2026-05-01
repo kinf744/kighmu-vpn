@@ -180,25 +180,7 @@ class ZivpnEngine(
         return bin
     }
     private fun startZivpnProcess(binary: File, configFile: File) {
-        // Test 1: lancer --help pour voir si le binaire répond
-        try {
-            val linkerH = "/system/bin/linker"
-            val helpCmd = if (java.io.File(linkerH).exists())
-                listOf(linkerH, binary.absolutePath, "client", "--help")
-            val helpProc = ProcessBuilder(helpCmd)
-                .apply {
-                    environment()["HOME"]   = context.filesDir.absolutePath
-                    environment()["TMPDIR"] = context.cacheDir.absolutePath
-                    redirectErrorStream(true)
-                }.start()
-            val helpOut = helpProc.inputStream.bufferedReader().readText()
-            helpProc.waitFor()
-            log("=== HELP OUTPUT ===")
-            helpOut.lines().take(20).forEach { log("  HELP: $it") }
-            log("===================")
-        } catch (e: Exception) {
-            log("HELP failed: ${e.message}")
-        }
+        // Test --help supprimé (obsolète)
 
         // === DIAGNOSTIC PRE-LANCEMENT ===
         log("=== DIAGNOSTIC PRE-LANCEMENT ===")
