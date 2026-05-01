@@ -223,9 +223,24 @@ class ZivpnEngine(
             environment()["TMPDIR"]           = context.cacheDir.absolutePath
             environment()["ZIVPN_LOG_LEVEL"]  = "debug"
             environment()["ZIVPN_LOG_FORMAT"] = "console"
-            redirectErrorStream(true)
+            environment()["GOTRACEBACK"]       = "crash"
+            environment()["GODEBUG"]           = "asyncpreemptoff=1"
+            redirectErrorStream(false)
         }
+        val stderrFile = java.io.File(context.filesDir, "zivpn_stderr.txt")
         zivpnProcess = pb.start()
+        // Capturer stderr séparément
+        Thread {
+            try {
+                val err = zivpnProcess?.errorStream?.bufferedReader()?.readText() ?: ""
+                if (err.isNotBlank()) {
+                    stderrFile.writeText(err)
+                    err.lines().forEach { log("STDERR: $it") }
+                } else {
+                    log("STDERR: vide")
+                }
+            } catch (e: Exception) { log("STDERR err: ${e.message}") }
+        }.apply { isDaemon = true }.start()
 
         // Lire stdout dans un thread séparé IMMÉDIATEMENT
         Thread {
