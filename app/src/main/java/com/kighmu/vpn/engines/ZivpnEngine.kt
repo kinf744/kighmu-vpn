@@ -251,13 +251,13 @@ class ZivpnEngine(
         }.apply { isDaemon = true }.start()
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
-            // Lancement via linker pour contourner SELinux
-            val linker32 = "/system/bin/linker"
-            val cmd = if (java.io.File(linker32).exists())
-                listOf(linker32, binary.absolutePath, "client", "--config", configFile.absolutePath)
-            else
-                listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
-        log("Commande directe: ${cmd.joinToString(" ")}")
+            // Ecrire un wrapper shell pour contourner SELinux
+            val wrapperFile = java.io.File(context.filesDir, "run_zivpn.sh")
+            wrapperFile.writeText("#!/system/bin/sh\n" +
+                "exec " + binary.absolutePath + " client --config " + configFile.absolutePath + "\n")
+            wrapperFile.setExecutable(true, false)
+            val cmd = listOf("/system/bin/sh", wrapperFile.absolutePath)
+            log("Commande directe: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
             environment()["TMPDIR"]           = context.cacheDir.absolutePath
