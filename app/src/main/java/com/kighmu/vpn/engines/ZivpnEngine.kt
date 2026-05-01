@@ -151,65 +151,40 @@ class ZivpnEngine(
         val file = File(context.filesDir, "zivpn_config.json")
         val portRange = config.zivpnPort.ifBlank { "6000-19999" }
         val startPort = portRange.split("-").firstOrNull()?.trim() ?: "6000"
+        val serverAddr = "$host:$startPort"
         file.writeText("""
 {
-  "server": "$host:$startPort",
-  "auth": "$password",
+  "server": "$serverAddr",
   "obfs": "zivpn",
-  "transport": {
-    "type": "udp",
-    "udp": {
-      "hopInterval": "30s",
-      "hopPorts": "$portRange"
-    }
-  },
-  "tls": {
-    "insecure": true
-  },
-  "bandwidth": {
-    "up": "50 mbps",
-    "down": "100 mbps"
-  },
-  "socks5": {
-    "listen": "127.0.0.1:$socksPort"
-  }
+  "auth": "$password",
+  "up": "50 mbps",
+  "down": "100 mbps",
+  "socks5": { "listen": "127.0.0.1:$socksPort" },
+  "insecure": true,
+  "recvwindowconn": 1048576,
+  "recvwindow": 2621440
 }
         """.trimIndent())
         return file
     }
 
     private fun extractBinary(name: String): File? {
-        val src = File(context.applicationInfo.nativeLibraryDir, name)
-        if (!src.exists()) {
-            log("ERREUR: $name introuvable dans nativeLibraryDir")
+        // Lancer depuis nativeLibraryDir (SELinux autorisé avec extractNativeLibs=true)
+        val bin = File(context.applicationInfo.nativeLibraryDir, name)
+        if (!bin.exists()) {
+            log("ERREUR: ${name} introuvable dans nativeLibraryDir")
             return null
         }
-        log("Binaire natif: ${src.absolutePath} (${src.length()} octets, exec=${src.canExecute()})")
-
-        // Copier dans filesDir pour contourner SELinux Android 12+
-        val dst = File(context.filesDir, name)
-        try {
-            src.copyTo(dst, overwrite = true)
-            dst.setExecutable(true, false)
-            log("Binaire copié: ${dst.absolutePath} (exec=${dst.canExecute()})")
-            if (dst.canExecute()) return dst
-            log("WARN: copie non exécutable, tentative nativeLibraryDir")
-        } catch (e: Exception) {
-            log("WARN: copie échouée: ${e.message} — tentative nativeLibraryDir")
-        }
-
-        // Fallback: nativeLibraryDir direct
-        src.setExecutable(true)
-        return src
+        bin.setExecutable(true)
+        log("Binaire: ${bin.absolutePath} (" + bin.length() + " octets, exec=" + bin.canExecute() + ")")
+        return bin
     }
-
     private fun startZivpnProcess(binary: File, configFile: File) {
         // Test 1: lancer --help pour voir si le binaire répond
         try {
             val linkerH = "/system/bin/linker"
             val helpCmd = if (java.io.File(linkerH).exists())
                 listOf(linkerH, binary.absolutePath, "client", "--help")
-            else listOf(binary.absolutePath, "client", "--help")
             val helpProc = ProcessBuilder(helpCmd)
                 .apply {
                     environment()["HOME"]   = context.filesDir.absolutePath
@@ -251,12 +226,9 @@ class ZivpnEngine(
         }.apply { isDaemon = true }.start()
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
-            // Ecrire un wrapper shell pour contourner SELinux
-            val wrapperFile = java.io.File(context.filesDir, "run_zivpn.sh")
-            wrapperFile.writeText("#!/system/bin/sh\n" +
                 "exec " + binary.absolutePath + " client --config " + configFile.absolutePath + "\n")
-            wrapperFile.setExecutable(true, false)
-            val cmd = listOf("/system/bin/sh", wrapperFile.absolutePath)
+            val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
+            val cmd = listOf(binary.absolutePath, "-s", serverAddr2, "--config", configFile.absolutePath)
             log("Commande directe: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
