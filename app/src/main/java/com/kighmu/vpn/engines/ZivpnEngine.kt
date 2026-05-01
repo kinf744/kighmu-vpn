@@ -155,7 +155,7 @@ class ZivpnEngine(
         file.writeText("""
 {
   "server": "$serverAddr",
-  "obfs": "zivpn",
+  "obfs": "udp",
   "auth": "$password",
   "up": "50 mbps",
   "down": "100 mbps",
@@ -226,7 +226,6 @@ class ZivpnEngine(
         }.apply { isDaemon = true }.start()
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
-                "exec " + binary.absolutePath + " client --config " + configFile.absolutePath + "\n")
             val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
             val cmd = listOf(binary.absolutePath, "-s", serverAddr2, "--config", configFile.absolutePath)
             log("Commande directe: ${cmd.joinToString(" ")}")
