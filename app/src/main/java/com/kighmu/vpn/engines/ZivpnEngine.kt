@@ -153,19 +153,14 @@ class ZivpnEngine(
         val startPort = portRange.split("-").firstOrNull()?.trim() ?: "6000"
         file.writeText("""
 {
-  "server": "$host:${"$"}{startPort}",
+  "server": "$host:$startPort",
   "auth": "$password",
-  "obfs": {
-    "type": "salamander",
-    "salamander": {
-      "password": "zivpn"
-    }
-  },
+  "obfs": "zivpn",
   "transport": {
     "type": "udp",
     "udp": {
       "hopInterval": "30s",
-      "hopPorts": "${"$"}{portRange}"
+      "hopPorts": "$portRange"
     }
   },
   "tls": {
