@@ -179,15 +179,28 @@ class ZivpnEngine(
     }
 
     private fun extractBinary(name: String): File? {
-        // Exécuter directement depuis nativeLibraryDir — SELinux l'autorise
-        val bin = File(context.applicationInfo.nativeLibraryDir, name)
-        if (!bin.exists()) {
+        val src = File(context.applicationInfo.nativeLibraryDir, name)
+        if (!src.exists()) {
             log("ERREUR: $name introuvable dans nativeLibraryDir")
             return null
         }
-        bin.setExecutable(true)
-        log("Binaire natif: ${bin.absolutePath} (${bin.length()} octets, exec=${bin.canExecute()})")
-        return bin
+        log("Binaire natif: ${src.absolutePath} (${src.length()} octets, exec=${src.canExecute()})")
+
+        // Copier dans filesDir pour contourner SELinux Android 12+
+        val dst = File(context.filesDir, name)
+        try {
+            src.copyTo(dst, overwrite = true)
+            dst.setExecutable(true, false)
+            log("Binaire copié: ${dst.absolutePath} (exec=${dst.canExecute()})")
+            if (dst.canExecute()) return dst
+            log("WARN: copie non exécutable, tentative nativeLibraryDir")
+        } catch (e: Exception) {
+            log("WARN: copie échouée: ${e.message} — tentative nativeLibraryDir")
+        }
+
+        // Fallback: nativeLibraryDir direct
+        src.setExecutable(true)
+        return src
     }
 
     private fun startZivpnProcess(binary: File, configFile: File) {
