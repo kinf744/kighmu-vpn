@@ -149,13 +149,23 @@ class ZivpnEngine(
 
     private fun writeConfig(host: String, password: String): File {
         val file = File(context.filesDir, "zivpn_config.json")
+        val portRange = config.zivpnPort.ifBlank { "6000-19999" }
+        val startPort = portRange.split("-").firstOrNull()?.trim() ?: "6000"
         file.writeText("""
 {
-  "server": "$host:6000-19999",
+  "server": "$host:${"$"}{startPort}",
   "auth": "$password",
+  "obfs": {
+    "type": "salamander",
+    "salamander": {
+      "password": "zivpn"
+    }
+  },
   "transport": {
+    "type": "udp",
     "udp": {
-      "hopInterval": "30s"
+      "hopInterval": "30s",
+      "hopPorts": "${"$"}{portRange}"
     }
   },
   "tls": {
@@ -167,8 +177,7 @@ class ZivpnEngine(
   },
   "socks5": {
     "listen": "127.0.0.1:$socksPort"
-  },
-  "fastOpen": true
+  }
 }
         """.trimIndent())
         return file
