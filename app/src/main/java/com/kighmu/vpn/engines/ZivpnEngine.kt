@@ -230,12 +230,12 @@ class ZivpnEngine(
         }
         Thread {
             try {
-                val sp = portRange.split("-").firstOrNull()?.trim()?.toIntOrNull() ?: 6000
+                val sp = config.zivpnPort.ifBlank { "6000" }.split("-").firstOrNull()?.trim()?.toIntOrNull() ?: 6000
                 val sock = java.net.DatagramSocket()
                 val buf = ByteArray(16)
-                val addr = java.net.InetSocketAddress(host, sp)
-                sock.send(java.net.DatagramPacket(buf, buf.size, addr))
-                log("UDP test $host:$sp OK")
+                val addr = java.net.InetSocketAddress(config.zivpnHost.trim(), sp)
+                sock.send(java.net.DatagramPacket(buf, buf.size, addr as java.net.SocketAddress))
+                log("UDP test ${config.zivpnHost.trim()}:$sp OK")
                 sock.close()
             } catch (e: Exception) {
                 log("UDP test: ${e.javaClass.simpleName}: ${e.message}")
