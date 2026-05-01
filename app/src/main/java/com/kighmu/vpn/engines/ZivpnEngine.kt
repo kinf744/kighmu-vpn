@@ -189,7 +189,11 @@ class ZivpnEngine(
     private fun startZivpnProcess(binary: File, configFile: File) {
         // Test 1: lancer --help pour voir si le binaire répond
         try {
-            val helpProc = ProcessBuilder(listOf(binary.absolutePath, "client", "--help"))
+            val linkerH = "/system/bin/linker"
+            val helpCmd = if (java.io.File(linkerH).exists())
+                listOf(linkerH, binary.absolutePath, "client", "--help")
+            else listOf(binary.absolutePath, "client", "--help")
+            val helpProc = ProcessBuilder(helpCmd)
                 .apply {
                     environment()["HOME"]   = context.filesDir.absolutePath
                     environment()["TMPDIR"] = context.cacheDir.absolutePath
@@ -204,7 +208,15 @@ class ZivpnEngine(
             log("HELP failed: ${e.message}")
         }
 
-        val cmd = listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
+        // Utiliser le linker Android explicitement pour contourner SELinux execmod
+        val linker = "/system/bin/linker"
+        val cmd = if (java.io.File(linker).exists()) {
+            log("Utilisation linker: $linker")
+            listOf(linker, binary.absolutePath, "client", "--config", configFile.absolutePath)
+        } else {
+            log("Linker non trouvé, exécution directe")
+            listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
+        }
         log("Commande: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
