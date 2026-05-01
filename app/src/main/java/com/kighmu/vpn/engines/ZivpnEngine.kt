@@ -208,16 +208,8 @@ class ZivpnEngine(
             log("HELP failed: ${e.message}")
         }
 
-        // Utiliser le linker Android explicitement pour contourner SELinux execmod
-        val linker = "/system/bin/linker"
-        val cmd = if (java.io.File(linker).exists()) {
-            log("Utilisation linker: $linker")
-            listOf(linker, binary.absolutePath, "client", "--config", configFile.absolutePath)
-        } else {
-            log("Linker non trouvé, exécution directe")
-            listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
-        }
-        log("Commande: ${cmd.joinToString(" ")}")
+        val cmd = listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
+        log("Commande directe: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
             environment()["TMPDIR"]           = context.cacheDir.absolutePath
