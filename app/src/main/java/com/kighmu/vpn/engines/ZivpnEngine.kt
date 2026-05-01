@@ -218,7 +218,7 @@ class ZivpnEngine(
             listOf(binary.absolutePath, "client", "--config", configFile.absolutePath)
         }
         log("Commande: ${cmd.joinToString(" ")}")
-        val pb = ProcessBuilder(cmd).apply {
+        val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
             environment()["TMPDIR"]           = context.cacheDir.absolutePath
             environment()["ZIVPN_LOG_LEVEL"]  = "debug"
