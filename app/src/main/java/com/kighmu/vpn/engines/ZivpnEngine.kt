@@ -209,7 +209,7 @@ class ZivpnEngine(
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
             val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
-            val cmd = listOf(binary.absolutePath, "-s", serverAddr2, "--config", configFile.absolutePath)
+            val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
             log("Commande directe: ${cmd.joinToString(" ")}")
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
