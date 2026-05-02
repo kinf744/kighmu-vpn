@@ -220,15 +220,18 @@ class ZivpnEngine(
         }.apply { isDaemon = true }.start()
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
-            val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
-            val jsonConfig = configFile.readText() // Use JSON directly as argument (original method)
-            val cmd = listOf(binary.absolutePath, "-s", serverAddr2, "--config", jsonConfig)
-            log("Commande directe: ${cmd.joinToString(" ")}")
+            // Commande simplifiée : on passe uniquement le fichier de config
+            val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
+            log("Commande construite: ${cmd.joinToString(" ")}")
         log("[DBG] Création ProcessBuilder...")
-        if (!running) { log("Annulé: stop() appelé avant lancement"); return }
+        if (!running) {
+            log("⚠️ stop() a été appelé avant le lancement du processus — abort");
+            return
+        }
         val pb = ProcessBuilder(cmd).apply {
             environment()["HOME"] = context.filesDir.absolutePath
             environment()["TMPDIR"] = context.cacheDir.absolutePath
+            environment()["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
             redirectErrorStream(true)
             redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
         }
@@ -236,6 +239,12 @@ class ZivpnEngine(
         log("[DBG] pb.start() appelé...")
         zivpnProcess = pb.start()
         log("[DBG] pb.start() retourné — PID process lancé")
+        // Si stop() a été appelé entre-temps, détruire le processus
+        if (!running) {
+            log("⚠️ stop() appelé juste après le lancement — destruction du processus")
+            zivpnProcess?.destroyForcibly()
+            throw Exception("ZIVPN: stop() appelé pendant le lancement")
+        }
         log("[DBG] Lancement thread stderr...")
         // Capturer stderr séparément
         log("[DBG] Thread stderr: démarrage lecture...")
@@ -353,14 +362,16 @@ class ZivpnEngine(
     override suspend fun stop() {
         running = false
         serverConnected = false
-        log("=== ARRÊT ZIVPN ===")
+        // Diagnostic : qui a appelé stop() ?
+        val caller = Thread.currentThread().stackTrace.take(6).joinToString(" < ") { it.methodName }
+        log("=== ARRÊT ZIVPN === appelé depuis: $caller")
         try { HevTun2Socks.stop(); log("HevTun2Socks arrêté ✅") }
         catch (e: Exception) { log("Erreur arrêt HevTun2Socks: ${e.message}") }
         try {
             zivpnProcess?.let { p ->
-                runCatching { p.inputStream?.close() }
-                runCatching { p.errorStream?.close() }
-                runCatching { p.outputStream?.close() }
+                try { p.inputStream?.close() } catch (_: Exception) {}
+                try { p.errorStream?.close() } catch (_: Exception) {}
+                try { p.outputStream?.close() } catch (_: Exception) {}
                 p.destroyForcibly()
                 log("Process ZIVPN détruit ✅")
             }
