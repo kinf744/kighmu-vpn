@@ -220,6 +220,7 @@ class ZivpnEngine(
             val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
             val cmd = listOf(binary.absolutePath, "-s", "udp", "--config", configFile.absolutePath)
             log("Commande directe: ${cmd.joinToString(" ")}")
+        if (!running) { log("Annulé: stop() appelé avant lancement"); return }
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
             environment()["TMPDIR"]           = context.cacheDir.absolutePath
