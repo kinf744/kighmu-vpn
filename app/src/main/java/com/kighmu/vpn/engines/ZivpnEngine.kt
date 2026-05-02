@@ -170,12 +170,20 @@ class ZivpnEngine(
 
     private fun extractBinary(name: String): File? {
         // Lancer depuis nativeLibraryDir (SELinux autorisé avec extractNativeLibs=true)
-        val bin = File(context.applicationInfo.nativeLibraryDir, name)
-        if (!bin.exists()) {
+        val src = File(context.applicationInfo.nativeLibraryDir, name)
+        if (!src.exists()) {
             log("ERREUR: ${name} introuvable dans nativeLibraryDir")
             return null
         }
-        bin.setExecutable(true)
+        val bin = File(context.filesDir, name)
+        try {
+            src.copyTo(bin, overwrite = true)
+            bin.setExecutable(true, false)
+        } catch (e: Exception) {
+            log("Copie echouee: ${e.message}")
+            src.setExecutable(true)
+            return src
+        }
         log("Binaire: ${bin.absolutePath} (" + bin.length() + " octets, exec=" + bin.canExecute() + ")")
         return bin
     }
