@@ -33,10 +33,8 @@ class ZivpnEngine(
         try {
             val ts = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS",
                 java.util.Locale.getDefault()).format(java.util.Date())
-            val f = File(
-                android.os.Environment.getExternalStoragePublicDirectory(
-                    android.os.Environment.DIRECTORY_DOWNLOADS),
-                "kighmu_zivpn.txt")
+            val f = File(android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_zivpn.txt")
             f.appendText("[$ts] [ZIVPN] $msg
 ")
         } catch (_: Exception) {}
@@ -48,36 +46,27 @@ class ZivpnEngine(
         return withContext(Dispatchers.IO) {
             try { zivpnProcess?.destroy() } catch (_: Exception) {}
             zivpnProcess = null
-
             val host = config.zivpnHost.trim()
             val password = config.zivpnPassword.trim()
-
             log("========== DEMARRAGE ZIVPN UDP ==========")
-            log("Host: $host | Port: ${config.zivpnPort.ifBlank { "6000" }}")
-            log("Port SOCKS5: $socksPort")
-
+            log("Host: $host | SocksPort: $socksPort")
             if (host.isEmpty()) throw IllegalArgumentException("ZIVPN: host non configure")
             if (password.isEmpty()) throw IllegalArgumentException("ZIVPN: password non configure")
-
             val configFile = writeConfig(host, password)
             val binary = extractBinary("libuz.so")
                 ?: throw IllegalStateException("libuz.so introuvable")
-
             log("Binaire: ${binary.absolutePath}")
-            log("Commande: ${binary.absolutePath} -s udp --config ${configFile.absolutePath}")
-
             startZivpnProcess(binary, configFile)
-
             repeat(30) {
+                if (!serverConnected) {
                     try { zivpnProcess?.exitValue(); return@repeat } catch (_: Exception) {}
                     Thread.sleep(500)
                 }
             }
-
+            if (!serverConnected) {
                 log("Timeout — process actif, mode optimiste")
                 serverConnected = true
             }
-
             log("ZIVPN pret sur port $socksPort")
             socksPort
         }
@@ -85,19 +74,19 @@ class ZivpnEngine(
 
     private fun writeConfig(host: String, password: String): File {
         val file = File(context.filesDir, "zivpn_config.json")
-        val startPort = config.zivpnPort.ifBlank { "6000-19999" }
+        val startPort = config.zivpnPort.ifBlank { "6000" }
             .split("-").firstOrNull()?.trim() ?: "6000"
-        file.writeText("""{
-  "server": "$host:$startPort",
-  "obfs": "udp",
-  "auth": "$password",
-  "up": "50 mbps",
-  "down": "100 mbps",
-  "socks5": { "listen": "127.0.0.1:$socksPort" },
-  "insecure": true,
-  "recvwindowconn": 1048576,
-  "recvwindow": 2621440
-}""")
+        val json = "{" +
+            ""server": "$host:$startPort"," +
+            ""obfs": "udp"," +
+            ""auth": "$password"," +
+            ""up": "50 mbps"," +
+            ""down": "100 mbps"," +
+            ""socks5": {"listen": "127.0.0.1:$socksPort"}," +
+            ""insecure": true," +
+            ""recvwindowconn": 1048576," +
+            ""recvwindow": 2621440}"
+        file.writeText(json)
         log("Config ecrite: $host:$startPort")
         return file
     }
@@ -117,7 +106,6 @@ class ZivpnEngine(
         pb.redirectErrorStream(true)
         zivpnProcess = pb.start()
         log("Process lance")
-
         Thread {
             try {
                 zivpnProcess?.inputStream?.bufferedReader()?.forEachLine { line ->
@@ -125,27 +113,18 @@ class ZivpnEngine(
                         log("[OUT] $line")
                         val lower = line.lowercase()
                         when {
-                            lower.contains("connected") || lower.contains("established") ||
-                            lower.contains("running") || lower.contains("started") ||
-                            lower.contains("ready") || lower.contains("listening") -> {
-                                serverConnected = true
-                                log("CONNEXION ETABLIE")
-                            }
-                            lower.contains("socks5") || lower.contains("socks") -> {
-                                serverConnected = true
-                                log("SOCKS5 pret")
-                            }
-                            lower.contains("error") || lower.contains("fatal") ||
-                            lower.contains("panic") -> log("ERREUR: $line")
+                            lower.contains("connected") || lower.contains("running") ||
+                            lower.contains("started") || lower.contains("listening") ||
+                            lower.contains("ready") -> { serverConnected = true; log("CONNEXION OK") }
+                            lower.contains("socks5") || lower.contains("socks") -> { serverConnected = true; log("SOCKS5 pret") }
+                            lower.contains("error") || lower.contains("fatal") || lower.contains("panic") -> log("ERREUR: $line")
                         }
                     }
                 }
                 val code = zivpnProcess?.waitFor() ?: -1
-                log("Process termine — exit code: $code")
+                log("Process termine exit=$code")
                 serverConnected = false
-            } catch (e: Exception) {
-                log("Thread reader: ${e.message}")
-            }
+            } catch (e: Exception) { log("Thread: ${e.message}") }
         }.apply { isDaemon = true; name = "zivpn-reader" }.start()
     }
 
@@ -157,12 +136,8 @@ class ZivpnEngine(
             if (HevTun2Socks.isAvailable) {
                 HevTun2Socks.start(context, fd, socksPort, vpnService, mtu = 8500)
                 log("HevTun2Socks demarre")
-            } else {
-                log("ERREUR: HevTun2Socks non disponible")
-            }
-        } catch (e: Exception) {
-            log("Erreur HevTun2Socks: ${e.message}")
-        }
+            } else { log("ERREUR: HevTun2Socks non disponible") }
+        } catch (e: Exception) { log("Erreur HevTun2Socks: ${e.message}") }
     }
 
     override suspend fun stop() {
