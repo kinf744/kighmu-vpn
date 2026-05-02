@@ -6,6 +6,7 @@ import com.kighmu.vpn.models.KighmuConfig
 import com.kighmu.vpn.utils.KighmuLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.io.File
 
 class ZivpnEngine(
@@ -122,7 +123,7 @@ class ZivpnEngine(
                     }
                     if (!processExited && !serverConnected) {
                         log("  [attente ${(iteration + 1) * 500}ms] connected=$serverConnected")
-                        Thread.sleep(500)
+                        delay(500)
                     }
                 }
             }
