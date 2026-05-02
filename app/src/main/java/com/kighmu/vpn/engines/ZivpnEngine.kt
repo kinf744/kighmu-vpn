@@ -35,8 +35,7 @@ class ZivpnEngine(
                 java.util.Locale.getDefault()).format(java.util.Date())
             val f = File(android.os.Environment.getExternalStoragePublicDirectory(
                 android.os.Environment.DIRECTORY_DOWNLOADS), "kighmu_zivpn.txt")
-            f.appendText("[$ts] [ZIVPN] $msg
-")
+            f.appendText("[$ts] [ZIVPN] $msg\n")
         } catch (_: Exception) {}
     }
 
@@ -77,15 +76,15 @@ class ZivpnEngine(
         val startPort = config.zivpnPort.ifBlank { "6000" }
             .split("-").firstOrNull()?.trim() ?: "6000"
         val json = "{" +
-            ""server": "$host:$startPort"," +
-            ""obfs": "udp"," +
-            ""auth": "$password"," +
-            ""up": "50 mbps"," +
-            ""down": "100 mbps"," +
-            ""socks5": {"listen": "127.0.0.1:$socksPort"}," +
-            ""insecure": true," +
-            ""recvwindowconn": 1048576," +
-            ""recvwindow": 2621440}"
+            "\"server\": \"$host:$startPort\"," +
+            "\"obfs\": \"udp\"," +
+            "\"auth\": \"$password\"," +
+            "\"up\": \"50 mbps\"," +
+            "\"down\": \"100 mbps\"," +
+            "\"socks5\": {\"listen\": \"127.0.0.1:$socksPort\"}," +
+            "\"insecure\": true," +
+            "\"recvwindowconn\": 1048576," +
+            "\"recvwindow\": 2621440}"
         file.writeText(json)
         log("Config ecrite: $host:$startPort")
         return file
