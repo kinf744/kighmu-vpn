@@ -107,11 +107,11 @@ class ZivpnEngine(
             zivpnProcess = null
 
             startZivpnProcess(binary, configFile)
-            log("Process lancé — attente connexion (max 15s)...")
+            log("Process lancé — attente connexion (max 5s)...")
 
             // --- Attente connexion ---
             var processExited = false
-            repeat(30) { iteration ->
+            repeat(10) { iteration ->
                 if (!serverConnected && !processExited) {
                     try {
                         val exitCode = zivpnProcess?.exitValue()
