@@ -107,7 +107,9 @@ class ZivpnEngine(
             try { zivpnProcess?.destroyForcibly() } catch (_: Exception) {}
             zivpnProcess = null
 
+            log("[DBG] Appel startZivpnProcess...")
             startZivpnProcess(binary, configFile)
+            log("[DBG] startZivpnProcess retourné ✅")
             log("Process lancé — attente connexion (max 5s)...")
 
             // --- Attente connexion ---
@@ -220,6 +222,7 @@ class ZivpnEngine(
             val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
             val cmd = listOf(binary.absolutePath, "-s", "udp", "--config", configFile.absolutePath)
             log("Commande directe: ${cmd.joinToString(" ")}")
+        log("[DBG] Création ProcessBuilder...")
         if (!running) { log("Annulé: stop() appelé avant lancement"); return }
         val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
             environment()["HOME"]             = context.filesDir.absolutePath
@@ -231,8 +234,12 @@ class ZivpnEngine(
             redirectErrorStream(false)
         }
         val stderrFile = java.io.File(context.filesDir, "zivpn_stderr.txt")
+        log("[DBG] pb.start() appelé...")
         zivpnProcess = pb.start()
+        log("[DBG] pb.start() retourné — PID process lancé")
+        log("[DBG] Lancement thread stderr...")
         // Capturer stderr séparément
+        log("[DBG] Thread stderr: démarrage lecture...")
         Thread {
             try {
                 val err = zivpnProcess?.errorStream?.bufferedReader()?.readText() ?: ""
@@ -245,7 +252,9 @@ class ZivpnEngine(
             } catch (e: Exception) { log("STDERR err: ${e.message}") }
         }.apply { isDaemon = true }.start()
 
+        log("[DBG] Lancement thread stdout...")
         // Lire stdout dans un thread séparé IMMÉDIATEMENT
+        log("[DBG] Thread stdout: démarrage lecture...")
         Thread {
             var lineCount = 0
             try {
@@ -309,7 +318,7 @@ class ZivpnEngine(
         }.apply { name = "zivpn-reader"; isDaemon = true; priority = Thread.MAX_PRIORITY }.start()
 
         // Attendre 100ms et vérifier si le process est déjà mort
-        // early exit check sans sleep
+        log("[DBG] Vérification early exit...")
         try {
             val earlyExit = zivpnProcess?.exitValue()
             log("⚠️ CRASH IMMÉDIAT après 100ms — exit code: $earlyExit")
@@ -320,8 +329,9 @@ class ZivpnEngine(
                 log("  $lib: ${if (java.io.File(lib).exists()) "✅" else "❌ MANQUANT"}")
             }
         } catch (_: IllegalThreadStateException) {
-            log("✅ Process toujours actif après 100ms — bon signe")
+            log("✅ Process toujours actif — bon signe")
         }
+        log("[DBG] startZivpnProcess terminée — retour")
     }
 
     override fun startTun2Socks(fd: Int) {
