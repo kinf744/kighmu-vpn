@@ -232,6 +232,7 @@ class ZivpnEngine(
             environment()["GOTRACEBACK"]       = "crash"
             environment()["GODEBUG"]           = "asyncpreemptoff=1"
             redirectErrorStream(false)
+            redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
         }
         val stderrFile = java.io.File(context.filesDir, "zivpn_stderr.txt")
         log("[DBG] pb.start() appelé...")
