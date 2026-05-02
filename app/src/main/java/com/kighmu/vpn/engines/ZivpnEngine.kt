@@ -1,3 +1,4 @@
+// FIX: ensure libuz.so extraction and process handling
 package com.kighmu.vpn.engines
 
 import android.content.Context
@@ -220,7 +221,8 @@ class ZivpnEngine(
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
             val serverAddr2 = config.zivpnHost.trim() + ":" + (config.zivpnPort.ifBlank { "6000-19999" }.split("-").firstOrNull()?.trim() ?: "6000")
-            val cmd = listOf(binary.absolutePath, "udp-zivpn", "--config", configFile.absolutePath)
+            val jsonConfig = configFile.readText() // Use JSON directly as argument (original method)
+            val cmd = listOf(binary.absolutePath, "-s", serverAddr2, "--config", jsonConfig)
             log("Commande directe: ${cmd.joinToString(" ")}")
         log("[DBG] Création ProcessBuilder...")
         if (!running) { log("Annulé: stop() appelé avant lancement"); return }
