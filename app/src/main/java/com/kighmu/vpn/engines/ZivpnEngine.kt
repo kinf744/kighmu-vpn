@@ -224,14 +224,10 @@ class ZivpnEngine(
             log("Commande directe: ${cmd.joinToString(" ")}")
         log("[DBG] Création ProcessBuilder...")
         if (!running) { log("Annulé: stop() appelé avant lancement"); return }
-        val pb = ProcessBuilder(cmd).directory(context.noBackupFilesDir).apply {
-            environment()["HOME"]             = context.filesDir.absolutePath
-            environment()["TMPDIR"]           = context.cacheDir.absolutePath
-            environment()["ZIVPN_LOG_LEVEL"]  = "debug"
-            environment()["ZIVPN_LOG_FORMAT"] = "console"
-            environment()["GOTRACEBACK"]       = "crash"
-            environment()["GODEBUG"]           = "asyncpreemptoff=1"
-            redirectErrorStream(false)
+        val pb = ProcessBuilder(cmd).apply {
+            environment()["HOME"] = context.filesDir.absolutePath
+            environment()["TMPDIR"] = context.cacheDir.absolutePath
+            redirectErrorStream(true)
             redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null")))
         }
         val stderrFile = java.io.File(context.filesDir, "zivpn_stderr.txt")

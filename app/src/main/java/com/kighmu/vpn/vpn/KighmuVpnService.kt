@@ -72,6 +72,7 @@ class KighmuVpnService : VpnService() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onCreate() {
+        logToFile("=== SERVICE CREATED ===")
         super.onCreate()
         instance = this
         configManager = ConfigManager(this)
@@ -126,6 +127,7 @@ class KighmuVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        logToFile("[CMD] action=${intent?.action} flags=$flags")
         startForeground(NOTIFICATION_ID, buildNotification("Connecting"))
         when (intent?.action) {
             ACTION_START -> startVpn()
@@ -139,7 +141,7 @@ class KighmuVpnService : VpnService() {
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
     override fun onRevoke() {
-        logToFile("=== VPN REVOKED BY ANDROID ===")
+        logToFile("=== VPN REVOKED BY ANDROID === status=$currentStatus userRequestedStop=$userRequestedStop isStartingVpn=$isStartingVpn")
         logToFile("userRequestedStop=$userRequestedStop")
         // Android révoque le VPN - on reconnecte immédiatement
         KighmuLogger.info(TAG, "VPN révoqué par Android - reconnexion...")
@@ -159,7 +161,7 @@ class KighmuVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        logToFile("=== SERVICE DESTROYED ===")
+        logToFile("=== SERVICE DESTROYED === status=$currentStatus isStartingVpn=$isStartingVpn reconnect=$reconnectAttempts")
         logToFile("userRequestedStop=$userRequestedStop")
         logToFile("reconnectAttempts=$reconnectAttempts")
         logToFile("currentStatus=$currentStatus")
@@ -201,6 +203,7 @@ class KighmuVpnService : VpnService() {
                 val validationResult = ConfigEncryption.validateConfig(this@KighmuVpnService, currentConfig)
                 when (validationResult) {
                     is ConfigEncryption.ValidationResult.Expired -> {
+                        logToFile("[DBG] Config expirée — arrêt")
                         updateStatus(ConnectionStatus.ERROR, "Config expired")
                         return@launch
                     }
@@ -273,19 +276,24 @@ class KighmuVpnService : VpnService() {
 
 
                 val localPort = try {
-                    tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
-                    tunnelEngine!!.start()
+                    logToFile("[DBG] Création TunnelEngine mode=${currentConfig.tunnelMode.label}")
+                tunnelEngine = TunnelEngineFactory.create(currentConfig, this@KighmuVpnService, this@KighmuVpnService)
+                logToFile("[DBG] TunnelEngine créé OK")
+                    logToFile("[DBG] Appel engine.start()...")
+                tunnelEngine!!.start().also { logToFile("[DBG] engine.start() retourné port=$it") }
                 } catch (e: Exception) {
                     KighmuLogger.error("VpnService", "Engine failed: ${e.javaClass.simpleName}: ${e.message}")
                     try { tempVpn?.close() } catch (_: Exception) {}
                     if (!userRequestedStop && reconnectAttempts < MAX_RECONNECT) {
                         reconnectAttempts++
                         isStartingVpn = false // Reset pour permettre la reconnexion
+                        logToFile("[DBG] RECONNEXION tentative=$reconnectAttempts/$MAX_RECONNECT")
                         updateStatus(ConnectionStatus.CONNECTING, "Reconnecting... ($reconnectAttempts/$MAX_RECONNECT)")
                         delay(RECONNECT_DELAY)
                         startVpn()
                     } else {
                         reconnectAttempts = 0
+                        logToFile("[DBG] ECHEC FINAL apres $MAX_RECONNECT tentatives")
                         updateStatus(ConnectionStatus.ERROR, "Echec apres $MAX_RECONNECT tentatives")
                     }
                     isStartingVpn = false
@@ -300,8 +308,11 @@ class KighmuVpnService : VpnService() {
                 vpnInterface = null
 
                 updateStatus(ConnectionStatus.CONNECTING, "Creating VPN interface...")
+                logToFile("[DBG] buildVpnInterface port=$localPort")
                 vpnInterface = buildVpnInterface(localPort)
+                logToFile("[DBG] vpnInterface=${if(vpnInterface==null) "NULL" else "OK fd=${vpnInterface!!.fd}"}")
                 if (vpnInterface == null) {
+                    logToFile("[DBG] ERREUR: vpnInterface null après buildVpnInterface")
                     updateStatus(ConnectionStatus.ERROR, "Failed to create VPN interface")
                     try { tunnelEngine?.stop() } catch (_: Exception) {}
                     return@launch
@@ -310,7 +321,9 @@ class KighmuVpnService : VpnService() {
                 // Routing via tun2socks JNI (arm64) ou Kotlin relay (fallback)
                 // Garder vpnInterface ouvert - le fermer au stop libère la clé VPN
                 KighmuLogger.info("VpnService", "Appel startTun2Socks fd=${vpnInterface!!.fd}")
+                logToFile("[DBG] Appel startTun2Socks fd=${vpnInterface!!.fd}")
                 tunnelEngine?.startTun2Socks(vpnInterface!!.fd)
+                logToFile("[DBG] startTun2Socks terminé")
                 KighmuLogger.info("VpnService", "startTun2Socks terminé")
 
                 reconnectAttempts = 0
@@ -323,6 +336,7 @@ class KighmuVpnService : VpnService() {
 
             } catch (e: Exception) {
                 logToFile("=== VPN START ERROR ===")
+                logToFile("[DBG] Stack: ${e.stackTraceToString().take(300)}")
                 logToFile("Exception: ${e.javaClass.simpleName}: ${e.message}")
                 Log.e(TAG, "VPN start error", e)
                 updateStatus(ConnectionStatus.ERROR, e.message ?: "Connection failed")
@@ -333,6 +347,8 @@ class KighmuVpnService : VpnService() {
                     private fun stopVpn() {
         userRequestedStop = true
         KighmuLogger.info(TAG, "=== DÉCONNEXION NUCLÉAIRE DÉMARRÉE ===")
+        logToFile("=== STOP VPN === status=$currentStatus reconnectAttempts=$reconnectAttempts isStartingVpn=$isStartingVpn")
+        logToFile("[DBG] stopVpn appelé depuis: ${Thread.currentThread().stackTrace.take(5).joinToString(" < ") { it.methodName }}")
         
         // 1. Libérer WakeLock immédiatement
         try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
@@ -413,6 +429,7 @@ class KighmuVpnService : VpnService() {
                 .build()
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
+                    logToFile("[NET] onAvailable status=$currentStatus")
                     KighmuLogger.info(TAG, "Réseau disponible → vérification état")
                     if (!userRequestedStop &&
                         (currentStatus == ConnectionStatus.DISCONNECTED ||
@@ -430,6 +447,7 @@ class KighmuVpnService : VpnService() {
                     }
                 }
                 override fun onLost(network: Network) {
+                    logToFile("[NET] onLost status=$currentStatus")
                     KighmuLogger.info(TAG, "Réseau perdu → attente rétablissement")
                 }
             }
@@ -449,6 +467,7 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun reconnect() {
+        logToFile("[DBG] reconnect() appelé status=$currentStatus")
         serviceScope.launch {
             try { tunnelEngine?.stop() } catch (_: Exception) {}
             tunnelEngine = null
@@ -462,6 +481,7 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun buildVpnInterface(@Suppress("UNUSED_PARAMETER") localProxyPort: Int): ParcelFileDescriptor? {
+        logToFile("[DBG] buildVpnInterface START port=$localProxyPort")
         val prefs = getSharedPreferences("kighmu_prefs", android.content.Context.MODE_PRIVATE)
 
         // Lire les settings utilisateur
@@ -559,10 +579,12 @@ class KighmuVpnService : VpnService() {
     }
 
     private fun handleReconnect() {
+        logToFile("[DBG] handleReconnect() status=$currentStatus")
         // Ne jamais fermer le service - juste signaler l'erreur
     }
 
     private fun updateStatus(status: ConnectionStatus, message: String = "") {
+        logToFile("[STATUS] $currentStatus -> $status msg=$message")
         try {
             currentStatus = status
             KighmuLogger.log(message, if (status == ConnectionStatus.ERROR) LogEntry.LogLevel.ERROR else LogEntry.LogLevel.INFO)
@@ -593,7 +615,7 @@ class KighmuVpnService : VpnService() {
                 if (!userRequestedStop && currentStatus == ConnectionStatus.CONNECTED) {
                     val engine = tunnelEngine
                     if (engine == null || !engine.isRunning()) {
-                        logToFile("WATCHDOG: engine mort - reconnexion")
+                        logToFile("WATCHDOG: engine mort - reconnexion status=$currentStatus engine=${engine?.javaClass?.simpleName} isRunning=${engine?.isRunning()}")
                         try { vpnInterface?.close() } catch (_: Exception) {}
                         vpnInterface = null
                         startVpn()
