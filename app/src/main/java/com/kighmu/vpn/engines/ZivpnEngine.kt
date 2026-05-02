@@ -309,7 +309,7 @@ class ZivpnEngine(
         }.apply { name = "zivpn-reader"; isDaemon = true; priority = Thread.MAX_PRIORITY }.start()
 
         // Attendre 100ms et vérifier si le process est déjà mort
-        Thread.sleep(100)
+        // early exit check sans sleep
         try {
             val earlyExit = zivpnProcess?.exitValue()
             log("⚠️ CRASH IMMÉDIAT après 100ms — exit code: $earlyExit")
