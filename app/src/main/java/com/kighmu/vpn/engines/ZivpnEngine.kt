@@ -173,23 +173,15 @@ class ZivpnEngine(
     }
 
     private fun extractBinary(name: String): File? {
-        // Lancer depuis nativeLibraryDir (SELinux autorisé avec extractNativeLibs=true)
+        // Run directly from nativeLibraryDir – this location is allowed by SELinux when extractNativeLibs="true"
         val src = File(context.applicationInfo.nativeLibraryDir, name)
         if (!src.exists()) {
             log("ERREUR: ${name} introuvable dans nativeLibraryDir")
             return null
         }
-        val bin = File(context.filesDir, name)
-        try {
-            src.copyTo(bin, overwrite = true)
-            bin.setExecutable(true, false)
-        } catch (e: Exception) {
-            log("Copie echouee: ${e.message}")
-            src.setExecutable(true)
-            return src
-        }
-        log("Binaire: ${bin.absolutePath} (" + bin.length() + " octets, exec=" + bin.canExecute() + ")")
-        return bin
+        // No copy to filesDir – execute the original library file
+        log("Binaire (native): ${src.absolutePath} (${src.length()} octets, exec=${src.canExecute()})")
+        return src
     }
     private fun startZivpnProcess(binary: File, configFile: File) {
         // Test --help supprimé (obsolète)
@@ -221,7 +213,7 @@ class ZivpnEngine(
         log("noBackupFilesDir exists=${context.noBackupFilesDir.exists()}")
         log("=================================")
             // Commande simplifiée : on passe uniquement le fichier de config
-            val cmd = listOf(binary.absolutePath, "--config", configFile.absolutePath)
+            val cmd = listOf(binary.absolutePath, "-s", "--config", configFile.absolutePath)
             log("Commande construite: ${cmd.joinToString(" ")}")
         log("[DBG] Création ProcessBuilder...")
         if (!running) {
